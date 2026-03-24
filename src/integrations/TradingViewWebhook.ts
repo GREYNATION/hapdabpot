@@ -12,6 +12,13 @@ const trader = new MasterTraderAgent();
 app.post('/webhook/tradingview', async (req: Request, res: Response) => {
   try {
     const alert = req.body;
+    
+    // Security check: Validate secret token
+    const expectedSecret = process.env.TRADINGVIEW_WEBHOOK_SECRET;
+    if (expectedSecret && alert.secret !== expectedSecret) {
+      console.warn(`🚨 WARNING: Unauthorized webhook attempt blocked.`);
+      return res.status(401).json({ error: 'Unauthorized payload' });
+    }
 
     console.log(`\n📨 TradingView Alert Received:`);
     console.log(`Symbol: ${alert.symbol}`);
@@ -79,7 +86,14 @@ app.post('/webhook/tradingview', async (req: Request, res: Response) => {
  * Manual trade close endpoint
  */
 app.post('/webhook/close-trade', (req: Request, res: Response) => {
-  const { tradeId, exitPrice, reason } = req.body;
+  const { tradeId, exitPrice, reason, secret } = req.body;
+
+  // Security check: Validate secret token
+  const expectedSecret = process.env.TRADINGVIEW_WEBHOOK_SECRET;
+  if (expectedSecret && secret !== expectedSecret) {
+    console.warn(`🚨 WARNING: Unauthorized webhook attempt blocked.`);
+    return res.status(401).json({ error: 'Unauthorized payload' });
+  }
 
   const closedTrade = trader.closeTrade(tradeId, parseFloat(exitPrice), reason);
 
