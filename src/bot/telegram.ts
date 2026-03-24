@@ -8,6 +8,7 @@ import { openai, config, log } from "../core/config.js";
 import { SKILLS } from "../core/skills.js";
 import { ResearcherAgent } from "../agents/researcherAgent.js";
 import { MarketerAgent } from "../agents/marketerAgent.js";
+import { MasterTraderAgent } from "../agents/MasterTraderAgent.js";
 import { PropertyScraper } from "../core/scraper.js";
 import { SkipTracer } from "../core/skiptrace.js";
 import fs from "fs";
@@ -28,6 +29,7 @@ interface AnalysisSession {
 export class TelegramBot {
     private bot: Telegraf;
     private marketer = new MarketerAgent();
+    private masterTrader = new MasterTraderAgent();
     private analysisSessions = new Map<number, AnalysisSession>();
     private isBusy = false;
 
@@ -47,6 +49,7 @@ export class TelegramBot {
         this.setupProcessHandlers();
         this.setupBuildHandler();
         this.setupHandlers();
+        this.setupTradingHandlers();
     }
 
     private setupMiddleware() {
@@ -566,6 +569,23 @@ export class TelegramBot {
             });
 
             return ctx.reply(response);
+        });
+    }
+
+    private setupTradingHandlers() {
+        this.bot.command('trade', (ctx) => {
+            const state = this.masterTrader.getState();
+            ctx.reply(`
+📊 TRADER STATUS
+━━━━━━━━━━━━━━━━━━
+Open: ${state.openTrades.length}
+P&L: $${state.totalPnL.toFixed(2)}
+Win Rate: ${(state.winRate * 100).toFixed(1)}%
+            `);
+        });
+
+        this.bot.command('performance', (ctx) => {
+            ctx.reply(this.masterTrader.getPerformanceSummary());
         });
     }
 
