@@ -48,8 +48,8 @@ export class TelegramBot {
         this.setupTaskHandlers();
         this.setupProcessHandlers();
         this.setupBuildHandler();
-        this.setupHandlers();
         this.setupTradingHandlers();
+        this.setupHandlers();
     }
 
     private setupMiddleware() {
