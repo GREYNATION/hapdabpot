@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { OpenRouter } from "@openrouter/sdk";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+
 import Anthropic from "@anthropic-ai/sdk";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -16,8 +16,9 @@ export const config = {
         .filter(id => !isNaN(id)),
     openaiApiKey: (process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY)?.trim(),
     openaiBaseUrl: process.env.OPENAI_BASE_URL?.trim() || "https://openrouter.ai/api/v1",
-    openaiModel: process.env.OPENAI_MODEL?.trim() || "google/gemini-2.0-flash-001",
-    backupModel: process.env.BACKUP_MODEL?.trim() || "llama-3.3-70b-versatile",
+    openaiModel: process.env.OPENAI_MODEL?.trim() || "openai/gpt-4o-mini",
+    backupModel: process.env.BACKUP_MODEL?.trim() || "meta-llama/llama-3.3-70b-instruct",
+    visionModel: process.env.VISION_MODEL?.trim() || "openai/gpt-4o-mini",
     elevenKey: process.env.ELEVENLABS_API_KEY?.trim(),
     elevenVoiceId: process.env.ELEVENLABS_VOICE_ID?.trim() || "pNInz6obpg8ndEao7mAl",
     runwayApiKey: process.env.RUNWAY_API_KEY?.trim(),
@@ -30,14 +31,14 @@ export const config = {
     anthropicApiKey: process.env.ANTHROPIC_API_KEY?.trim(),
     geminiApiKey: process.env.GEMINI_API_KEY?.trim(),
     geminiModel: process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash",
-    visionModel: process.env.VISION_MODEL?.trim() || "google/gemini-2.0-flash-001",
+
     aiProvider: (process.env.AI_PROVIDER?.trim() || "openrouter") as "openrouter" | "gemini" | "anthropic",
     ownerId: (process.env.TELEGRAM_OWNER_ID ? parseInt(process.env.TELEGRAM_OWNER_ID) : undefined),
+    glm5turboapikey: "bc9acf3d7cf44d7ab61ca63df309adab.KbLFEbBbSMD4A21K"
 };
-
 // Set default owner if not explicitly provided
-if (!config.ownerId && config.allowedUserIds.length > 0) {
-    config.ownerId = config.allowedUserIds[0];
+if(!config.ownerId && config.allowedUserIds.length > 0) {
+        config.ownerId = config.allowedUserIds[0];
 }
 
 log(`[system] Config loaded. Provider: ${config.aiProvider}`);
@@ -51,7 +52,7 @@ export const openrouter = new OpenRouter({
     apiKey: config.openaiApiKey,
 });
 
-export const gemini = config.geminiApiKey ? new GoogleGenerativeAI(config.geminiApiKey) : null;
+export const gemini = null;
 export const anthropic = config.anthropicApiKey ? new Anthropic({ apiKey: config.anthropicApiKey }) : null;
 
 export function log(msg: string, level: "info" | "warn" | "error" = "info") {

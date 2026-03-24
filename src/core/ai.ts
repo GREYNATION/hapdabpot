@@ -1,4 +1,4 @@
-import { openai, gemini, anthropic, config, log } from "./config.js";
+import { openai, anthropic, config, log } from "./config.js";
 
 export interface ToolCall {
     id: string;
@@ -27,8 +27,8 @@ export interface AIOptions {
  * Unified interface for calling different AI providers.
  */
 export async function askAI(
-    prompt: string, 
-    systemPrompt: string = "You are a helpful assistant.", 
+    prompt: string,
+    systemPrompt: string = "You are a helpful assistant.",
     options: AIOptions = {}
 ): Promise<AIResponse> {
     const provider = config.aiProvider;
@@ -61,55 +61,12 @@ export async function askAI(
         }
 
         if (provider === "gemini") {
-            if (!gemini) throw new Error("Gemini client not initialized.");
-
-            const system = options.messages?.find(m => m.role === 'system')?.content || systemPrompt;
-            const modelToUse = options.model || config.geminiModel;
-            
-            const genModel = gemini.getGenerativeModel({
-                model: modelToUse.includes("/") ? modelToUse.split("/")[1] : modelToUse,
-                systemInstruction: system
-            });
-
-            // 💎 MULTIMODAL GEMINI HISTORY SUPPORT
-            if (options.messages) {
-                const contents = options.messages
-                    .filter(m => m.role !== 'system') // Filter out system role for contents array
-                    .map(m => {
-                        const role = (m.role === "assistant") ? "model" : "user";
-                        const parts: any[] = [];
-                        
-                        if (Array.isArray(m.content)) {
-                            for (const part of m.content) {
-                                if (part.type === "text") parts.push({ text: part.text });
-                                if (part.type === "image_url") {
-                                    const base64 = part.image_url.url.split(",")[1];
-                                    const mime = part.image_url.url.split(";")[0].split(":")[1];
-                                    parts.push({ inlineData: { data: base64, mimeType: mime } });
-                                }
-                            }
-                        } else {
-                            parts.push({ text: m.content || "..." });
-                        }
-                        
-                        return { role, parts };
-                    });
-
-                const result = await genModel.generateContent({ contents });
-                const response = await result.response;
-                return { content: response.text().trim() };
-            }
-
-            const result = await genModel.generateContent(prompt);
-            const response = await result.response;
-            return {
-                content: response.text().trim()
-            };
+            throw new Error("Gemini SDK has been removed. Please use OpenRouter for Gemini models.");
         }
 
         if (provider === "anthropic") {
             if (!anthropic) throw new Error("Anthropic client not initialized.");
-            
+
             const messages = options.messages?.filter(m => m.role !== 'system') || [{ role: "user", content: prompt }];
             const system = options.messages?.find(m => m.role === 'system')?.content || systemPrompt;
 
