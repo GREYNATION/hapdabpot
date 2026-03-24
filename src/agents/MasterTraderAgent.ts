@@ -301,9 +301,9 @@ ${
     ? this.state.openTrades
         .map(
           t =>
-            \`  \${t.symbol} - \${t.signal} @ $\${t.entryPrice} (\${t.size} units)\`
+            `  ${t.symbol} - ${t.signal} @ $${t.entryPrice} (${t.size} units)`
         )
-        .join('\\n')
+        .join('\n')
     : '  No open positions'
 }
     `;
