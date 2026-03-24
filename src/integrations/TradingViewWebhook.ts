@@ -1,5 +1,5 @@
-import express from 'express';
-import { MasterTraderAgent, PriceLevel } from '../agents/MasterTraderAgent';
+import express, { Request, Response } from 'express';
+import { MasterTraderAgent, PriceLevel } from '../agents/MasterTraderAgent.js';
 
 const app = express();
 app.use(express.json());
@@ -9,7 +9,7 @@ const trader = new MasterTraderAgent();
 /**
  * Webhook endpoint that receives TradingView alerts
  */
-app.post('/webhook/tradingview', async (req, res) => {
+app.post('/webhook/tradingview', async (req: Request, res: Response) => {
   try {
     const alert = req.body;
 
@@ -38,8 +38,8 @@ app.post('/webhook/tradingview', async (req, res) => {
         priceData.symbol,
         'IQ_BUY',
         priceData.price,
-        priceData.support,
-        priceData.resistance
+        priceData.support || 0,
+        priceData.resistance || 0
       );
 
       // Send notification back
@@ -53,8 +53,8 @@ app.post('/webhook/tradingview', async (req, res) => {
         priceData.symbol,
         'IQ_SELL',
         priceData.price,
-        priceData.support,
-        priceData.resistance
+        priceData.support || 0,
+        priceData.resistance || 0
       );
 
       res.json({
@@ -78,7 +78,7 @@ app.post('/webhook/tradingview', async (req, res) => {
 /**
  * Manual trade close endpoint
  */
-app.post('/webhook/close-trade', (req, res) => {
+app.post('/webhook/close-trade', (req: Request, res: Response) => {
   const { tradeId, exitPrice, reason } = req.body;
 
   const closedTrade = trader.closeTrade(tradeId, parseFloat(exitPrice), reason);
@@ -97,7 +97,7 @@ app.post('/webhook/close-trade', (req, res) => {
 /**
  * Get trader state endpoint
  */
-app.get('/api/trader-state', (req, res) => {
+app.get('/api/trader-state', (req: Request, res: Response) => {
   res.json({
     state: trader.getState(),
     summary: trader.getPerformanceSummary(),
@@ -107,10 +107,10 @@ app.get('/api/trader-state', (req, res) => {
 /**
  * Get performance metrics
  */
-app.get('/api/performance', (req, res) => {
+app.get('/api/performance', (req: Request, res: Response) => {
   const state = trader.getState();
   const totalTrades = state.closedTrades.length;
-  const winners = state.closedTrades.filter(t => (t.profitLoss || 0) > 0).length;
+  const winners = state.closedTrades.filter((t: any) => (t.profitLoss || 0) > 0).length;
 
   res.json({
     totalTrades,
