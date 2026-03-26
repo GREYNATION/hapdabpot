@@ -4,7 +4,7 @@ import { ai, manager } from "../core/manager.js";
 import { simpleChat } from "../core/ai.js";
 import { executeTask } from "../core/executor.js";
 import { initDb } from "../core/memory.js";
-import { storeMemory, getMemories, formatMemoriesAsContext, isSupabaseEnabled } from "../core/supabaseMemory.js";
+import { storeMemory, getMemories, chat as supabaseChat, isSupabaseEnabled } from "../core/supabaseMemory.js";
 import { openai, config, log } from "../core/config.js";
 import { SKILLS } from "../core/skills.js";
 import { ResearcherAgent } from "../agents/researcherAgent.js";
@@ -450,19 +450,9 @@ export class TelegramBot {
 
                 // 4. 💬 NORMAL CHAT — with Supabase vector memory
                 const userId = String(ctx.from?.id ?? "unknown");
-                let memoryContext = "";
-                if (isSupabaseEnabled()) {
-                    try {
-                        const memories = await getMemories(userId, text);
-                        memoryContext = formatMemoriesAsContext(memories);
-                    } catch { /* memory fetch failure is non-blocking */ }
-                }
-                const response = await simpleChat(memoryContext ? `${memoryContext}\n${text}` : text);
-                // Store exchange asynchronously — don't block the reply
-                if (isSupabaseEnabled()) {
-                    storeMemory(userId, `User: ${text}`).catch(() => {});
-                    storeMemory(userId, `Assistant: ${response}`).catch(() => {});
-                }
+                const response = isSupabaseEnabled()
+                    ? await supabaseChat(userId, text)
+                    : await simpleChat(text);
                 return reply(response);
 
             } catch (err: any) {

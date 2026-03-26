@@ -76,16 +76,19 @@ async function getEmbedding(text: string): Promise<number[]> {
     return res.data[0].embedding;
 }
 
-// ── Store a new memory ────────────────────────────────────
+// ── Store a new memory (named export for direct use) ──────
 export async function storeMemory(userId: string, content: string): Promise<void> {
+    return saveMemory(userId, content);
+}
+
+async function saveMemory(userId: string, message: string): Promise<void> {
     try {
-        const embedding = await getEmbedding(content);
+        const embedding = await getEmbedding(message);
         const { error } = await getSupabase()
             .from("memories")
-            .insert({ user_id: userId, content, embedding });
-
+            .insert({ user_id: userId, content: message, embedding });
         if (error) throw error;
-        log(`[memory] ✅ Stored memory for user ${userId}: "${content.slice(0, 60)}..."`);
+        log(`[memory] ✅ Stored memory for user ${userId}: "${message.slice(0, 60)}..."`);
     } catch (err: any) {
         log(`[memory] ⚠️  Failed to store memory: ${err.message}`, "warn");
     }
@@ -100,14 +103,12 @@ export async function getMemories(
 ): Promise<Memory[]> {
     try {
         const embedding = await getEmbedding(message);
-
         const { data, error } = await getSupabase().rpc("match_memories", {
             query_embedding: embedding,
             match_threshold: threshold,
             match_count: count,
             p_user_id: userId,
         });
-
         if (error) throw error;
         return (data ?? []) as Memory[];
     } catch (err: any) {
@@ -116,11 +117,33 @@ export async function getMemories(
     }
 }
 
-// ── Format memories as context string for AI prompt ───────
-export function formatMemoriesAsContext(memories: Memory[]): string {
-    if (memories.length === 0) return "";
-    const lines = memories.map(m => `• ${m.content}`).join("\n");
-    return `\n[Relevant past context for this user]\n${lines}\n`;
+// ── Full chat() wrapper: memory → prompt → AI → store ────
+export async function chat(userId: string, message: string): Promise<string> {
+    // 1. Retrieve relevant past memories
+    const memories = await getMemories(userId, message);
+    const memoryText = memories.map(m => m.content).join("\n");
+
+    // 2. Build prompt with memory context
+    const prompt = `You are hapda_bot — a sharp, capable AI assistant.
+${
+    memoryText
+        ? `\nRelevant past memories:\n${memoryText}\n`
+        : ""
+}
+User: ${message}`;
+
+    // 3. Generate response
+    const response = await getOpenAI().chat.completions.create({
+        model: (process.env.OPENAI_MODEL ?? "gpt-4o-mini"),
+        messages: [{ role: "user", content: prompt }],
+    });
+
+    const reply = response.choices[0]?.message?.content ?? "I couldn't generate a response.";
+
+    // 4. Save the user's message to memory (non-blocking)
+    saveMemory(userId, message).catch(() => {});
+
+    return reply;
 }
 
 // ── Check if Supabase is configured ──────────────────────
