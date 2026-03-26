@@ -14,7 +14,8 @@ import type {
     Dashboard,
 } from "./types.js";
 
-const DATA_DIR = path.join(process.cwd(), "data", "outtheway");
+const BASE_DIR = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
+const DATA_DIR = path.join(BASE_DIR, "outtheway");
 const DASHBOARD_PATH = path.join(DATA_DIR, "dashboard.json");
 const LOG_PATH = path.join(DATA_DIR, "monitor.log");
 const MAX_LOG_EVENTS = 500;

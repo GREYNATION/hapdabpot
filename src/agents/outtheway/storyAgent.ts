@@ -12,7 +12,8 @@ import { CHARACTERS } from "./types.js";
 import type { Episode, Scene, AgentEvent } from "./types.js";
 import type { MonitoringAgent } from "./monitoringAgent.js";
 
-const DATA_DIR = path.join(process.cwd(), "data", "outtheway", "episodes");
+const BASE_DIR = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
+const DATA_DIR = path.join(BASE_DIR, "outtheway", "episodes");
 
 export class StoryAgent extends BaseAgent {
     private monitor: MonitoringAgent;

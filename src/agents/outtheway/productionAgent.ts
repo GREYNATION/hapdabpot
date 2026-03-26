@@ -15,8 +15,9 @@ import { CHARACTERS } from "./types.js";
 import type { Scene, AgentEvent } from "./types.js";
 import type { MonitoringAgent } from "./monitoringAgent.js";
 
-const CLIPS_DIR  = path.join(process.cwd(), "data", "outtheway", "clips");
-const OUTPUT_DIR = path.join(process.cwd(), "data", "outtheway", "output");
+const BASE_DIR   = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
+const CLIPS_DIR  = path.join(BASE_DIR, "outtheway", "clips");
+const OUTPUT_DIR = path.join(BASE_DIR, "outtheway", "output");
 
 // ── Runway API constants ──────────────────────────────────────────────
 const RUNWAY_API  = "https://api.dev.runwayml.com/v1";

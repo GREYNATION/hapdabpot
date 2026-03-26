@@ -11,8 +11,9 @@ import { log } from "../../core/config.js";
 import type { Episode, Scene, AgentEvent } from "./types.js";
 import type { MonitoringAgent } from "./monitoringAgent.js";
 
-const OUTPUT_DIR = path.join(process.cwd(), "data", "outtheway", "output");
-const CLIPS_DIR  = path.join(process.cwd(), "data", "outtheway", "clips");
+const BASE_DIR   = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
+const OUTPUT_DIR = path.join(BASE_DIR, "outtheway", "output");
+const CLIPS_DIR  = path.join(BASE_DIR, "outtheway", "clips");
 
 export class AssemblyAgent {
     private monitor: MonitoringAgent;
