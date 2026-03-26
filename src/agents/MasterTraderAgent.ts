@@ -1,4 +1,5 @@
 import { Anthropic } from '@anthropic-ai/sdk';
+import { TradovateClient } from '../integrations/TradovateClient.js';
 
 interface PriceLevel {
   symbol: string;
@@ -37,11 +38,15 @@ class MasterTraderAgent {
   private client: Anthropic;
   private state: MasterTraderState;
   private conversationHistory: Array<{ role: string; content: string }> = [];
+  private tradovate: TradovateClient;
 
   constructor() {
     this.client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY
     });
+    // Safely default to DEMO unless explicitly set to true
+    const useLive = process.env.TRADOVATE_USE_LIVE === 'true';
+    this.tradovate = new TradovateClient(useLive);
     this.state = {
       openTrades: [],
       closedTrades: [],
@@ -176,7 +181,19 @@ Provide:
       status: 'OPEN',
     };
 
-    this.state.openTrades.push(trade);
+    try {
+      // 🚨 LIVE EXECUTION HOOK 🚨
+      const action = signal === 'IQ_BUY' ? 'Buy' : 'Sell';
+      
+      // Attempt to place the actual live order via Tradovate REST API
+      await this.tradovate.placeMarketOrder(symbol, action, trade.size);
+      
+      this.state.openTrades.push(trade);
+    } catch (error: any) {
+      console.error(`🚨 TRADOVATE EXECUTION FAILED:`, error.message);
+      trade.status = 'FAILED' as any;
+      // We still return the trade so the dashboard/webhook sees the failure
+    }
 
     // Log trade
     console.log(`✅ Trade Opened:
@@ -338,6 +355,28 @@ ${
   resetConversation(): void {
     this.conversationHistory = [];
   }
+  /**
+   * Get local state + optionally enrich with live Tradovate data
+   */
+  async getLiveAccountState(): Promise<{ state: MasterTraderState; liveBalance: any | null }> {
+    let liveBalance = null;
+    try {
+      // Authenticate only if we have credentials
+      if (process.env.TRADOVATE_USERNAME && process.env.TRADOVATE_CID) {
+        const authed = await this.tradovate.authenticate();
+        if (authed) {
+          const risk = await this.tradovate.getAccountRisk();
+          if (risk && risk.length > 0) {
+            liveBalance = risk[0];
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn('[MasterTrader] Could not fetch live Tradovate balance:', e.message);
+    }
+    return { state: this.state, liveBalance };
+  }
+
 }
 
 export { MasterTraderAgent, PriceLevel, Trade, MasterTraderState };

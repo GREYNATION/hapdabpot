@@ -572,22 +572,7 @@ export class TelegramBot {
         });
     }
 
-    private setupTradingHandlers() {
-        this.bot.command('trade', (ctx) => {
-            const state = this.masterTrader.getState();
-            ctx.reply(`
-📊 TRADER STATUS
-━━━━━━━━━━━━━━━━━━
-Open: ${state.openTrades.length}
-P&L: $${state.totalPnL.toFixed(2)}
-Win Rate: ${(state.winRate * 100).toFixed(1)}%
-            `);
-        });
 
-        this.bot.command('performance', (ctx) => {
-            ctx.reply(this.masterTrader.getPerformanceSummary());
-        });
-    }
 
     private setupTaskHandlers() {
         this.bot.command("tasks", async (ctx) => {
@@ -681,6 +666,56 @@ Win Rate: ${(state.winRate * 100).toFixed(1)}%
         } finally {
             this.isBusy = false;
         }
+    }
+
+    private setupTradingHandlers() {
+        // /trade — Show live Tradovate account status
+        this.bot.command('trade', async (ctx) => {
+            if (!this.checkOwner(ctx)) return;
+            await ctx.reply('📡 Fetching live account data from Tradovate...');
+            try {
+                const { state, liveBalance } = await this.masterTrader.getLiveAccountState();
+                const balanceStr = liveBalance
+                    ? `💰 Live Balance: $${liveBalance.marginBalance?.toFixed(2) ?? 'N/A'}\n📉 Real P&L: $${liveBalance.realizedPnL?.toFixed(2) ?? 'N/A'}`
+                    : `⚠️ Could not reach Tradovate API (credentials missing or not yet configured).`;
+                const msg = `
+📊 MASTER TRADER STATUS
+━━━━━━━━━━━━━━━━━━
+${balanceStr}
+
+Open Trades (local): ${state.openTrades.length}
+Win Rate: ${(state.winRate * 100).toFixed(1)}%
+Total P&L (local): $${state.totalPnL.toFixed(2)}
+Last Signal: ${state.lastSignal ? state.lastSignal.slice(0, 80) + '...' : 'None yet'}
+`;
+                await this.safeReply(ctx, msg);
+            } catch (err: any) {
+                await this.safeReply(ctx, `❌ Error fetching trade data: ${err.message}`);
+            }
+        });
+
+        // /performance — Full performance breakdown
+        this.bot.command('performance', async (ctx) => {
+            if (!this.checkOwner(ctx)) return;
+            const summary = this.masterTrader.getPerformanceSummary();
+            await this.safeReply(ctx, summary);
+        });
+
+        // /tradehelp — How to use the trading system
+        this.bot.command('tradehelp', async (ctx) => {
+            await ctx.reply(`
+🤖 MASTER TRADER — HELP
+━━━━━━━━━━━━━━━━━━━━━━
+/trade — Live account balance + open trades
+/performance — Full win rate & P&L report
+
+📡 TradingView Webhook URL:
+https://your-railway-app.up.railway.app/webhook/tradingview
+
+Set TRADOVATE_USE_LIVE=true in Railway env to go LIVE.
+Default: DEMO mode (no real money).
+            `);
+        });
     }
 
     public launch() {
