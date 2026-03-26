@@ -1,4 +1,3 @@
-import React from "react";
 import { OrbitControls, Line, PerspectiveCamera } from "@react-three/drei";
 import Agent from "./Agent";
 
