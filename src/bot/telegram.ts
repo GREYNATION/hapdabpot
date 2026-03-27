@@ -10,6 +10,7 @@ import { SKILLS } from "../core/skills.js";
 import { ResearcherAgent } from "../agents/researcherAgent.js";
 import { MarketerAgent } from "../agents/marketerAgent.js";
 import { MasterTraderAgent } from "../agents/MasterTraderAgent.js";
+import { scanMarkets, formatMarketsReport } from "../agents/predictionMarketAgent.js";
 import { PropertyScraper } from "../core/scraper.js";
 import { SkipTracer } from "../core/skiptrace.js";
 import fs from "fs";
@@ -719,6 +720,17 @@ https://your-railway-app.up.railway.app/webhook/tradingview
 Set TRADOVATE_USE_LIVE=true in Railway env to go LIVE.
 Default: DEMO mode (no real money).
             `);
+        });
+        // /markets — Prediction market scanner
+        this.bot.command('markets', async (ctx) => {
+            if (!this.checkOwner(ctx)) return;
+            await ctx.reply('🔍 Scanning Polymarket for signals...');
+            try {
+                const { filtered } = await scanMarkets();
+                await this.safeReply(ctx, formatMarketsReport(filtered));
+            } catch (err: any) {
+                await this.safeReply(ctx, `❌ Market scan failed: ${err.message}`);
+            }
         });
     }
 

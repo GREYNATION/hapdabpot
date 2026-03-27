@@ -1,0 +1,133 @@
+// ============================================================
+// Prediction Market Scanner Agent
+// Fetches live markets from Polymarket (CLOB API) and applies
+// signal filters: liquidity, volume, time, and edge detection
+// ============================================================
+
+import axios from "axios";
+import { log } from "../core/config.js";
+
+// ── Types ──────────────────────────────────────────────────
+export type Market = {
+    id: string;
+    name: string;
+    volume: number;       // 24h volume in USD
+    liquidity: number;    // total liquidity in USD
+    daysToResolve: number;
+    priceChange: number;  // % change in best YES price over 24h
+    bestYes: number;      // current best YES price (0–100)
+    bestNo: number;       // current best NO price (0–100)
+    url: string;
+};
+
+// ── Polymarket CLOB API ────────────────────────────────────
+const POLY_API = "https://gamma-api.polymarket.com";
+
+async function fetchPolymarkets(limit = 100): Promise<Market[]> {
+    try {
+        const { data } = await axios.get(`${POLY_API}/markets`, {
+            params: {
+                active: true,
+                closed: false,
+                limit,
+                order: "volume24hr",
+                ascending: false,
+            },
+            timeout: 10_000,
+        });
+
+        const raw: any[] = Array.isArray(data) ? data : (data.markets ?? []);
+
+        return raw.map((m: any): Market => {
+            const endDate = m.endDate ? new Date(m.endDate) : null;
+            const daysToResolve = endDate
+                ? Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / 86_400_000))
+                : 999;
+
+            const bestYes = parseFloat(m.bestAsk ?? m.outcomePrices?.[0] ?? "50");
+            const bestNo  = parseFloat(m.bestBid  ?? m.outcomePrices?.[1] ?? "50");
+
+            // priceChange: use oneDayPriceChange if available, else 0
+            const priceChange = parseFloat(m.oneDayPriceChange ?? "0") * 100;
+
+            return {
+                id: m.conditionId ?? m.id ?? "",
+                name: m.question ?? m.title ?? "Unknown",
+                volume: parseFloat(m.volume24hr ?? m.volume ?? "0"),
+                liquidity: parseFloat(m.liquidity ?? "0"),
+                daysToResolve,
+                priceChange,
+                bestYes,
+                bestNo,
+                url: m.url ?? `https://polymarket.com/event/${m.slug ?? ""}`,
+            };
+        });
+    } catch (err: any) {
+        log(`[predMarket] ⚠️  API fetch failed: ${err.message}`, "warn");
+        return [];
+    }
+}
+
+// ── Signal Filters ─────────────────────────────────────────
+export function liquidityFilter(markets: Market[]): Market[] {
+    return markets.filter(m => m.liquidity > 50_000);
+}
+
+export function volumeFilter(markets: Market[]): Market[] {
+    return markets.filter(m => m.volume > 10_000);
+}
+
+export function timeFilter(markets: Market[]): Market[] {
+    return markets.filter(m => m.daysToResolve < 14);
+}
+
+export function edgeDetection(markets: Market[]): Market[] {
+    return markets.filter(m => Math.abs(m.priceChange) > 3);
+}
+
+// ── Combined scanner: apply all four filters ───────────────
+export function applyAllFilters(markets: Market[]): Market[] {
+    return edgeDetection(timeFilter(volumeFilter(liquidityFilter(markets))));
+}
+
+// ── Main entry point ───────────────────────────────────────
+export async function scanMarkets(): Promise<{
+    all: Market[];
+    filtered: Market[];
+}> {
+    log("[predMarket] 🔍 Fetching Polymarket live data...");
+    const all = await fetchPolymarkets(200);
+    const filtered = applyAllFilters(all);
+    log(`[predMarket] ✅ ${all.length} markets fetched, ${filtered.length} passed all filters`);
+    return { all, filtered };
+}
+
+// ── Format for Telegram ────────────────────────────────────
+export function formatMarketsReport(markets: Market[]): string {
+    if (markets.length === 0) {
+        return "🔍 No markets matched all filters right now. Try again later or adjust thresholds.";
+    }
+
+    const top = markets.slice(0, 8); // cap at 8 for readability
+    const lines = top.map((m, i) => {
+        const dir = m.priceChange > 0 ? "📈" : "📉";
+        const urgency = m.daysToResolve <= 3 ? "🔥" : m.daysToResolve <= 7 ? "⚡" : "📅";
+        return (
+            `${i + 1}. ${m.name.slice(0, 60)}${m.name.length > 60 ? "…" : ""}\n` +
+            `   ${dir} ${m.priceChange > 0 ? "+" : ""}${m.priceChange.toFixed(1)}% | ` +
+            `YES: ${m.bestYes}¢ | ` +
+            `Vol: $${(m.volume / 1000).toFixed(0)}K | ` +
+            `Liq: $${(m.liquidity / 1000).toFixed(0)}K | ` +
+            `${urgency} ${m.daysToResolve}d\n` +
+            `   🔗 ${m.url}`
+        );
+    });
+
+    return (
+        `📊 PREDICTION MARKET SCANNER\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `Filters: Liq >$50K | Vol >$10K | <14 days | Edge >3%\n` +
+        `Found ${markets.length} signal(s)\n\n` +
+        lines.join("\n\n")
+    );
+}
