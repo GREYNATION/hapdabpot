@@ -85,9 +85,13 @@ export function edgeDetection(markets: Market[]): Market[] {
     return markets.filter(m => Math.abs(m.priceChange) > 3);
 }
 
-// ── Combined scanner: apply all four filters ───────────────
-export function applyAllFilters(markets: Market[]): Market[] {
-    return edgeDetection(timeFilter(volumeFilter(liquidityFilter(markets))));
+// ── Pipeline: run all four filters in sequence ────────────
+export function runPipeline(markets: Market[]): Market[] {
+    let result = liquidityFilter(markets);
+    result = volumeFilter(result);
+    result = timeFilter(result);
+    result = edgeDetection(result);
+    return result;
 }
 
 // ── Main entry point ───────────────────────────────────────
@@ -97,7 +101,7 @@ export async function scanMarkets(): Promise<{
 }> {
     log("[predMarket] 🔍 Fetching Polymarket live data...");
     const all = await fetchPolymarkets(200);
-    const filtered = applyAllFilters(all);
+    const filtered = runPipeline(all);
     log(`[predMarket] ✅ ${all.length} markets fetched, ${filtered.length} passed all filters`);
     return { all, filtered };
 }
