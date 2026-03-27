@@ -1,3 +1,5 @@
+# Keep the Node.js provider (npm/node) AND add native build tools for better-sqlite3
+providers = ["node"]
+
 [phases.setup]
-# Required to compile better-sqlite3 native bindings via node-gyp
 nixPkgs = ["python311", "gnumake", "gcc", "libtool", "pkg-config"]
