@@ -5,7 +5,13 @@
 // ============================================================
 
 import axios from "axios";
+import OpenAI from "openai";
 import { log } from "../core/config.js";
+
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: process.env.OPENAI_BASE_URL,
+});
 
 // ── Types ──────────────────────────────────────────────────
 export type Market = {
@@ -134,4 +140,49 @@ export function formatMarketsReport(markets: Market[]): string {
         `Found ${markets.length} signal(s)\n\n` +
         lines.join("\n\n")
     );
+}
+// ── AI Decision Layer ───────────────────────────────────
+export async function analyzeWithAI(filteredMarkets: Market[]): Promise<string> {
+    if (filteredMarkets.length === 0) {
+        return "No filtered markets available for AI analysis.";
+    }
+
+    const slim = filteredMarkets.slice(0, 12).map(m => ({
+        name: m.name,
+        bestYes: m.bestYes,
+        bestNo: m.bestNo,
+        priceChange: `${m.priceChange > 0 ? "+" : ""}${m.priceChange.toFixed(1)}%`,
+        volume: `$${(m.volume / 1000).toFixed(0)}K`,
+        liquidity: `$${(m.liquidity / 1000).toFixed(0)}K`,
+        daysToResolve: m.daysToResolve,
+        url: m.url,
+    }));
+
+    try {
+        const aiDecision = await openai.chat.completions.create({
+            model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+            messages: [
+                {
+                    role: "system",
+                    content:
+                        "You are a professional prediction market trading analyst. " +
+                        "Evaluate the markets and identify the single BEST opportunity. " +
+                        "Consider: edge (price movement), liquidity depth, time urgency, and implied probability mispricing. " +
+                        "Be concise. State which market, whether to buy YES or NO, why, and your confidence level.",
+                },
+                {
+                    role: "user",
+                    content:
+                        `Analyze these markets and find the best opportunity:\n\n${JSON.stringify(slim, null, 2)}`,
+                },
+            ],
+            max_tokens: 400,
+            temperature: 0.3,
+        });
+
+        return aiDecision.choices[0]?.message?.content ?? "AI returned no analysis.";
+    } catch (err: any) {
+        log(`[predMarket] AI analysis failed: ${err.message}`, "warn");
+        return `AI analysis unavailable: ${err.message}`;
+    }
 }
