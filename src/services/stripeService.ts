@@ -8,7 +8,7 @@ function getStripe() {
   }
   if (!stripeInstance) {
     stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2024-06-20',
+      // Use account default version to avoid TS version mismatch
     });
   }
   return stripeInstance;
