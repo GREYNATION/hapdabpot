@@ -1,4 +1,4 @@
-import { BaseAgent } from "./baseAgent.js";
+﻿import { BaseAgent } from "./baseAgent.js";
 import { saveMemory, getRelevantMemory } from "../memory/memoryService.js";
 
 export class RealEstateAgent extends BaseAgent {
@@ -19,7 +19,7 @@ export class RealEstateAgent extends BaseAgent {
 
     const context = memories.map((m: any) => m.content).join("\n");
 
-    const result = `🏠 Real Estate Analysis:
+    const result = `ðŸ  Real Estate Analysis:
 Task: ${task}
 
 Relevant Memory:

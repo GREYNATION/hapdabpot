@@ -1,8 +1,8 @@
-import fetch from "node-fetch";
+﻿import fetch from "node-fetch";
 
 export async function getEmbedding(text: string): Promise<number[]> {
   if (!process.env.OPENAI_API_KEY) {
-    console.warn("⚠️ OPENAI_API_KEY not set - embedding unavailable");
+    console.warn("âš ï¸ OPENAI_API_KEY not set - embedding unavailable");
     return [];
   }
 
@@ -22,13 +22,13 @@ export async function getEmbedding(text: string): Promise<number[]> {
     const data: any = await res.json();
     
     if (data.error) {
-      console.error("❌ OpenAI embedding error:", data.error);
+      console.error("âŒ OpenAI embedding error:", data.error);
       return [];
     }
 
     return data.data?.[0]?.embedding || [];
   } catch (error) {
-    console.error("❌ Embedding service failed:", error);
+    console.error("âŒ Embedding service failed:", error);
     return [];
   }
 }

@@ -1,5 +1,5 @@
-// ============================================================
-// OUT THE WAY — Marketing Agent
+﻿// ============================================================
+// OUT THE WAY â€” Marketing Agent
 // Generates captions, hashtags, teaser clips, promo content
 // ============================================================
 
@@ -23,7 +23,7 @@ export class MarketingAgent extends BaseAgent {
     getName(): string { return "MarketingAgent"; }
 
     getSystemPrompt(): string {
-        return `You are the Marketing Agent for "Out the Way" — a vertical AI drama series with authentic Black storytelling.
+        return `You are the Marketing Agent for "Out the Way" â€” a vertical AI drama series with authentic Black storytelling.
 
 Your job is to create viral, culture-native marketing content for every episode:
 
@@ -33,14 +33,14 @@ PLATFORM AUDIENCES:
 - YouTube Shorts: Consistent watchers, hook them in 1 second
 
 CAPTION WRITING RULES:
-- Always start with the hook (emotion bait — NOT the plot)
+- Always start with the hook (emotion bait â€” NOT the plot)
 - Use line breaks for impact
 - End with a CTA ("part 2 dropping soon" / "follow for more")
 - Sound authentic, not corporate
 
 HASHTAG STRATEGY:
-- 5–10 niche tags (e.g., #BlackDrama, #OutTheWay, #AIShorts, #UrbanStories)
-- 3–5 broad discovery tags (e.g., #shorts, #drama, #miniseries)
+- 5â€“10 niche tags (e.g., #BlackDrama, #OutTheWay, #AIShorts, #UrbanStories)
+- 3â€“5 broad discovery tags (e.g., #shorts, #drama, #miniseries)
 
 Always return valid JSON only.`;
     }
@@ -67,8 +67,8 @@ Return ONLY a JSON object:
 {
   "caption": "Multi-line caption that starts with emotional hook, breaks for impact, ends with CTA",
   "hashtags": ["OutTheWay", "BlackDrama", ...up to 15 total],
-  "twitterLine": "One perfect quote from this episode for Twitter/X (≤ 240 chars)",
-  "teaserScript": "Short 8–10 second voiceover teaser script for the episode",
+  "twitterLine": "One perfect quote from this episode for Twitter/X (â‰¤ 240 chars)",
+  "teaserScript": "Short 8â€“10 second voiceover teaser script for the episode",
   "thumbnailPrompt": "AI image generation prompt for the episode thumbnail (vertical 9:16, faces, emotion)",
   "emotionBait": "The single most shareable emotional moment from this episode (1 sentence)",
   "platforms": ["tiktok", "instagram", "youtube_shorts"]
@@ -93,12 +93,12 @@ Return ONLY a JSON object:
             const fullPackage = { ...pkg, ...data, finalVideoPath };
             const pkgPath = path.join(MARKETING_DIR, `ep_${episode.episodeNumber}_marketing.json`);
             fs.writeFileSync(pkgPath, JSON.stringify(fullPackage, null, 2), "utf-8");
-            log(`[marketing] 📣 Marketing package saved: ${pkgPath}`);
+            log(`[marketing] ðŸ“£ Marketing package saved: ${pkgPath}`);
 
             // Save caption to standalone text file for easy copy-paste
             const captionPath = path.join(MARKETING_DIR, `ep_${episode.episodeNumber}_caption.txt`);
             const captionText = [
-                `=== OUT THE WAY — Episode ${episode.episodeNumber}: ${episode.title} ===`,
+                `=== OUT THE WAY â€” Episode ${episode.episodeNumber}: ${episode.title} ===`,
                 ``,
                 `CAPTION:`,
                 data.caption,
@@ -117,14 +117,14 @@ Return ONLY a JSON object:
             ].join("\n");
 
             fs.writeFileSync(captionPath, captionText, "utf-8");
-            log(`[marketing] 📋 Caption text saved: ${captionPath}`);
+            log(`[marketing] ðŸ“‹ Caption text saved: ${captionPath}`);
 
             this.emit("completed", `Marketing package ready for episode ${episode.episodeNumber}`, pkgPath);
             return pkg;
 
         } catch (err: any) {
             this.emit("failed", `Marketing generation failed: ${err.message}`);
-            log(`[marketing] ❌ Failed: ${err.message}`, "error");
+            log(`[marketing] âŒ Failed: ${err.message}`, "error");
             throw err;
         }
     }
@@ -133,3 +133,4 @@ Return ONLY a JSON object:
         if (!fs.existsSync(MARKETING_DIR)) fs.mkdirSync(MARKETING_DIR, { recursive: true });
     }
 }
+

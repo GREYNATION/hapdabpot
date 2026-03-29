@@ -1,4 +1,4 @@
-import { AgentType } from "./router.js";
+﻿import { AgentType } from "./router.js";
 
 export interface Skill {
     id: string;
@@ -174,3 +174,4 @@ export function findSkillByIntent(message: string): Skill | undefined {
 
     return undefined;
 }
+

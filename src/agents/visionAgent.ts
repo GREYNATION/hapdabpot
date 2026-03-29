@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 import { openai, config, log } from "../core/config.js";
 
 /**
@@ -19,7 +19,7 @@ Be thorough and precise.`;
     const imagePart = multimodalPrompt.find(p => p.type === "image_url");
     
     if (!imagePart) {
-        return "❌ No image data found in the request.";
+        return "âŒ No image data found in the request.";
     }
 
     log(`[visionAgent] Calling vision model: ${config.visionModel}`);
@@ -44,7 +44,7 @@ Be thorough and precise.`;
 
             const result = completion.choices[0]?.message?.content;
             log(`[visionAgent] Analysis complete. Result length: ${result?.length}`);
-            return result || "❌ Model returned no content.";
+            return result || "âŒ Model returned no content.";
 
         } catch (err: any) {
             const isRateLimit = err.status === 429 || err.message?.includes("429") || err.message?.includes("retry");
@@ -54,10 +54,11 @@ Be thorough and precise.`;
                 await new Promise(r => setTimeout(r, wait));
             } else {
                 log(`[visionAgent] Failed: ${err.message}`, "error");
-                return `❌ Visual analysis failed: ${err.message}`;
+                return `âŒ Visual analysis failed: ${err.message}`;
             }
         }
     }
 
-    return "❌ Analysis timed out after multiple retries.";
+    return "âŒ Analysis timed out after multiple retries.";
 }
+

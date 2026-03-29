@@ -1,9 +1,9 @@
-import { ArchitectAgent } from "../agents/architectAgent.js";
+﻿import { ArchitectAgent } from "../agents/architectAgent.js";
 import { DeveloperAgent } from "../agents/developerAgent.js";
 import { ResearcherAgent } from "../agents/researcherAgent.js";
 import { MarketerAgent } from "../agents/marketerAgent.js";
 import { GitHubAgent } from "../agents/githubAgent.js";
-import { handleTask } from "../openrouter.js";
+import { askAI } from "./ai.js";
 import { AgentType } from "./router.js";
 
 export interface AntigravityRequest {
@@ -36,9 +36,11 @@ export class Antigravity {
                 return await this.github.ask(instruction, history, systemOverride);
             case "general":
             default:
-                return { content: await handleTask(instruction) };
+                const aiRes = await askAI(instruction);
+                return { content: aiRes.content };
         }
     }
 }
 
 export const antigravity = new Antigravity();
+

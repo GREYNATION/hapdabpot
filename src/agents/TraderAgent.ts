@@ -1,4 +1,4 @@
-import { BaseAgent } from "./baseAgent.js";
+﻿import { BaseAgent } from "./baseAgent.js";
 import { saveMemory, getRelevantMemory } from "../memory/memoryService.js";
 
 export class TraderAgent extends BaseAgent {
@@ -19,7 +19,7 @@ export class TraderAgent extends BaseAgent {
 
     const context = memories.map((m: any) => m.content).join("\n");
 
-    const result = `📈 Trade Analysis:
+    const result = `ðŸ“ˆ Trade Analysis:
 Task: ${task}
 
 Relevant Memory:

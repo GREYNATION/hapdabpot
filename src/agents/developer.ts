@@ -1,4 +1,4 @@
-import { askAI } from "../core/ai.js";
+﻿import { askAI } from "../core/ai.js";
 import { config } from "../core/config.js";
 
 /**
@@ -48,7 +48,7 @@ RULES:
     model: config.openaiModel || "google/gemini-2.0-flash-001"
   });
 
-  // 🔥 FAIL-SAFE BOILERPLATE: If AI fails to return files, provide a minimal working API
+  // ðŸ”¥ FAIL-SAFE BOILERPLATE: If AI fails to return files, provide a minimal working API
   if (!response || !response.content) { // Check response.content as the AI returns a string that needs parsing
     return {
       files: {
@@ -98,7 +98,8 @@ app.listen(PORT, () => {
     }
     return parsedResponse;
   } catch (err) {
-    console.error("❌ JSON PARSE FAILED:", response.content);
+    console.error("âŒ JSON PARSE FAILED:", response.content);
     throw new Error("Developer agent did not return valid JSON");
   }
 }
+

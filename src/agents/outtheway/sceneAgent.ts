@@ -1,5 +1,5 @@
-// ============================================================
-// OUT THE WAY — Scene Agent
+﻿// ============================================================
+// OUT THE WAY â€” Scene Agent
 // Converts episodes into visual + dialogue prompts per scene
 // Ensures consistent character appearance and cinematic tone
 // ============================================================
@@ -22,10 +22,10 @@ export class SceneAgent extends BaseAgent {
 
     getSystemPrompt(): string {
         const characterAppearances = Object.values(CHARACTERS)
-            .map(c => `• ${c.name}: ${c.appearance}`)
+            .map(c => `â€¢ ${c.name}: ${c.appearance}`)
             .join("\n");
 
-        return `You are the Scene Agent for "Out the Way" — a vertical short-form AI drama series.
+        return `You are the Scene Agent for "Out the Way" â€” a vertical short-form AI drama series.
 
 Your job is to enhance each scene from a story episode with:
 1. A detailed AI video generation prompt (vertical 9:16 format, cinematic, ultra-specific)
@@ -40,13 +40,13 @@ VISUAL PROMPT RULES:
 - Include lighting (night = neon/street lights, day = natural harsh sun)
 - Include shot type (close-up, medium, over-shoulder, dutch angle)
 - Include emotion in character body language
-- Be hyper-specific — every word in the prompt matters for AI generation
+- Be hyper-specific â€” every word in the prompt matters for AI generation
 
 DIALOGUE/VOICE RULES:
 - Specify speaking character's name, emotional state, pacing (slow/fast/hushed)
 - Include any background ambiance (traffic, music, silence)
 
-Return ONLY valid JSON — an array of enhanced Scene objects.`;
+Return ONLY valid JSON â€” an array of enhanced Scene objects.`;
     }
 
     private emit(status: AgentEvent["status"], message: string): void {
@@ -77,13 +77,14 @@ Return ONLY a JSON array of the full enhanced scene objects (same structure, jus
             const enhancedScenes: Scene[] = JSON.parse(jsonStr);
 
             this.emit("completed", `${enhancedScenes.length} scenes enhanced for episode ${episode.episodeNumber}`);
-            log(`[scene] ✅ ${enhancedScenes.length} scenes enhanced`);
+            log(`[scene] âœ… ${enhancedScenes.length} scenes enhanced`);
             return enhancedScenes;
 
         } catch (err: any) {
             this.emit("failed", `Scene enhancement failed: ${err.message}`);
-            log(`[scene] ❌ Failed: ${err.message}`, "error");
+            log(`[scene] âŒ Failed: ${err.message}`, "error");
             throw err;
         }
     }
 }
+

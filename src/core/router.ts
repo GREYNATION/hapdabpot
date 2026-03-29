@@ -1,4 +1,4 @@
-import { openai, config, log } from "./config.js";
+﻿import { openai, config, log } from "./config.js";
 import { askAI } from "./ai.js";
 import { findSkillByIntent } from "./skills.js";
 
@@ -85,3 +85,4 @@ Message: "${message}"`;
         }
     }
 }
+

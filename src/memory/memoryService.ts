@@ -1,20 +1,20 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 import { getEmbedding } from "./embeddingService.js";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-console.log(`[MemoryService] Supabase URL: ${supabaseUrl ? '✅ Set' : '❌ Not set'}`);
-console.log(`[MemoryService] Supabase Key: ${supabaseKey ? '✅ Set' : '❌ Not set'}`);
+console.log(`[MemoryService] Supabase URL: ${supabaseUrl ? 'âœ… Set' : 'âŒ Not set'}`);
+console.log(`[MemoryService] Supabase Key: ${supabaseKey ? 'âœ… Set' : 'âŒ Not set'}`);
 
 const supabase = supabaseUrl && supabaseKey 
   ? createClient(supabaseUrl, supabaseKey)
   : null;
 
 if (supabase) {
-  console.log(`[MemoryService] ✅ Supabase client created successfully`);
+  console.log(`[MemoryService] âœ… Supabase client created successfully`);
 } else {
-  console.log(`[MemoryService] ❌ Supabase client not created - missing URL or key`);
+  console.log(`[MemoryService] âŒ Supabase client not created - missing URL or key`);
 }
 
 export async function saveMemory(
@@ -24,7 +24,7 @@ export async function saveMemory(
   metadata: any = {}
 ) {
   if (!supabase) {
-    console.warn("⚠️ Supabase not configured - memory not saved");
+    console.warn("âš ï¸ Supabase not configured - memory not saved");
     return;
   }
 
@@ -40,16 +40,16 @@ export async function saveMemory(
     });
 
     if (error) {
-      console.error("❌ Memory save error:", error);
+      console.error("âŒ Memory save error:", error);
     }
   } catch (error) {
-    console.error("❌ Memory save failed:", error);
+    console.error("âŒ Memory save failed:", error);
   }
 }
 
 export async function getMemory(userId: string, limit = 5) {
   if (!supabase) {
-    console.warn("⚠️ Supabase not configured - returning empty memory");
+    console.warn("âš ï¸ Supabase not configured - returning empty memory");
     return [];
   }
 
@@ -61,7 +61,7 @@ export async function getMemory(userId: string, limit = 5) {
     .limit(limit);
 
   if (error) {
-    console.error("❌ Memory fetch error:", error);
+    console.error("âŒ Memory fetch error:", error);
     return [];
   }
 
@@ -73,7 +73,7 @@ export async function getRelevantMemory(
   query: string
 ) {
   if (!supabase) {
-    console.warn("⚠️ Supabase not configured - returning empty memory");
+    console.warn("âš ï¸ Supabase not configured - returning empty memory");
     return [];
   }
 
@@ -81,7 +81,7 @@ export async function getRelevantMemory(
     const embedding = await getEmbedding(query);
     
     if (embedding.length === 0) {
-      console.warn("⚠️ Embedding generation failed - returning empty memory");
+      console.warn("âš ï¸ Embedding generation failed - returning empty memory");
       return [];
     }
 
@@ -93,13 +93,13 @@ export async function getRelevantMemory(
     });
 
     if (error) {
-      console.error("❌ Memory search error:", error);
+      console.error("âŒ Memory search error:", error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error("❌ Memory search failed:", error);
+    console.error("âŒ Memory search failed:", error);
     return [];
   }
 }

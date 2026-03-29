@@ -1,9 +1,9 @@
-import { Telegraf, Context } from "telegraf";
+﻿import { Telegraf, Context } from "telegraf";
 import { CrmManager } from "../core/crm.js";
 import { ai, manager } from "../core/manager.js";
 import { simpleChat } from "../core/ai.js";
 import { executeTask } from "../core/executor.js";
-import { initDb } from "../core/memory.js";
+import { initDb, saveMessage } from "../core/memory.js";
 import { storeMemory, getMemories, chat as supabaseChat, isSupabaseEnabled } from "../core/supabaseMemory.js";
 import { openai, config, log } from "../core/config.js";
 import { SKILLS } from "../core/skills.js";
@@ -28,6 +28,7 @@ import { getTasks } from "../core/taskMemory.js";
 import { listApps, stopApp, getLogs } from "../core/processManager.js";
 import { DealWatcher } from '../core/dealWatcher.js';
 import { setupInvoiceHandlers } from './invoiceHandlers.js';
+import { registerLeadAlertHandlers } from '../cron/leadAlerts.js';
 
 interface AnalysisSession {
     address: string;
@@ -42,6 +43,10 @@ export class TelegramBot {
     private masterTrader = new MasterTraderAgent();
     private analysisSessions = new Map<number, AnalysisSession>();
     private isBusy = false;
+
+    public getBot(): Telegraf {
+        return this.bot;
+    }
 
     constructor() {
         if (!config.telegramToken) throw new Error("TELEGRAM_BOT_TOKEN is missing");
@@ -60,6 +65,7 @@ export class TelegramBot {
         this.setupBuildHandler();
         this.setupTradingHandlers();
         setupInvoiceHandlers(this.bot);
+        registerLeadAlertHandlers(this.bot);
         this.setupHandlers();
 
         // Global Bot Error Handler
@@ -88,7 +94,7 @@ export class TelegramBot {
 
     private checkOwner(ctx: any): boolean {
         if (!ctx.state.isOwner) {
-            this.safeReply(ctx, "⚠️ Access Denied: This command requires Owner privileges.");
+            this.safeReply(ctx, "âš ï¸ Access Denied: This command requires Owner privileges.");
             return false;
         }
         return true;
@@ -147,7 +153,7 @@ export class TelegramBot {
                 case "add": {
                     const params = args.slice(1).join(" ").split("|").map(s => s.trim());
                     if (params.length < 1) {
-                        return this.safeReply(ctx, "❌ Usage: /deal add [address] | [seller] | [phone] | [arv] | [repairs]");
+                        return this.safeReply(ctx, "âŒ Usage: /deal add [address] | [seller] | [phone] | [arv] | [repairs]");
                     }
                     const [address, seller, phone, arv, repairs] = params;
                     const dealId = CrmManager.addDeal({
@@ -158,14 +164,14 @@ export class TelegramBot {
                         repair_estimate: parseFloat(repairs) || 0
                     });
                     const deal = CrmManager.getDeal(dealId);
-                    return this.safeReply(ctx, `✅ Deal added! ID: ${dealId}\nAddress: ${address}\nMax Offer: $${deal?.max_offer.toLocaleString()}`);
+                    return this.safeReply(ctx, `âœ… Deal added! ID: ${dealId}\nAddress: ${address}\nMax Offer: $${deal?.max_offer.toLocaleString()}`);
                 }
 
                 case "update": {
                     const id = parseInt(args[1]);
                     const updateStr = args.slice(2).join(" ");
                     if (isNaN(id) || !updateStr.includes("=")) {
-                        return this.safeReply(ctx, "❌ Usage: /deal update [id] [field]=[value]\nFields: status, buyer, arv, repairs, profit, seller, phone");
+                        return this.safeReply(ctx, "âŒ Usage: /deal update [id] [field]=[value]\nFields: status, buyer, arv, repairs, profit, seller, phone");
                     }
                     const [fieldRaw, value] = updateStr.split("=").map(s => s.trim());
                     const fieldMap: any = {
@@ -178,7 +184,7 @@ export class TelegramBot {
                         phone: "seller_phone"
                     };
                     const field = fieldMap[fieldRaw.toLowerCase()];
-                    if (!field) return this.safeReply(ctx, `❌ Unknown field: ${fieldRaw}`);
+                    if (!field) return this.safeReply(ctx, `âŒ Unknown field: ${fieldRaw}`);
 
                     let parsedValue: any = value;
                     if (["arv", "repair_estimate", "profit"].includes(field)) parsedValue = parseFloat(value);
@@ -186,39 +192,39 @@ export class TelegramBot {
                     try {
                         CrmManager.updateDeal(id, { [field]: parsedValue });
                         const deal = CrmManager.getDeal(id);
-                        return this.safeReply(ctx, `✅ Deal ${id} updated!\nNew ${fieldRaw}: ${value}\nNew Max Offer: $${deal?.max_offer.toLocaleString()}`);
+                        return this.safeReply(ctx, `âœ… Deal ${id} updated!\nNew ${fieldRaw}: ${value}\nNew Max Offer: $${deal?.max_offer.toLocaleString()}`);
                     } catch (e: any) {
-                        return this.safeReply(ctx, `❌ Error: ${e.message}`);
+                        return this.safeReply(ctx, `âŒ Error: ${e.message}`);
                     }
                 }
 
                 case "list": {
                     const deals = CrmManager.listDeals();
-                    if (deals.length === 0) return this.safeReply(ctx, "📂 No deals found.");
+                    if (deals.length === 0) return this.safeReply(ctx, "ðŸ“‚ No deals found.");
                     const list = deals.map(d => `ID ${d.id}: ${d.address} (${d.status.toUpperCase()})`).join("\n");
-                    return this.safeReply(ctx, `📋 Recent Deals:\n${list}`);
+                    return this.safeReply(ctx, `ðŸ“‹ Recent Deals:\n${list}`);
                 }
 
                 case "view": {
                     const id = parseInt(args[1]);
-                    if (isNaN(id)) return this.safeReply(ctx, "❌ Usage: /deal view [id]");
+                    if (isNaN(id)) return this.safeReply(ctx, "âŒ Usage: /deal view [id]");
                     const deal = CrmManager.getDeal(id);
-                    if (!deal) return this.safeReply(ctx, "❌ Deal not found.");
+                    if (!deal) return this.safeReply(ctx, "âŒ Deal not found.");
                     
-                    const msg = `🏠 Deal #${deal.id}\n` +
-                        `📍 Address: ${deal.address}\n` +
-                        `👤 Seller: ${deal.seller_name || "N/A"} (${deal.seller_phone || "N/A"})\n` +
-                        `💰 ARV: $${deal.arv.toLocaleString()}\n` +
-                        `🛠 Repairs: $${deal.repair_estimate.toLocaleString()}\n` +
-                        `📉 Max Offer: $${deal.max_offer.toLocaleString()}\n` +
-                        `📊 Status: ${deal.status.toUpperCase()}\n` +
-                        `🤝 Buyer: ${deal.assigned_buyer || "Unassigned"}\n` +
-                        `💵 Profit: $${deal.profit.toLocaleString()}`;
+                    const msg = `ðŸ  Deal #${deal.id}\n` +
+                        `ðŸ“ Address: ${deal.address}\n` +
+                        `ðŸ‘¤ Seller: ${deal.seller_name || "N/A"} (${deal.seller_phone || "N/A"})\n` +
+                        `ðŸ’° ARV: $${deal.arv.toLocaleString()}\n` +
+                        `ðŸ›  Repairs: $${deal.repair_estimate.toLocaleString()}\n` +
+                        `ðŸ“‰ Max Offer: $${deal.max_offer.toLocaleString()}\n` +
+                        `ðŸ“Š Status: ${deal.status.toUpperCase()}\n` +
+                        `ðŸ¤ Buyer: ${deal.assigned_buyer || "Unassigned"}\n` +
+                        `ðŸ’µ Profit: $${deal.profit.toLocaleString()}`;
                     return this.safeReply(ctx, msg);
                 }
 
                 default:
-                    return this.safeReply(ctx, "🏢 Real Estate Wholesale CRM\n\nUsage:\n/deal add [addr] | [seller] | [phone] | [arv] | [repairs]\n/deal list\n/deal view [id]\n/deal update [id] [field]=[value]");
+                    return this.safeReply(ctx, "ðŸ¢ Real Estate Wholesale CRM\n\nUsage:\n/deal add [addr] | [seller] | [phone] | [arv] | [repairs]\n/deal list\n/deal view [id]\n/deal update [id] [field]=[value]");
             }
         });
 
@@ -232,29 +238,29 @@ export class TelegramBot {
                 case "list": {
                     const pendingInvoices = (global as any).pendingInvoices || [];
                     if (pendingInvoices.length === 0) {
-                        return this.safeReply(ctx, "📭 No pending invoices.");
+                        return this.safeReply(ctx, "ðŸ“­ No pending invoices.");
                     }
                     
                     const list = pendingInvoices.map((inv: any) => 
-                        `💰 ${inv.address} - $${inv.amount.toLocaleString()} (Deal #${inv.dealId})`
+                        `ðŸ’° ${inv.address} - $${inv.amount.toLocaleString()} (Deal #${inv.dealId})`
                     ).join("\n");
                     
-                    return this.safeReply(ctx, `📋 *Pending Invoices*\n\n${list}`, true);
+                    return this.safeReply(ctx, `ðŸ“‹ *Pending Invoices*\n\n${list}`, true);
                 }
                 
                 case "send": {
                     const dealId = parseInt(args[1]);
                     if (isNaN(dealId)) {
-                        return this.safeReply(ctx, "❌ Usage: /invoice send [dealId]");
+                        return this.safeReply(ctx, "âŒ Usage: /invoice send [dealId]");
                     }
                     
-                    await this.safeReply(ctx, `🔄 Sending invoice for deal #${dealId}...`);
+                    await this.safeReply(ctx, `ðŸ”„ Sending invoice for deal #${dealId}...`);
                     const success = await DealWatcher.confirmAndSendInvoice(dealId);
                     
                     if (success) {
-                        return this.safeReply(ctx, `✅ Invoice sent for deal #${dealId}!`);
+                        return this.safeReply(ctx, `âœ… Invoice sent for deal #${dealId}!`);
                     } else {
-                        return this.safeReply(ctx, `❌ Failed to send invoice. Check Stripe configuration.`);
+                        return this.safeReply(ctx, `âŒ Failed to send invoice. Check Stripe configuration.`);
                     }
                 }
                 
@@ -271,11 +277,11 @@ export class TelegramBot {
                     CrmManager.updateDeal(dealId, { status: 'contract' });
                     await DealWatcher.checkDealStatus(dealId);
                     
-                    return this.safeReply(ctx, `✅ Test deal #${dealId} created and set to "Under Contract". Invoice should be ready for confirmation.`);
+                    return this.safeReply(ctx, `âœ… Test deal #${dealId} created and set to "Under Contract". Invoice should be ready for confirmation.`);
                 }
                 
                 default:
-                    return this.safeReply(ctx, "💰 Invoice Management\n\nUsage:\n/invoice list - Show pending invoices\n/invoice send [dealId] - Send invoice for deal\n/invoice test - Create test deal and invoice");
+                    return this.safeReply(ctx, "ðŸ’° Invoice Management\n\nUsage:\n/invoice list - Show pending invoices\n/invoice send [dealId] - Send invoice for deal\n/invoice test - Create test deal and invoice");
             }
         });
     }
@@ -287,10 +293,10 @@ export class TelegramBot {
                 const name = s.name.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
                 const id = s.id.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
                 const desc = s.description.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
-                return `• *${name}* (\`${id}\`): ${desc}`;
+                return `â€¢ *${name}* (\`${id}\`): ${desc}`;
             }).join("\n");
             
-            const message = `🛠 *Gravity Claw Specialist Skills*\n\n${list}\n\n_Ask about these topics to trigger them automatically\\!_`;
+            const message = `ðŸ›  *Gravity Claw Specialist Skills*\n\n${list}\n\n_Ask about these topics to trigger them automatically\\!_`;
             return this.safeReply(ctx, message, true);
         });
     }
@@ -300,10 +306,10 @@ export class TelegramBot {
             if (!this.checkOwner(ctx)) return;
             const address = ctx.message.text.split(" ").slice(1).join(" ").trim();
             if (!address) {
-                return this.safeReply(ctx, "🏠 Please provide an address to analyze.\nUsage: /analyze [address]");
+                return this.safeReply(ctx, "ðŸ  Please provide an address to analyze.\nUsage: /analyze [address]");
             }
 
-            await this.safeReply(ctx, `🔍 Analyzing ${address}... searching for comparables...`);
+            await this.safeReply(ctx, `ðŸ” Analyzing ${address}... searching for comparables...`);
             
             // Use Researcher to get snippets
             const researcher = new ResearcherAgent();
@@ -316,13 +322,14 @@ export class TelegramBot {
                 step: 'arv'
             });
 
-            await this.safeReply(ctx, "📈 Got the data! Now, let's look at the numbers.\n\nWhat is the **After Repair Value (ARV)** for this property?");
+            await this.safeReply(ctx, "ðŸ“ˆ Got the data! Now, let's look at the numbers.\n\nWhat is the **After Repair Value (ARV)** for this property?");
         });
     }
 
     private setupHandlers() {
         this.bot.on(["message", "voice", "video", "video_note", "photo", "document"], async (ctx) => {
-            const chatId = ctx.chat.id;
+            const chatId = (ctx.chat as any)?.id;
+            if (!chatId) return;
             const from = ctx.from;
             const msg = ctx.message as any;
             
@@ -403,7 +410,7 @@ export class TelegramBot {
                     
                     log(`[bot] Photo encoded (${response.data.byteLength} bytes). Routing to visionAgent...`);
                     
-                    // Route directly to vision — bypass the text handler below
+                    // Route directly to vision â€” bypass the text handler below
                     const reply = (t: string) => this.safeReply(ctx, t);
                     return this.runBuild(multimodalPrompt, reply);
                 } else if ("document" in msg) {
@@ -435,21 +442,21 @@ export class TelegramBot {
                     const val = parseFloat(userText.replace(/[^0-9.]/g, ""));
                     
                     if (session.step === 'arv') {
-                        if (isNaN(val)) return this.safeReply(ctx, "❌ Please enter a valid number for the ARV.");
+                        if (isNaN(val)) return this.safeReply(ctx, "âŒ Please enter a valid number for the ARV.");
                         session.arv = val;
                         session.step = 'repairs';
-                        return this.safeReply(ctx, "🛠 Thanks! What is the estimated **Repair Cost**?");
+                        return this.safeReply(ctx, "ðŸ›  Thanks! What is the estimated **Repair Cost**?");
                     }
 
                     if (session.step === 'repairs') {
-                        if (isNaN(val)) return this.safeReply(ctx, "❌ Please enter a valid number for the Repair Cost.");
+                        if (isNaN(val)) return this.safeReply(ctx, "âŒ Please enter a valid number for the Repair Cost.");
                         session.repairs = val;
                         session.step = 'askingPrice';
-                        return this.safeReply(ctx, "💰 Almost done! What is the **Seller's Asking Price**?");
+                        return this.safeReply(ctx, "ðŸ’° Almost done! What is the **Seller's Asking Price**?");
                     }
 
                     if (session.step === 'askingPrice') {
-                        if (isNaN(val)) return this.safeReply(ctx, "❌ Please enter a valid number for the Asking Price.");
+                        if (isNaN(val)) return this.safeReply(ctx, "âŒ Please enter a valid number for the Asking Price.");
                         
                         const arv = session.arv || 0;
                         const repairs = session.repairs || 0;
@@ -458,16 +465,16 @@ export class TelegramBot {
                         
                         let verdict = "";
                         if (asking <= mao) {
-                            verdict = `🔥 **THIS IS A GOOD DEAL!**\n\nYour Maximum Allowable Offer (MAO) is **$${mao.toLocaleString()}**. Since the asking price is $${asking.toLocaleString()}, you have a potential profit spread.`;
+                            verdict = `ðŸ”¥ **THIS IS A GOOD DEAL!**\n\nYour Maximum Allowable Offer (MAO) is **$${mao.toLocaleString()}**. Since the asking price is $${asking.toLocaleString()}, you have a potential profit spread.`;
                         } else {
-                            verdict = `⚠️ **CAUTION: NOT A GREAT DEAL.**\n\nYour Maximum Allowable Offer (MAO) is **$${mao.toLocaleString()}**, which is lower than the asking price of $${asking.toLocaleString()}. You would need to negotiate significantly.`;
+                            verdict = `âš ï¸ **CAUTION: NOT A GREAT DEAL.**\n\nYour Maximum Allowable Offer (MAO) is **$${mao.toLocaleString()}**, which is lower than the asking price of $${asking.toLocaleString()}. You would need to negotiate significantly.`;
                         }
 
-                        const result = `📊 **Deal Analysis: ${session.address}**\n\n` +
-                            `• ARV: $${arv.toLocaleString()}\n` +
-                            `• Repairs: $${repairs.toLocaleString()}\n` +
-                            `• MAO (70% Rule): $${mao.toLocaleString()}\n` +
-                            `• Asking Price: $${asking.toLocaleString()}\n\n` +
+                        const result = `ðŸ“Š **Deal Analysis: ${session.address}**\n\n` +
+                            `â€¢ ARV: $${arv.toLocaleString()}\n` +
+                            `â€¢ Repairs: $${repairs.toLocaleString()}\n` +
+                            `â€¢ MAO (70% Rule): $${mao.toLocaleString()}\n` +
+                            `â€¢ Asking Price: $${asking.toLocaleString()}\n\n` +
                             verdict + `\n\n*Suggested Offer: $${Math.min(asking, mao).toLocaleString()}*`;
 
                         // Save to CRM Database
@@ -493,7 +500,7 @@ export class TelegramBot {
                             log(`[error] Failed to save deal to CRM: ${dbErr.message}`, "error");
                         }
 
-                        const finalResult = result + (matchedBuyer ? `\n\n🎯 **POTENTIAL BUYER MATCH: ${matchedBuyer}**` : "");
+                        const finalResult = result + (matchedBuyer ? `\n\nðŸŽ¯ **POTENTIAL BUYER MATCH: ${matchedBuyer}**` : "");
 
                         this.analysisSessions.delete(chatId);
                         return this.safeReply(ctx, finalResult);
@@ -521,20 +528,30 @@ export class TelegramBot {
                     return this.runBuild(text, reply);
                 }
 
-                // 4. 💬 NORMAL CHAT — with Supabase vector memory
+                // 4. ðŸ’¬ NORMAL CHAT â€” with Supabase vector memory
                 const userId = String(ctx.from?.id ?? "unknown");
+
+                // Save user message to SQL history
+                if (chatId) saveMessage(chatId, "user", text);
+
+                log(`[bot] ðŸ’¬ Chat debug: Key=${config.openaiApiKey?.slice(0, 10)}... Base=${config.openaiBaseUrl}`);
+
                 const response = isSupabaseEnabled()
-                    ? await supabaseChat(userId, text)
-                    : await simpleChat(text);
+                    ? await supabaseChat(userId, text, chatId)
+                    : await simpleChat(text, chatId);
+
+                // Save assistant message to SQL history
+                if (chatId) saveMessage(chatId, "assistant", response);
+
                 return reply(response);
 
             } catch (err: any) {
                 log(`[error] Handler failed: ${err.message}`, "error");
-                await this.safeReply(ctx, `⚠️ Error: ${err.message}`);
+                await this.safeReply(ctx, `âš ï¸ Error: ${err.message}`);
             }
         });
 
-        // 📷 PHOTO HANDLER (Visual Intelligence)
+        // ðŸ“· PHOTO HANDLER (Visual Intelligence)
         this.bot.on("photo", async (ctx) => {
             if (!this.checkOwner(ctx)) return;
             const caption = ctx.message.caption || "Describe everything you see in this image in detail.";
@@ -547,7 +564,7 @@ export class TelegramBot {
                 
                 log(`[bot] Photo file_id: ${photo.file_id}, fetching...`);
                 
-                // Telegram URLs require auth — must download and base64-encode
+                // Telegram URLs require auth â€” must download and base64-encode
                 const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
                 const base64 = Buffer.from(response.data).toString('base64');
                 const dataUrl = `data:image/jpeg;base64,${base64}`;
@@ -565,7 +582,7 @@ export class TelegramBot {
                 return this.runBuild(multimodalPrompt, reply);
             } catch (err: any) {
                 log(`[error] Photo handling failed: ${err.message}`, "error");
-                await reply(`❌ Failed to process image: ${err.message}`);
+                await reply(`âŒ Failed to process image: ${err.message}`);
             }
         });
     }
@@ -574,12 +591,12 @@ export class TelegramBot {
         // [COMMAND] /scrape - Pulls latest deeds and skip traces them
         this.bot.command('scrape', async (ctx) => {
             if (!this.checkOwner(ctx)) return;
-            await ctx.reply("🔍 Searching NYC Open Data for latest Brooklyn deeds...");
+            await ctx.reply("ðŸ” Searching NYC Open Data for latest Brooklyn deeds...");
             
             const leads = await PropertyScraper.fetchLatestDeeds('3', 3); // Top 3 from BK
             
             if (leads.length === 0) {
-                return ctx.reply("❌ No new deeds found in the last refresh.");
+                return ctx.reply("âŒ No new deeds found in the last refresh.");
             }
 
             for (const lead of leads) {
@@ -589,18 +606,18 @@ export class TelegramBot {
                     notes: `Scraped from NYC Open Data (Deed recorded: ${lead.docDate})`
                 } as any);
 
-                await ctx.reply(`🆕 New Lead: ${lead.address}\nOwner: ${lead.ownerName}\n\n🕵️ Initiating AI Skip Trace...`);
+                await ctx.reply(`ðŸ†• New Lead: ${lead.address}\nOwner: ${lead.ownerName}\n\nðŸ•µï¸ Initiating AI Skip Trace...`);
                 
                 const contact = await SkipTracer.trace(lead.ownerName, lead.address);
                 if (contact.phone || contact.email) {
                     await SkipTracer.updateLeadWithContact(dealId, contact);
-                    await ctx.reply(`✅ Trace Success!\nPhone: ${contact.phone || 'N/A'}\nEmail: ${contact.email || 'N/A'}`);
+                    await ctx.reply(`âœ… Trace Success!\nPhone: ${contact.phone || 'N/A'}\nEmail: ${contact.email || 'N/A'}`);
                 } else {
-                    await ctx.reply("⚠️ Skip trace returned no direct contact info. Manual research required.");
+                    await ctx.reply("âš ï¸ Skip trace returned no direct contact info. Manual research required.");
                 }
             }
 
-            await ctx.reply("✅ Scrape complete. Check your WholesaleOS dashboard for full details.");
+            await ctx.reply("âœ… Scrape complete. Check your WholesaleOS dashboard for full details.");
         });
 
         // [COMMAND] /outreach - Generates SMS/Email template for a lead
@@ -609,9 +626,9 @@ export class TelegramBot {
             const deals = await CrmManager.listDeals();
             const latest = deals[0]; // Get the most recent
 
-            if (!latest) return ctx.reply("❌ No leads found to generate outreach for.");
+            if (!latest) return ctx.reply("âŒ No leads found to generate outreach for.");
 
-            await ctx.reply(`🧠 Thinking... Generating personalized outreach for ${latest.address}`);
+            await ctx.reply(`ðŸ§  Thinking... Generating personalized outreach for ${latest.address}`);
 
             const prompt = `
                 Generate a professional yet friendly cold outreach SMS and Email for this property owner.
@@ -656,16 +673,16 @@ export class TelegramBot {
             const tasks = getTasks() as any[];
 
             if (!tasks || tasks.length === 0) {
-                return this.safeReply(ctx, "📂 No tasks found in the database.");
+                return this.safeReply(ctx, "ðŸ“‚ No tasks found in the database.");
             }
 
             // Group by agent or just list them
             const message = tasks
                 .slice(0, 15) // Limit to 15 for readability
-                .map(t => `🧠 *${t.agent.toUpperCase()}* | \`${t.status.toUpperCase()}\`\n📝 ${t.task.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&")}`)
+                .map(t => `ðŸ§  *${t.agent.toUpperCase()}* | \`${t.status.toUpperCase()}\`\nðŸ“ ${t.task.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&")}`)
                 .join("\n\n");
 
-            return this.safeReply(ctx, `📋 *Recent Agent Tasks*\n\n${message}`, true);
+            return this.safeReply(ctx, `ðŸ“‹ *Recent Agent Tasks*\n\n${message}`, true);
         });
     }
 
@@ -674,21 +691,21 @@ export class TelegramBot {
             if (!this.checkOwner(ctx)) return;
             const apps = listApps();
             
-            if (apps.length === 0) return this.safeReply(ctx, "⚠️ No running apps");
+            if (apps.length === 0) return this.safeReply(ctx, "âš ï¸ No running apps");
 
             const listStr = apps
-                .map(a => `🟢 ${a.id} | Port: ${a.port} | ${a.status}`)
+                .map(a => `ðŸŸ¢ ${a.id} | Port: ${a.port} | ${a.status}`)
                 .join("\n")
                 .replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&"); // Escape for MarkdownV2
 
-            return this.safeReply(ctx, `📋 *Managed Applications*\n\n${listStr}`, true);
+            return this.safeReply(ctx, `ðŸ“‹ *Managed Applications*\n\n${listStr}`, true);
         });
 
         this.bot.command("stop", async (ctx) => {
             if (!this.checkOwner(ctx)) return;
             const args = ctx.message.text.split(" ").slice(1);
             const id = args[0];
-            if (!id) return this.safeReply(ctx, "❌ Usage: /stop [app_id]");
+            if (!id) return this.safeReply(ctx, "âŒ Usage: /stop [app_id]");
             return this.safeReply(ctx, stopApp(id));
         });
 
@@ -696,7 +713,7 @@ export class TelegramBot {
             if (!this.checkOwner(ctx)) return;
             const args = ctx.message.text.split(" ").slice(1);
             const id = args[0];
-            if (!id) return this.safeReply(ctx, "❌ Usage: /logs [app_id]");
+            if (!id) return this.safeReply(ctx, "âŒ Usage: /logs [app_id]");
             return this.safeReply(ctx, getLogs(id));
         });
     }
@@ -705,7 +722,7 @@ export class TelegramBot {
         this.bot.command("build", async (ctx) => {
             if (!this.checkOwner(ctx)) return;
             const text = ctx.message.text.split(" ").slice(1).join(" ");
-            if (!text) return this.safeReply(ctx, "❌ Usage: /build [task description]");
+            if (!text) return this.safeReply(ctx, "âŒ Usage: /build [task description]");
             return this.runBuild(text, (t: string) => this.safeReply(ctx, t));
         });
     }
@@ -713,7 +730,7 @@ export class TelegramBot {
     private async runBuild(prompt: string | any, reply: any) {
         log(`[bot] Incoming runBuild. Type: ${Array.isArray(prompt) ? 'Array' : 'String'}`);
         if (this.isBusy) {
-            return reply("⏳ System busy. Please wait...");
+            return reply("â³ System busy. Please wait...");
         }
 
         this.isBusy = true;
@@ -731,33 +748,33 @@ export class TelegramBot {
 
             // STEP 2: EXECUTE TASKS
             for (const task of plan.tasks) {
-                await reply(`⚡ ${task.agent} working...`);
+                await reply(`âš¡ ${task.agent} working...`);
                 const result = await executeTask(task);
                 await reply(result);
             }
 
-            await reply("🚀 Task completed");
+            await reply("ðŸš€ Task completed");
         } catch (err: any) {
             log(`[error] Build failed: ${err.message}`, "error");
-            await reply(`⚠️ Error: ${err.message}`);
+            await reply(`âš ï¸ Error: ${err.message}`);
         } finally {
             this.isBusy = false;
         }
     }
 
     private setupTradingHandlers() {
-        // /trade — Show live Tradovate account status
+        // /trade â€” Show live Tradovate account status
         this.bot.command('trade', async (ctx) => {
             if (!this.checkOwner(ctx)) return;
-            await ctx.reply('📡 Fetching live account data from Tradovate...');
+            await ctx.reply('ðŸ“¡ Fetching live account data from Tradovate...');
             try {
                 const { state, liveBalance } = await this.masterTrader.getLiveAccountState();
                 const balanceStr = liveBalance
-                    ? `💰 Live Balance: $${liveBalance.marginBalance?.toFixed(2) ?? 'N/A'}\n📉 Real P&L: $${liveBalance.realizedPnL?.toFixed(2) ?? 'N/A'}`
-                    : `⚠️ Could not reach Tradovate API (credentials missing or not yet configured).`;
+                    ? `ðŸ’° Live Balance: $${liveBalance.marginBalance?.toFixed(2) ?? 'N/A'}\nðŸ“‰ Real P&L: $${liveBalance.realizedPnL?.toFixed(2) ?? 'N/A'}`
+                    : `âš ï¸ Could not reach Tradovate API (credentials missing or not yet configured).`;
                 const msg = `
-📊 MASTER TRADER STATUS
-━━━━━━━━━━━━━━━━━━
+ðŸ“Š MASTER TRADER STATUS
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
 ${balanceStr}
 
 Open Trades (local): ${state.openTrades.length}
@@ -767,48 +784,48 @@ Last Signal: ${state.lastSignal ? state.lastSignal.slice(0, 80) + '...' : 'None 
 `;
                 await this.safeReply(ctx, msg);
             } catch (err: any) {
-                await this.safeReply(ctx, `❌ Error fetching trade data: ${err.message}`);
+                await this.safeReply(ctx, `âŒ Error fetching trade data: ${err.message}`);
             }
         });
 
-        // /performance — Full performance breakdown
+        // /performance â€” Full performance breakdown
         this.bot.command('performance', async (ctx) => {
             if (!this.checkOwner(ctx)) return;
             const summary = this.masterTrader.getPerformanceSummary();
             await this.safeReply(ctx, summary);
         });
 
-        // /tradehelp — How to use the trading system
+        // /tradehelp â€” How to use the trading system
         this.bot.command('tradehelp', async (ctx) => {
             await ctx.reply(`
-🤖 MASTER TRADER — HELP
-━━━━━━━━━━━━━━━━━━━━━━
-/trade — Live account balance + open trades
-/performance — Full win rate & P&L report
+ðŸ¤– MASTER TRADER â€” HELP
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+/trade â€” Live account balance + open trades
+/performance â€” Full win rate & P&L report
 
-📡 TradingView Webhook URL:
+ðŸ“¡ TradingView Webhook URL:
 https://your-railway-app.up.railway.app/webhook/tradingview
 
 Set TRADOVATE_USE_LIVE=true in Railway env to go LIVE.
 Default: DEMO mode (no real money).
             `);
         });
-        // /markets — Prediction market scanner with AI analysis
+        // /markets â€” Prediction market scanner with AI analysis
         this.bot.command('markets', async (ctx) => {
             if (!this.checkOwner(ctx)) return;
-            await ctx.reply('🔍 Scanning Polymarket for signals...');
+            await ctx.reply('ðŸ” Scanning Polymarket for signals...');
             try {
                 const { filtered } = await scanMarkets();
                 // Send the filter report first
                 await this.safeReply(ctx, formatMarketsReport(filtered));
                 // Then run AI analysis on the filtered markets
                 if (filtered.length > 0) {
-                    await ctx.reply('🧠 Running AI analysis...');
+                    await ctx.reply('ðŸ§  Running AI analysis...');
                     const aiPick = await analyzeWithAI(filtered);
-                    await this.safeReply(ctx, `🎯 AI BEST OPPORTUNITY\n━━━━━━━━━━━━━━━━━━━━━━\n${aiPick}`);
+                    await this.safeReply(ctx, `ðŸŽ¯ AI BEST OPPORTUNITY\nâ”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”\n${aiPick}`);
                 }
             } catch (err: any) {
-                await this.safeReply(ctx, `❌ Market scan failed: ${err.message}`);
+                await this.safeReply(ctx, `âŒ Market scan failed: ${err.message}`);
             }
         });
     }
@@ -824,7 +841,7 @@ Default: DEMO mode (no real money).
         this.bot.command('google', async (ctx) => {
             if (!this.checkOwner(ctx)) return;
             if (!isGoogleEnabled()) {
-                return this.safeReply(ctx, '❌ Google Workspace not configured. Add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN to Railway Variables.');
+                return this.safeReply(ctx, 'âŒ Google Workspace not configured. Add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN to Railway Variables.');
             }
 
             const parts = ctx.message.text.split(' ').slice(1);
@@ -838,14 +855,14 @@ Default: DEMO mode (no real money).
                 if (service === 'drive') {
                     if (action === 'list') result = await driveListFiles();
                     else if (action === 'search') result = await driveSearch(args || 'untitled');
-                    else result = '📂 Usage:\n/google drive list\n/google drive search [query]';
+                    else result = 'ðŸ“‚ Usage:\n/google drive list\n/google drive search [query]';
 
                 } else if (service === 'doc') {
                     if (action === 'read') result = await readDoc(args);
                     else if (action === 'create') {
                         const [title, ...content] = args.split('|');
                         result = await createDoc(title.trim(), content.join('|').trim() || '');
-                    } else result = '📄 Usage:\n/google doc read [docId]\n/google doc create [title] | [content]';
+                    } else result = 'ðŸ“„ Usage:\n/google doc read [docId]\n/google doc create [title] | [content]';
 
                 } else if (service === 'slides') {
                     const [title, ...bullets] = args.split('|');
@@ -857,54 +874,55 @@ Default: DEMO mode (no real money).
                         const [sheetId, ...rows] = args.split('|');
                         const values = rows.map(r => r.split(',').map(c => c.trim()));
                         result = await appendSheet(sheetId.trim(), values);
-                    } else result = '📊 Usage:\n/google sheet create [title]\n/google sheet append [id] | [val1,val2] | [val3,val4]';
+                    } else result = 'ðŸ“Š Usage:\n/google sheet create [title]\n/google sheet append [id] | [val1,val2] | [val3,val4]';
 
                 } else if (service === 'gmail') {
                     if (action === 'list') result = await listEmails(args || 'is:unread');
                     else if (action === 'send') {
                         const [to, subject, ...body] = args.split('|');
                         result = await sendEmail(to.trim(), subject.trim(), body.join('|').trim());
-                    } else result = '📧 Usage:\n/google gmail list [query]\n/google gmail send [to] | [subject] | [body]';
+                    } else result = 'ðŸ“§ Usage:\n/google gmail list [query]\n/google gmail send [to] | [subject] | [body]';
 
                 } else if (service === 'calendar') {
                     if (action === 'list') result = await listEvents(parseInt(args) || 7);
                     else if (action === 'add') {
                         const [title, start, end] = args.split('|').map(s => s.trim());
                         result = await createEvent(title, start, end || new Date(new Date(start).getTime() + 3600000).toISOString());
-                    } else result = '📅 Usage:\n/google calendar list [days]\n/google calendar add [title] | [ISO start] | [ISO end]';
+                    } else result = 'ðŸ“… Usage:\n/google calendar list [days]\n/google calendar add [title] | [ISO start] | [ISO end]';
 
                 } else {
                     result = [
-                        '🌐 GOOGLE WORKSPACE COMMANDS',
-                        '━━━━━━━━━━━━━━━━━━━━━━━━━',
-                        '📂 /google drive list',
-                        '🔍 /google drive search [query]',
-                        '📄 /google doc read [docId]',
-                        '📄 /google doc create [title] | [content]',
-                        '📊 /google slides create [title] | [slide1] | [slide2]',
-                        '📊 /google sheet create [title]',
-                        '📊 /google sheet append [id] | [val1,val2]',
-                        '📧 /google gmail list [query]',
-                        '📧 /google gmail send [to] | [subject] | [body]',
-                        '📅 /google calendar list [days]',
-                        '📅 /google calendar add [title] | [ISO date]',
+                        'ðŸŒ GOOGLE WORKSPACE COMMANDS',
+                        'â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”',
+                        'ðŸ“‚ /google drive list',
+                        'ðŸ” /google drive search [query]',
+                        'ðŸ“„ /google doc read [docId]',
+                        'ðŸ“„ /google doc create [title] | [content]',
+                        'ðŸ“Š /google slides create [title] | [slide1] | [slide2]',
+                        'ðŸ“Š /google sheet create [title]',
+                        'ðŸ“Š /google sheet append [id] | [val1,val2]',
+                        'ðŸ“§ /google gmail list [query]',
+                        'ðŸ“§ /google gmail send [to] | [subject] | [body]',
+                        'ðŸ“… /google calendar list [days]',
+                        'ðŸ“… /google calendar add [title] | [ISO date]',
                     ].join('\n');
                 }
 
                 await this.safeReply(ctx, result);
             } catch (err: any) {
-                await this.safeReply(ctx, `❌ Google error: ${err.message}`);
+                await this.safeReply(ctx, `âŒ Google error: ${err.message}`);
             }
         });
     }
 
     private formatApps(apps: any[]): string {
-        if (apps.length === 0) return "📭 No applications are currently managed.";
-        const listStr = apps.map(a => `🟢 ${a.id} | Port: ${a.port} | ${a.status}`).join("\n").replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
-        return `📋 *Managed Applications*\n\n${listStr}`;
+        if (apps.length === 0) return "ðŸ“­ No applications are currently managed.";
+        const listStr = apps.map(a => `ðŸŸ¢ ${a.id} | Port: ${a.port} | ${a.status}`).join("\n").replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
+        return `ðŸ“‹ *Managed Applications*\n\n${listStr}`;
     }
 
     public stop(signal: string) {
         this.bot.stop(signal);
     }
 }
+

@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+﻿import express, { Request, Response } from 'express';
 import { handleStripeWebhook } from './bot/invoiceHandlers.js';
 import { log } from './core/config.js';
 

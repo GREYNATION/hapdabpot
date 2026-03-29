@@ -1,4 +1,4 @@
-import fs from "fs";
+﻿import fs from "fs";
 import path from "path";
 
 export interface MailboxMessage {
@@ -72,3 +72,4 @@ export class MailboxManager {
         }
     }
 }
+

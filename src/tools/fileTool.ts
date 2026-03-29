@@ -1,4 +1,4 @@
-import fs from "fs";
+﻿import fs from "fs";
 import path from "path";
 
 /**
@@ -37,3 +37,4 @@ export function writeProject(files: { path: string; content: string }[]): string
 
   return createdFiles;
 }
+

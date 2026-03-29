@@ -1,4 +1,4 @@
-import { Anthropic } from '@anthropic-ai/sdk';
+﻿import { Anthropic } from '@anthropic-ai/sdk';
 import { TradovateClient } from '../integrations/TradovateClient.js';
 
 interface PriceLevel {
@@ -182,7 +182,7 @@ Provide:
     };
 
     try {
-      // 🚨 LIVE EXECUTION HOOK 🚨
+      // ðŸš¨ LIVE EXECUTION HOOK ðŸš¨
       const action = signal === 'IQ_BUY' ? 'Buy' : 'Sell';
       
       // Attempt to place the actual live order via Tradovate REST API
@@ -190,13 +190,13 @@ Provide:
       
       this.state.openTrades.push(trade);
     } catch (error: any) {
-      console.error(`🚨 TRADOVATE EXECUTION FAILED:`, error.message);
+      console.error(`ðŸš¨ TRADOVATE EXECUTION FAILED:`, error.message);
       trade.status = 'FAILED' as any;
       // We still return the trade so the dashboard/webhook sees the failure
     }
 
     // Log trade
-    console.log(`✅ Trade Opened:
+    console.log(`âœ… Trade Opened:
       Symbol: ${symbol}
       Signal: ${signal}
       Entry: $${entryPrice}
@@ -230,7 +230,7 @@ Provide:
     // Update stats
     this.updateTradeStats(trade);
 
-    console.log(`❌ Trade Closed:
+    console.log(`âŒ Trade Closed:
       Symbol: ${trade.symbol}
       Exit: $${exitPrice}
       P&L: $${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)
@@ -295,23 +295,23 @@ Provide:
         : 0;
 
     return `
-🎯 MASTER TRADER PERFORMANCE
-━━━━━━━━━━━━━━━━━━━━━━━━━
+ðŸŽ¯ MASTER TRADER PERFORMANCE
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
 Total Trades: ${totalTrades}
 Winners: ${winners} (${((winners / totalTrades) * 100).toFixed(1)}%)
 Losers: ${losers} (${((losers / totalTrades) * 100).toFixed(1)}%)
 Consecutive Wins: ${this.state.consecutiveWins}
 
-💰 P&L METRICS
-━━━━━━━━━━━━━━━━━━━━━━━━━
+ðŸ’° P&L METRICS
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
 Total P&L: $${this.state.totalPnL.toFixed(2)}
 Average Win: $${avgWin.toFixed(2)}
 Average Loss: -$${avgLoss.toFixed(2)}
 Win/Loss Ratio: ${(avgWin / avgLoss || 0).toFixed(2)}
 Win Rate: ${(this.state.winRate * 100).toFixed(1)}%
 
-📊 OPEN POSITIONS
-━━━━━━━━━━━━━━━━━━━━━━━━━
+ðŸ“Š OPEN POSITIONS
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
 Count: ${this.state.openTrades.length}
 ${
   this.state.openTrades.length > 0
@@ -380,3 +380,4 @@ ${
 }
 
 export { MasterTraderAgent, PriceLevel, Trade, MasterTraderState };
+

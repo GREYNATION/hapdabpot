@@ -1,6 +1,8 @@
-import dotenv from "dotenv";
+﻿import dotenv from "dotenv";
 import { TelegramBot } from "./bot/telegram.js";
-import { startWebServer } from "./webServer.js";
+import { startMorningBriefing } from "./cron/morningBriefing.js";
+import { startLeadAlerts } from "./cron/leadAlerts.js";
+import { startOutreachCron, registerOutreachHandlers } from "./services/outreachService.js";
 
 dotenv.config();
 
@@ -15,6 +17,10 @@ const bot = new TelegramBot();
 
 try {
     bot.launch();
+    registerOutreachHandlers(bot.getBot());
+    startMorningBriefing(bot.getBot());
+    startLeadAlerts(bot.getBot());
+    startOutreachCron(bot.getBot());
 } catch (err: any) {
     console.error("[system] CRITICAL: Bot launch failed:", err.message);
 }
@@ -37,3 +43,4 @@ process.once("SIGTERM", () => {
     console.log("[system] Stopping...");
     bot.stop("SIGTERM");
 });
+

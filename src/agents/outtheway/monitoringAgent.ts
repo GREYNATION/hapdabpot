@@ -1,5 +1,5 @@
-// ============================================================
-// OUT THE WAY — Monitoring Agent
+﻿// ============================================================
+// OUT THE WAY â€” Monitoring Agent
 // Tracks all agent events, writes dashboard.json, retries failures
 // ============================================================
 
@@ -54,7 +54,7 @@ export class MonitoringAgent {
         log(`[monitoring] Agent initialized for episode ${episodeNumber}`);
     }
 
-    // ── Public API ────────────────────────────────────────────
+    // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /** Receive an event from any agent and update dashboard */
     public report(event: AgentEvent): void {
@@ -79,7 +79,7 @@ export class MonitoringAgent {
         this.writeLogLine(event);
 
         const icon = this.statusIcon(event.status);
-        log(`[monitoring] ${icon} [${event.agent.toUpperCase()}] ${event.status.toUpperCase()} — ${event.message}`);
+        log(`[monitoring] ${icon} [${event.agent.toUpperCase()}] ${event.status.toUpperCase()} â€” ${event.message}`);
 
         // Track retries for failed agents
         if (event.status === "failed") {
@@ -87,7 +87,7 @@ export class MonitoringAgent {
             this.retryRegistry.set(event.agent, retries);
 
             if (retries >= this.MAX_RETRIES) {
-                log(`[monitoring] ⛔ Agent [${event.agent}] has FAILED ${retries}x — marking unrecoverable.`, "error");
+                log(`[monitoring] â›” Agent [${event.agent}] has FAILED ${retries}x â€” marking unrecoverable.`, "error");
                 this.report({
                     agent: "monitoring",
                     status: "active",
@@ -95,7 +95,7 @@ export class MonitoringAgent {
                     timestamp: ts,
                 });
             } else {
-                log(`[monitoring] 🔁 Agent [${event.agent}] failed (attempt ${retries}/${this.MAX_RETRIES}). Retry recommended.`, "warn");
+                log(`[monitoring] ðŸ” Agent [${event.agent}] failed (attempt ${retries}/${this.MAX_RETRIES}). Retry recommended.`, "warn");
             }
         } else if (event.status === "completed") {
             // Reset retry counter on success
@@ -122,14 +122,14 @@ export class MonitoringAgent {
 
     /** Print a pretty summary of current agent statuses */
     public printSummary(): void {
-        log(`\n━━━━━━━━━━━━ OUT THE WAY — SYSTEM STATUS ━━━━━━━━━━━━`);
+        log(`\nâ”â”â”â”â”â”â”â”â”â”â”â” OUT THE WAY â€” SYSTEM STATUS â”â”â”â”â”â”â”â”â”â”â”â”`);
         log(`Episode: ${this.dashboard.episodeNumber} | Started: ${this.dashboard.startedAt}`);
-        log(`─────────────────────────────────────────────────────`);
+        log(`â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€`);
         for (const [agentName, entry] of Object.entries(this.dashboard.agents)) {
             const icon = this.statusIcon(entry.status as AgentStatus);
-            log(`  ${icon} ${agentName.padEnd(12)} → ${entry.status.toUpperCase()} | ${entry.message ?? ""}`);
+            log(`  ${icon} ${agentName.padEnd(12)} â†’ ${entry.status.toUpperCase()} | ${entry.message ?? ""}`);
         }
-        log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+        log(`â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”\n`);
     }
 
     /** Get the current dashboard snapshot */
@@ -137,7 +137,7 @@ export class MonitoringAgent {
         return { ...this.dashboard };
     }
 
-    // ── Private Helpers ───────────────────────────────────────
+    // â”€â”€ Private Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private ensureDataDir(): void {
         if (!fs.existsSync(DATA_DIR)) {
@@ -156,10 +156,11 @@ export class MonitoringAgent {
 
     private statusIcon(status: AgentStatus): string {
         switch (status) {
-            case "active":    return "🔄";
-            case "idle":      return "⏸️ ";
-            case "completed": return "✅";
-            case "failed":    return "❌";
+            case "active":    return "ðŸ”„";
+            case "idle":      return "â¸ï¸ ";
+            case "completed": return "âœ…";
+            case "failed":    return "âŒ";
         }
     }
 }
+

@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 import { config } from "./core/config.js";
 
 async function testBrave() {
@@ -49,3 +49,4 @@ async function testBrave() {
 }
 
 testBrave();
+

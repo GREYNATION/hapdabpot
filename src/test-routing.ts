@@ -1,4 +1,4 @@
-// Test script for routing logic
+﻿// Test script for routing logic
 import { routeTask, architectAgent } from "./agents/architect.js";
 
 const testCases = [
@@ -13,7 +13,7 @@ async function runTests() {
   for (const tc of testCases) {
     const result = routeTask(tc.input);
     const passed = result === tc.expected;
-    console.log(`Input: "${tc.input}" | Expected: ${tc.expected} | Got: ${result} | ${passed ? "✅ PASSED" : "❌ FAILED"}`);
+    console.log(`Input: "${tc.input}" | Expected: ${tc.expected} | Got: ${result} | ${passed ? "âœ… PASSED" : "âŒ FAILED"}`);
   }
   
   console.log("\n--- ARCHITECT AGENT PLAN TEST ---");
@@ -25,15 +25,16 @@ async function runTests() {
   try {
       const plan = JSON.parse(planStr);
       if (plan.tasks && plan.tasks[0].agent === "developer") {
-          console.log("✅ Plan format and content verified.");
+          console.log("âœ… Plan format and content verified.");
       } else {
-          console.log("❌ Plan format or content mismatch.");
+          console.log("âŒ Plan format or content mismatch.");
       }
   } catch (e) {
-      console.log("❌ Plan is not valid JSON.");
+      console.log("âŒ Plan is not valid JSON.");
   }
   
   console.log("--------------------------");
 }
 
 runTests().catch(console.error);
+

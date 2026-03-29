@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 
 async function testScraping() {
     console.log("--- SCRAPING TEST ---");
@@ -45,3 +45,4 @@ async function testScraping() {
 }
 
 testScraping();
+

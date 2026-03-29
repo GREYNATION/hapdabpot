@@ -1,4 +1,4 @@
-import { BaseAgent } from "./baseAgent.js";
+﻿import { BaseAgent } from "./baseAgent.js";
 import { Octokit } from "octokit";
 import { config, log } from "../core/config.js";
 
@@ -164,3 +164,4 @@ export class GitHubAgent extends BaseAgent {
         return [...githubTools, ...super.getTools()];
     }
 }
+

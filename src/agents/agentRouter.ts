@@ -1,4 +1,4 @@
-import { TraderAgent } from "./TraderAgent.js";
+﻿import { TraderAgent } from "./TraderAgent.js";
 import { RealEstateAgent } from "./RealEstateAgent.js";
 import { ContentAgent } from "./ContentAgent.js";
 import { aiRoute } from "./aiRouter.js";
@@ -21,6 +21,6 @@ export async function routeTask(task: string, userId: string) {
       return content.execute(task, userId);
 
     default:
-      return "🤖 AI could not decide agent.";
+      return "ðŸ¤– AI could not decide agent.";
   }
 }
