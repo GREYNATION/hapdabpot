@@ -1,0 +1,158 @@
+{
+  "episodeNumber": 1,
+  "title": "First Light",
+  "hook": "A burner phone lights up at 5AM. Some calls you can't ignore.",
+  "synopsis": "Jace is jolted awake before dawn by a cryptic text from a blocked number — his incarcerated brother Marcus wants to talk. As the day unfolds, we meet his world: Rel, his loud and loyal cousin who warns him that someone named Dre is sniffing around, and Nia, his childhood love who just got a shot at her dream with a record label meeting. Jace carries both their hopes on his shoulders, but when Rel intercepts a chilling message from Dre about Marcus cutting a deal with Jace's name attached, the ground shifts beneath all of them.",
+  "scenes": [
+    {
+      "sceneNumber": 1,
+      "location": "Jace's dim apartment, 5:17 AM. A single streetlight cuts through the blinds.",
+      "description": "Jace sits on the edge of a bare mattress, elbows on his knees. A burner phone on the nightstand buzzes once, illuminating the wall with a pale glow. He picks it up slowly. The screen reads one message from BLOCKED NUMBER: 'Marcus says talk. It's about your name.' His jaw tightens. He sets the phone face-down and stares at the ceiling.",
+      "visualPrompt": "Vertical 9:16 cinematic shot. Dark apartment interior, blue-grey predawn light through horizontal blinds casting prison-bar shadows across a young Black man's face. He sits on the edge of an unmade bed in a plain white tank top, forearm tattoo visible. Close-up on his hands gripping a cheap black phone, screen glow reflecting in sharp dark eyes. Gritty, intimate, moody color grade — desaturated with warm amber highlights. Shallow depth of field.",
+      "dialoguePrompt": "No spoken dialogue. Internal tension conveyed through visuals and ambient sound — distant sirens, a ticking clock, the phone buzz.",
+      "dialogue": [],
+      "charactersPresent": [
+        "Jace"
+      ],
+      "durationSeconds": 5
+    },
+    {
+      "sceneNumber": 2,
+      "location": "Sunrise Bodega, corner of Lexington and 8th. Fluorescent lights, bulletproof glass.",
+      "description": "Rel is at the counter in a neon green puffer vest, arguing playfully with the cashier about the price of a honey bun. Jace walks in and Rel's whole energy shifts — bigger, louder, performing for his cousin. But between jokes, Rel drops his voice and tells Jace that a dude named Dre has been asking about him on the block. Jace's face doesn't move, but his hand tightens around the coffee cup.",
+      "visualPrompt": "Vertical 9:16 cinematic shot. Bright fluorescent bodega interior, racks of chips and drinks visible. A stocky light-skinned Black man in a neon green puffer vest leans on the counter grinning, animated gestures. Jace enters frame in a black hoodie, calm and still, creating visual contrast. Medium shot of both cousins, then tight close-up on Jace's hand squeezing a styrofoam coffee cup. Urban morning light through the door. Warm-toned, lively but with an undercurrent of tension.",
+      "dialoguePrompt": "Rel is loud, playful, fast-talking — using humor as armor. When he gets serious, his voice drops low and quick. Jace is low, measured, barely above a whisper. Dry delivery.",
+      "dialogue": [
+        {
+          "character": "Rel",
+          "line": "Man, this honey bun is $2.75?! In THIS economy? Yo, I'm writing my congressman."
+        },
+        {
+          "character": "Jace",
+          "line": "You ain't writing nobody. Pick your snack and let's go."
+        },
+        {
+          "character": "Rel",
+          "line": "Aight, aight — but real talk though. Some dude named Dre been asking 'bout you. West side type. Clean but... off."
+        },
+        {
+          "character": "Jace",
+          "line": "I don't know no Dre."
+        }
+      ],
+      "charactersPresent": [
+        "Jace",
+        "Rel"
+      ],
+      "durationSeconds": 6
+    },
+    {
+      "sceneNumber": 3,
+      "location": "Nia's bedroom, converted corner studio. Clothes on the door, fairy lights, a mic stand made from a broom handle.",
+      "description": "Nia sits cross-legged on her bed with headphones on, humming a melody into her phone's voice memo app. She layers harmonies, eyes closed, lost in the music. Her phone buzzes with an email notification. She opens it — 'A&R Review: Kingdom Records wants to schedule a callback for your demo submission.' Her hand covers her mouth. She whispers 'Oh my God' and immediately starts singing again, this time with tears in her eyes.",
+      "visualPrompt": "Vertical 9:16 cinematic shot. Cozy bedroom, warm string lights draped on the wall, posters of Erykah Badu and SZA. A brown-skinned young Black woman with natural hair pulled into a puff sits cross-legged on a made bed, oversized headphones around her neck, phone in hand. Close-up on her face as she reads something — eyes widening, hand flying to her mouth. Tears catch the fairy light. Intimate, golden-hour warmth, dreamlike soft focus. A microphone made from a modified broom handle leans in the corner.",
+      "dialoguePrompt": "Nia's voice is warm and melodic even when speaking. She hums and sings softly throughout. The 'Oh my God' is a breathless, emotional whisper — disbelief and joy colliding.",
+      "dialogue": [
+        {
+          "character": "Nia",
+          "line": "Heaven knows... I've been waiting on this... mmhmm..."
+        },
+        {
+          "character": "Nia",
+          "line": "Oh my God. Oh my GOD."
+        }
+      ],
+      "charactersPresent": [
+        "Nia"
+      ],
+      "durationSeconds": 5
+    },
+    {
+      "sceneNumber": 4,
+      "location": "Their rooftop — cinder blocks, a rusted railing, the skyline spread wide. Their spot since they were fifteen.",
+      "description": "Jace and Nia sit shoulder to shoulder on the ledge. She plays him the demo — her voice filling the air between them. Jace watches her sing with a rare, full smile. She tells him about Kingdom Records. He pulls her close and says he's proud. She studies his face, senses the weight behind his eyes, asks what's wrong. He says 'Just handling business' — the same deflection he always uses. She lets it sit but doesn't believe it.",
+      "visualPrompt": "Vertical 9:16 cinematic shot. Rooftop at golden hour, city skyline in the background with warm orange and pink sky. Jace and Nia sit close on a concrete ledge, shoulders touching. She holds her phone up playing music, he watches her with a soft expression. Wide shot showing the vast city behind two small figures, then intimate close-up of their hands almost touching. Wind moves her hair. Romantic but heavy — the light is beautiful but fading. Cinematic anamorphic lens flare.",
+      "dialoguePrompt": "Nia is warm, excited, but perceptive. Her tone shifts from joyful to concerned. Jace is gentle here — the softest version of him — but guarded. His voice drops even lower when deflecting. Real affection between them, unspoken history.",
+      "dialogue": [
+        {
+          "character": "Nia",
+          "line": "Kingdom Records, Jace. They actually listened. They want to meet me next week."
+        },
+        {
+          "character": "Jace",
+          "line": "I told you. I been told you. Wasn't nobody gonna sleep on that voice."
+        },
+        {
+          "character": "Nia",
+          "line": "You good? You got that look again."
+        },
+        {
+          "character": "Jace",
+          "line": "I'm good. Just handling business."
+        }
+      ],
+      "charactersPresent": [
+        "Jace",
+        "Nia"
+      ],
+      "durationSeconds": 6
+    },
+    {
+      "sceneNumber": 5,
+      "location": "Outside the same bodega, 9 PM. The neighborhood is quieter now. Streetlights humming.",
+      "description": "Rel is leaning against the wall scrolling his phone when a black sedan pulls up slow. The window rolls down and a well-dressed man with calm, cold eyes leans out — Dre. He's not aggressive. That's what makes it worse. He tells Rel to pass a message to Jace: Marcus cut a deal with the feds, and Jace's name is on the paperwork. Rel's smile vanishes completely. He doesn't say a word. Dre drives off. Rel stands frozen, then pulls out his phone and calls Jace.",
+      "visualPrompt": "Vertical 9:16 cinematic shot. Night exterior, bodega glowing in the background. Rel in a bright orange hoodie leans against a brick wall, scrolling his phone. A sleek black sedan creeps into frame, window rolling down to reveal a composed, well-dressed man with sharp features and dead-calm eyes. Low-angle shot making the car feel predatory. Tight on Rel's face as his expression drains of all humor — pure fear and anger. Streetlight casts long shadows. Cold blue-grey night palette with warm bodega glow.",
+      "dialoguePrompt": "Dre speaks slowly, almost politely — which makes it more threatening. Controlled, measured, like a man who has nothing to prove. Rel goes completely silent. His usual loud energy is gone. When he speaks to Jace on the phone, his voice is shaky and low — we've never heard him like this.",
+      "dialogue": [
+        {
+          "character": "Dre",
+          "line": "Tell your cousin Marcus made a deal with the feds. His name's in it. He's got seventy-two hours to decide what he wants to do about that."
+        },
+        {
+          "character": "Rel",
+          "line": "..."
+        },
+        {
+          "character": "Dre",
+          "line": "Have a good night, little cousin."
+        },
+        {
+          "character": "Rel",
+          "line": "Jace... pick up. Jace, pick up the phone, bro. It's about Marcus."
+        }
+      ],
+      "charactersPresent": [
+        "Rel",
+        "Dre"
+      ],
+      "durationSeconds": 6
+    },
+    {
+      "sceneNumber": 6,
+      "location": "Jace's apartment, same night. Dark except for the phone screen glow.",
+      "description": "Jace sits in the same position as the opening — edge of the bed, alone. He finally picks up the burner phone and dials the blocked number. It rings once. Twice. A click. A voice on the other end — calm, familiar, worn: 'Jace. Sit down, nephew.' Jace closes his eyes. He doesn't sit. The camera slowly pushes in on his face as the weight of everything crashes behind his eyes. Cut to black.",
+      "visualPrompt": "Vertical 9:16 cinematic shot. Same apartment as Scene 1 but now fully dark. Only light source is the burner phone screen casting harsh white light upward onto Jace's face from below, creating deep shadows under his eyes and cheekbones — almost ghostly. He holds the phone to his ear with one hand, the other fist clenched at his side. Extreme close-up on his face as he processes what he's hearing — eyes closing, jaw clenching, a single muscle twitching in his jaw. Slow dolly push-in. Noir lighting. The frame tightens until only his eye fills the screen. Hard cut to black.",
+      "dialoguePrompt": "The voice on the phone is older, gravelly, calm — an uncle or father figure. Commands respect without raising his voice. Jace says nothing. His silence is the loudest thing in the scene.",
+      "dialogue": [
+        {
+          "character": "Uncle",
+          "line": "Jace. Sit down, nephew."
+        },
+        {
+          "character": "Jace",
+          "line": "I'm standing."
+        },
+        {
+          "character": "Uncle",
+          "line": "Then you already know."
+        }
+      ],
+      "charactersPresent": [
+        "Jace"
+      ],
+      "durationSeconds": 5
+    }
+  ],
+  "cliffhanger": "Jace stands in the dark, phone to his ear, as the voice says 'Then you already know.' His eye fills the frame. Hard cut to black. A single text appears on screen: 'Marcus cut a deal. Jace has 72 hours.'",
+  "createdAt": "2026-03-26T23:11:23.555Z"
+}
