@@ -1,4 +1,4 @@
-import { Telegraf } from "telegraf";
+import { Telegraf, Context } from "telegraf";
 import { CrmManager } from "../core/crm.js";
 import { ai, manager } from "../core/manager.js";
 import { simpleChat } from "../core/ai.js";
@@ -61,6 +61,12 @@ export class TelegramBot {
         this.setupTradingHandlers();
         setupInvoiceHandlers(this.bot);
         this.setupHandlers();
+
+        // Global Bot Error Handler
+        this.bot.catch((err: any, ctx: Context) => {
+            log(`[bot] ERROR for ${ctx.updateType}: ${err.message}`, "error");
+            console.error(err);
+        });
     }
 
     private setupMiddleware() {
