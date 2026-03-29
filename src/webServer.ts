@@ -53,9 +53,14 @@ app.get('/test/stripe', (req: Request, res: Response) => {
 });
 
 export function startWebServer() {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     log(`[WebServer] Started on port ${PORT}`);
     log(`[WebServer] Stripe webhook endpoint: POST /webhook/stripe`);
     log(`[WebServer] Health check: GET /health`);
   });
+  
+  // Also add a basic root for general health
+  app.get('/', (req, res) => res.send('Gravity Claw Specialist Agent is Online.'));
+  
+  return server;
 }
