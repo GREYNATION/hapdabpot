@@ -13,7 +13,7 @@ export const config = {
         .split(",")
         .map(id => parseInt(id.trim()))
         .filter(id => !isNaN(id)),
-    openaiApiKey: (process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY)?.trim(),
+    openaiApiKey: process.env.GROQ_API_KEY?.trim(),
     openaiBaseUrl: "https://api.groq.com/openai/v1",
     openaiModel: process.env.OPENAI_MODEL?.trim() || "llama-3.3-70b-versatile",
     backupModel: process.env.BACKUP_MODEL?.trim() || "llama-3.3-70b-versatile",
