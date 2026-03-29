@@ -11,6 +11,12 @@ import { ResearcherAgent } from "../agents/researcherAgent.js";
 import { MarketerAgent } from "../agents/marketerAgent.js";
 import { MasterTraderAgent } from "../agents/MasterTraderAgent.js";
 import { scanMarkets, formatMarketsReport, analyzeWithAI } from "../agents/predictionMarketAgent.js";
+import {
+    driveListFiles, driveSearch, readDoc, createDoc,
+    createPresentation, createSheet, appendSheet,
+    listEmails, sendEmail, listEvents, createEvent,
+    isGoogleEnabled
+} from "../agents/googleWorkspaceAgent.js";
 import { PropertyScraper } from "../core/scraper.js";
 import { SkipTracer } from "../core/skiptrace.js";
 import fs from "fs";
@@ -20,6 +26,8 @@ import ffmpeg from "fluent-ffmpeg";
 import { agentMail } from "../services/agentmail.js";
 import { getTasks } from "../core/taskMemory.js";
 import { listApps, stopApp, getLogs } from "../core/processManager.js";
+import { DealWatcher } from '../core/dealWatcher.js';
+import { setupInvoiceHandlers } from './invoiceHandlers.js';
 
 interface AnalysisSession {
     address: string;
@@ -51,6 +59,7 @@ export class TelegramBot {
         this.setupProcessHandlers();
         this.setupBuildHandler();
         this.setupTradingHandlers();
+        setupInvoiceHandlers(this.bot);
         this.setupHandlers();
     }
 
@@ -204,6 +213,63 @@ export class TelegramBot {
 
                 default:
                     return this.safeReply(ctx, "🏢 Real Estate Wholesale CRM\n\nUsage:\n/deal add [addr] | [seller] | [phone] | [arv] | [repairs]\n/deal list\n/deal view [id]\n/deal update [id] [field]=[value]");
+            }
+        });
+
+        // Invoice command
+        this.bot.command("invoice", async (ctx) => {
+            if (!this.checkOwner(ctx)) return;
+            const args = ctx.message.text.split(" ").slice(1);
+            const subCommand = args[0]?.toLowerCase();
+
+            switch (subCommand) {
+                case "list": {
+                    const pendingInvoices = (global as any).pendingInvoices || [];
+                    if (pendingInvoices.length === 0) {
+                        return this.safeReply(ctx, "📭 No pending invoices.");
+                    }
+                    
+                    const list = pendingInvoices.map((inv: any) => 
+                        `💰 ${inv.address} - $${inv.amount.toLocaleString()} (Deal #${inv.dealId})`
+                    ).join("\n");
+                    
+                    return this.safeReply(ctx, `📋 *Pending Invoices*\n\n${list}`, true);
+                }
+                
+                case "send": {
+                    const dealId = parseInt(args[1]);
+                    if (isNaN(dealId)) {
+                        return this.safeReply(ctx, "❌ Usage: /invoice send [dealId]");
+                    }
+                    
+                    await this.safeReply(ctx, `🔄 Sending invoice for deal #${dealId}...`);
+                    const success = await DealWatcher.confirmAndSendInvoice(dealId);
+                    
+                    if (success) {
+                        return this.safeReply(ctx, `✅ Invoice sent for deal #${dealId}!`);
+                    } else {
+                        return this.safeReply(ctx, `❌ Failed to send invoice. Check Stripe configuration.`);
+                    }
+                }
+                
+                case "test": {
+                    // Create a test deal and move to Under Contract
+                    const dealId = CrmManager.addDeal({
+                        address: '456 Test Ave, Queens, NY 11375',
+                        seller_name: 'Test Seller',
+                        arv: 400000,
+                        repair_estimate: 40000,
+                        status: 'lead'
+                    });
+                    
+                    CrmManager.updateDeal(dealId, { status: 'contract' });
+                    await DealWatcher.checkDealStatus(dealId);
+                    
+                    return this.safeReply(ctx, `✅ Test deal #${dealId} created and set to "Under Contract". Invoice should be ready for confirmation.`);
+                }
+                
+                default:
+                    return this.safeReply(ctx, "💰 Invoice Management\n\nUsage:\n/invoice list - Show pending invoices\n/invoice send [dealId] - Send invoice for deal\n/invoice test - Create test deal and invoice");
             }
         });
     }
@@ -742,8 +808,88 @@ Default: DEMO mode (no real money).
     }
 
     public launch() {
+        DealWatcher.init();
+        this.setupGoogleHandlers();
         this.bot.launch();
         log("[bot] Polling launched successfully.");
+    }
+
+    private setupGoogleHandlers() {
+        this.bot.command('google', async (ctx) => {
+            if (!this.checkOwner(ctx)) return;
+            if (!isGoogleEnabled()) {
+                return this.safeReply(ctx, '❌ Google Workspace not configured. Add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN to Railway Variables.');
+            }
+
+            const parts = ctx.message.text.split(' ').slice(1);
+            const service = parts[0]?.toLowerCase();
+            const action = parts[1]?.toLowerCase();
+            const args = parts.slice(2).join(' ');
+
+            try {
+                let result = '';
+
+                if (service === 'drive') {
+                    if (action === 'list') result = await driveListFiles();
+                    else if (action === 'search') result = await driveSearch(args || 'untitled');
+                    else result = '📂 Usage:\n/google drive list\n/google drive search [query]';
+
+                } else if (service === 'doc') {
+                    if (action === 'read') result = await readDoc(args);
+                    else if (action === 'create') {
+                        const [title, ...content] = args.split('|');
+                        result = await createDoc(title.trim(), content.join('|').trim() || '');
+                    } else result = '📄 Usage:\n/google doc read [docId]\n/google doc create [title] | [content]';
+
+                } else if (service === 'slides') {
+                    const [title, ...bullets] = args.split('|');
+                    result = await createPresentation(title.trim(), bullets.map(b => b.trim()));
+
+                } else if (service === 'sheet') {
+                    if (action === 'create') result = await createSheet(args || 'New Sheet');
+                    else if (action === 'append') {
+                        const [sheetId, ...rows] = args.split('|');
+                        const values = rows.map(r => r.split(',').map(c => c.trim()));
+                        result = await appendSheet(sheetId.trim(), values);
+                    } else result = '📊 Usage:\n/google sheet create [title]\n/google sheet append [id] | [val1,val2] | [val3,val4]';
+
+                } else if (service === 'gmail') {
+                    if (action === 'list') result = await listEmails(args || 'is:unread');
+                    else if (action === 'send') {
+                        const [to, subject, ...body] = args.split('|');
+                        result = await sendEmail(to.trim(), subject.trim(), body.join('|').trim());
+                    } else result = '📧 Usage:\n/google gmail list [query]\n/google gmail send [to] | [subject] | [body]';
+
+                } else if (service === 'calendar') {
+                    if (action === 'list') result = await listEvents(parseInt(args) || 7);
+                    else if (action === 'add') {
+                        const [title, start, end] = args.split('|').map(s => s.trim());
+                        result = await createEvent(title, start, end || new Date(new Date(start).getTime() + 3600000).toISOString());
+                    } else result = '📅 Usage:\n/google calendar list [days]\n/google calendar add [title] | [ISO start] | [ISO end]';
+
+                } else {
+                    result = [
+                        '🌐 GOOGLE WORKSPACE COMMANDS',
+                        '━━━━━━━━━━━━━━━━━━━━━━━━━',
+                        '📂 /google drive list',
+                        '🔍 /google drive search [query]',
+                        '📄 /google doc read [docId]',
+                        '📄 /google doc create [title] | [content]',
+                        '📊 /google slides create [title] | [slide1] | [slide2]',
+                        '📊 /google sheet create [title]',
+                        '📊 /google sheet append [id] | [val1,val2]',
+                        '📧 /google gmail list [query]',
+                        '📧 /google gmail send [to] | [subject] | [body]',
+                        '📅 /google calendar list [days]',
+                        '📅 /google calendar add [title] | [ISO date]',
+                    ].join('\n');
+                }
+
+                await this.safeReply(ctx, result);
+            } catch (err: any) {
+                await this.safeReply(ctx, `❌ Google error: ${err.message}`);
+            }
+        });
     }
 
     private formatApps(apps: any[]): string {
