@@ -14,7 +14,17 @@ export const config = {
         .split(",")
         .map(id => parseInt(id.trim()))
         .filter(id => !isNaN(id)),
-    openaiApiKey: (process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY)?.trim(),
+    openaiApiKey: (() => {
+        const orKey = process.env.OPENROUTER_API_KEY?.trim();
+        const oaKey = process.env.OPENAI_API_KEY?.trim();
+        const baseUrl = process.env.OPENAI_BASE_URL?.trim() || "https://openrouter.ai/api/v1";
+        
+        // If using OpenRouter base URL, prioritize OpenRouter key
+        if (baseUrl.includes("openrouter.ai")) {
+            return orKey || oaKey;
+        }
+        return oaKey || orKey;
+    })(),
     openaiBaseUrl: process.env.OPENAI_BASE_URL?.trim() || "https://openrouter.ai/api/v1",
     openaiModel: process.env.OPENAI_MODEL?.trim() || "openai/gpt-4o-mini",
     backupModel: process.env.BACKUP_MODEL?.trim() || "meta-llama/llama-3.3-70b-instruct",
@@ -47,6 +57,12 @@ if(!config.ownerId && config.allowedUserIds.length > 0) {
 }
 
 log(`[system] Config loaded. Provider: ${config.aiProvider}. Owner: ${config.ownerId || 'NOT CONFIGURED'}`);
+if (config.openaiApiKey) {
+    const keyPrefix = config.openaiApiKey.startsWith("sk-or-") ? "OpenRouter" : "OpenAI";
+    log(`[system] LLM Auth: Using ${keyPrefix} key (ends in ...${config.openaiApiKey.slice(-4)})`);
+} else {
+    log(`[system] ⚠️ LLM Auth: No API Key found in environment!`, "error");
+}
 
 export const openai = new OpenAI({
     apiKey: config.openaiApiKey,
