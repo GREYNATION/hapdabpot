@@ -1,22 +1,22 @@
-﻿import fetch from "node-fetch";
+import fetch from "node-fetch";
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 export async function aiRoute(task: string) {
-  if (!process.env.OPENROUTER_API_KEY) {
-    console.warn("âš ï¸ OPENROUTER_API_KEY not set - AI routing unavailable");
+  if (!process.env.GROQ_API_KEY) {
+    console.warn("⚠️  GROQ_API_KEY not set - AI routing unavailable");
     return null;
   }
 
   try {
-    const res = await fetch(OPENROUTER_URL, {
+    const res = await fetch(GROQ_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
+        model: "llama-3.3-70b-versatile",
         messages: [
           {
             role: "system",
@@ -42,13 +42,13 @@ Respond ONLY with the agent name.
     const data: any = await res.json();
     
     if (data.error) {
-      console.error("âŒ OpenRouter error:", data.error);
+      console.error("❌ Groq error:", data.error);
       return null;
     }
 
     return data.choices?.[0]?.message?.content?.trim();
   } catch (error) {
-    console.error("âŒ AI router failed:", error);
+    console.error("❌ AI router failed:", error);
     return null;
   }
 }

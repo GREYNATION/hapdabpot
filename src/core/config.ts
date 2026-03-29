@@ -1,4 +1,4 @@
-﻿import OpenAI from "openai";
+import OpenAI from "openai";
 
 import Anthropic from "@anthropic-ai/sdk";
 import dotenv from "dotenv";
@@ -14,7 +14,7 @@ export const config = {
         .map(id => parseInt(id.trim()))
         .filter(id => !isNaN(id)),
     openaiApiKey: (process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY)?.trim(),
-    openaiBaseUrl: process.env.OPENAI_BASE_URL?.trim() || "https://api.groq.com/openai/v1",
+    openaiBaseUrl: "https://api.groq.com/openai/v1",
     openaiModel: process.env.OPENAI_MODEL?.trim() || "llama-3.3-70b-versatile",
     backupModel: process.env.BACKUP_MODEL?.trim() || "llama-3.3-70b-versatile",
     visionModel: process.env.VISION_MODEL?.trim() || "llama-3.2-11b-vision-preview",
