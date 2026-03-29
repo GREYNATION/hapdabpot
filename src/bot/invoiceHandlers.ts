@@ -4,7 +4,13 @@ import { config, log } from '../core/config.js';
 
 export function setupInvoiceHandlers(bot: Telegraf) {
   // Check for pending invoices every 30 seconds
-  setInterval(() => checkPendingInvoices(bot), 30 * 1000);
+  setInterval(async () => {
+    try {
+      await checkPendingInvoices(bot);
+    } catch (err: any) {
+      log(`[InvoiceHandlers] setInterval error: ${err.message}`, 'error');
+    }
+  }, 30 * 1000);
   
   // Handle invoice confirmation button presses
   bot.on('callback_query', async (ctx: Context) => {
@@ -59,7 +65,12 @@ Send invoice to client?`;
   };
 
   try {
-    await bot.telegram.sendMessage(config.ownerId, message, {
+    const chatId = typeof config.ownerId === 'string' ? parseInt(config.ownerId) : config.ownerId;
+    if (!chatId || isNaN(chatId)) {
+      log('[InvoiceHandlers] Owner ID invalid or not configured', 'error');
+      return;
+    }
+    await bot.telegram.sendMessage(chatId, message, {
       parse_mode: 'Markdown',
       reply_markup: keyboard
     });
