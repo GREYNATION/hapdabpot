@@ -16,7 +16,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Expose backend port
-EXPOSE 3001
+# No hardcoded EXPOSE 3001, Railway handles port mapping via PORT env var
+# EXPOSE 3000
 
 CMD ["npm", "run", "start"]

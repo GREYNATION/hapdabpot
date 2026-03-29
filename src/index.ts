@@ -5,7 +5,10 @@ import { startWebServer } from "./webServer.js";
 dotenv.config();
 
 console.log("[system] Starting Web Server...");
-startWebServer();
+const server = startWebServer();
+
+import { initWebSocket } from "./core/websocket.js";
+initWebSocket(server);
 
 console.log("[system] Initializing Telegram Bot...");
 const bot = new TelegramBot();
