@@ -4,12 +4,17 @@ import { startWebServer } from "./webServer.js";
 
 dotenv.config();
 
-console.log("[system] Initializing Gravity Claw Specialist Agent Architecture...");
+console.log("[system] Starting Web Server...");
+startWebServer();
 
+console.log("[system] Initializing Telegram Bot...");
 const bot = new TelegramBot();
 
-bot.launch();
-startWebServer();
+try {
+    bot.launch();
+} catch (err: any) {
+    console.error("[system] CRITICAL: Bot launch failed:", err.message);
+}
 
 // Global Error Handling
 process.on("unhandledRejection", (reason, promise) => {
