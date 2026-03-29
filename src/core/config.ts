@@ -31,7 +31,7 @@ export const config = {
     geminiApiKey: process.env.GEMINI_API_KEY?.trim(),
     geminiModel: process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash",
 
-    aiProvider: (process.env.AI_PROVIDER?.trim() || "groq") as "groq" | "gemini" | "anthropic",
+    aiProvider: "groq" as "groq" | "gemini" | "anthropic",
     ownerId: (() => {
         const id = process.env.TELEGRAM_OWNER_ID || process.env.OWNER_CHAT_ID;
         if (!id) return undefined;
