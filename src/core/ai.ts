@@ -1,4 +1,4 @@
-﻿import { openai, anthropic, config, log } from "./config.js";
+import { openai, anthropic, config, log } from "./config.js";
 import { getRecentMessages } from "./memory.js";
 
 export interface ToolCall {
@@ -32,7 +32,9 @@ export async function askAI(
     systemPrompt: string = "You are a helpful assistant.",
     options: AIOptions = {}
 ): Promise<AIResponse> {
-    const provider = config.aiProvider;
+    let provider = config.aiProvider as string;
+    if (provider === "openrouter") provider = "groq";
+
     const model = options.model || config.openaiModel;
 
     log(`[ai] Calling ${provider} with model ${model}...`);
