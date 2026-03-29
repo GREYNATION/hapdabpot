@@ -1,0 +1,527 @@
+{
+  "episodeNumber": 1,
+  "startedAt": "2026-03-26T23:10:42.565Z",
+  "lastUpdated": "2026-03-26T23:17:14.835Z",
+  "agents": {
+    "story": {
+      "status": "completed",
+      "lastUpdate": "2026-03-26T23:11:23.558Z",
+      "message": "Episode 1 generated: \"First Light\""
+    },
+    "scene": {
+      "status": "completed",
+      "lastUpdate": "2026-03-26T23:12:58.960Z",
+      "message": "6 scenes enhanced for episode 1"
+    },
+    "production": {
+      "status": "completed",
+      "lastUpdate": "2026-03-26T23:14:41.223Z",
+      "message": "Production complete — 6/6 real clips, 0 voice lines, 0 failures"
+    },
+    "assembly": {
+      "status": "completed",
+      "lastUpdate": "2026-03-26T23:15:27.224Z",
+      "message": "Episode 1 assembled"
+    },
+    "posting": {
+      "status": "failed",
+      "lastUpdate": "2026-03-26T23:17:14.832Z",
+      "message": "Post preparation failed: Unexpected token 'H', \"Here's the\"... is not valid JSON"
+    },
+    "marketing": {
+      "status": "completed",
+      "lastUpdate": "2026-03-26T23:16:21.547Z",
+      "message": "Marketing package ready for episode 1"
+    },
+    "music": {
+      "status": "idle",
+      "lastUpdate": "2026-03-26T23:10:42.565Z"
+    },
+    "monitoring": {
+      "status": "failed",
+      "lastUpdate": "2026-03-26T23:17:14.835Z",
+      "message": "Pipeline failed for episode 1: Unexpected token 'H', \"Here's the\"... is not valid JSON"
+    }
+  },
+  "logs": [
+    {
+      "agent": "monitoring",
+      "status": "active",
+      "message": "Pipeline started for episode 1",
+      "timestamp": "2026-03-26T23:10:42.567Z"
+    },
+    {
+      "agent": "story",
+      "status": "active",
+      "message": "Generating episode 1...",
+      "timestamp": "2026-03-26T23:10:42.574Z"
+    },
+    {
+      "agent": "story",
+      "status": "completed",
+      "message": "Episode 1 generated: \"First Light\"",
+      "timestamp": "2026-03-26T23:11:23.558Z",
+      "output": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\episodes\\ep_1.json"
+    },
+    {
+      "agent": "scene",
+      "status": "active",
+      "message": "Enhancing 6 scenes for episode 1",
+      "timestamp": "2026-03-26T23:11:23.561Z"
+    },
+    {
+      "agent": "scene",
+      "status": "failed",
+      "message": "Scene enhancement failed: Unexpected token 'I', \"I've analy\"... is not valid JSON",
+      "timestamp": "2026-03-26T23:12:12.257Z"
+    },
+    {
+      "agent": "scene",
+      "status": "active",
+      "message": "Enhancing 6 scenes for episode 1",
+      "timestamp": "2026-03-26T23:12:14.263Z"
+    },
+    {
+      "agent": "scene",
+      "status": "completed",
+      "message": "6 scenes enhanced for episode 1",
+      "timestamp": "2026-03-26T23:12:58.960Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "Starting production — 6 scenes for episode 1",
+      "timestamp": "2026-03-26T23:12:58.964Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 1/6] Refining visual prompt...",
+      "timestamp": "2026-03-26T23:12:58.966Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 1/6] Generating video clip via Runway Gen-3...",
+      "timestamp": "2026-03-26T23:13:10.978Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 1/6] No dialogue — audio step skipped",
+      "timestamp": "2026-03-26T23:13:10.983Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 1/6] ✅ Complete — clip: real, audio lines: 0",
+      "timestamp": "2026-03-26T23:13:10.986Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/6] Refining visual prompt...",
+      "timestamp": "2026-03-26T23:13:10.990Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/6] Generating video clip via Runway Gen-3...",
+      "timestamp": "2026-03-26T23:13:24.209Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/6] Generating 4 voice line(s) via ElevenLabs...",
+      "timestamp": "2026-03-26T23:13:24.213Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/99] Generating voice: Rel — \"Man, this honey bun is $2.75?! In THIS e...\"",
+      "timestamp": "2026-03-26T23:13:24.216Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:13:29.092Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/99] Generating voice: Jace — \"You ain't writing nobody. Pick your snac...\"",
+      "timestamp": "2026-03-26T23:13:29.249Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:13:32.662Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/99] Generating voice: Rel — \"Aight, aight — but real talk though. Som...\"",
+      "timestamp": "2026-03-26T23:13:32.782Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:13:32.912Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/99] Generating voice: Jace — \"I don't know no Dre.\"",
+      "timestamp": "2026-03-26T23:13:33.022Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:13:33.133Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 2/6] ✅ Complete — clip: real, audio lines: 0",
+      "timestamp": "2026-03-26T23:13:33.230Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 3/6] Refining visual prompt...",
+      "timestamp": "2026-03-26T23:13:33.232Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 3/6] Generating video clip via Runway Gen-3...",
+      "timestamp": "2026-03-26T23:13:44.506Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 3/6] Generating 2 voice line(s) via ElevenLabs...",
+      "timestamp": "2026-03-26T23:13:44.509Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 3/99] Generating voice: Nia — \"Heaven knows... I've been waiting on thi...\"",
+      "timestamp": "2026-03-26T23:13:44.511Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 3/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:13:49.465Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 3/99] Generating voice: Nia — \"Oh my God. Oh my GOD.\"",
+      "timestamp": "2026-03-26T23:13:49.562Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 3/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:13:49.712Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 3/6] ✅ Complete — clip: real, audio lines: 0",
+      "timestamp": "2026-03-26T23:13:49.909Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/6] Refining visual prompt...",
+      "timestamp": "2026-03-26T23:13:49.910Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/6] Generating video clip via Runway Gen-3...",
+      "timestamp": "2026-03-26T23:14:05.366Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/6] Generating 4 voice line(s) via ElevenLabs...",
+      "timestamp": "2026-03-26T23:14:05.370Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/99] Generating voice: Nia — \"Kingdom Records, Jace. They actually lis...\"",
+      "timestamp": "2026-03-26T23:14:05.374Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:14:05.579Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/99] Generating voice: Jace — \"I told you. I been told you. Wasn't nobo...\"",
+      "timestamp": "2026-03-26T23:14:05.689Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:14:05.829Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/99] Generating voice: Nia — \"You good? You got that look again.\"",
+      "timestamp": "2026-03-26T23:14:05.957Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:14:06.128Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/99] Generating voice: Jace — \"I'm good. Just handling business.\"",
+      "timestamp": "2026-03-26T23:14:06.274Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:14:06.402Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 4/6] ✅ Complete — clip: real, audio lines: 0",
+      "timestamp": "2026-03-26T23:14:06.517Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 5/6] Refining visual prompt...",
+      "timestamp": "2026-03-26T23:14:06.519Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 5/6] Generating video clip via Runway Gen-3...",
+      "timestamp": "2026-03-26T23:14:26.518Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 5/6] Generating 4 voice line(s) via ElevenLabs...",
+      "timestamp": "2026-03-26T23:14:26.524Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 5/99] Generating voice: Dre — \"Tell your cousin Marcus made a deal with...\"",
+      "timestamp": "2026-03-26T23:14:26.526Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 5/99] Generating voice: Rel — \"...\"",
+      "timestamp": "2026-03-26T23:14:26.678Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 5/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:14:26.807Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 5/99] Generating voice: Dre — \"Have a good night, little cousin.\"",
+      "timestamp": "2026-03-26T23:14:26.901Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 5/99] Generating voice: Rel — \"Jace... pick up. Jace, pick up the phone...\"",
+      "timestamp": "2026-03-26T23:14:26.997Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 5/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:14:27.096Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 5/6] ✅ Complete — clip: real, audio lines: 0",
+      "timestamp": "2026-03-26T23:14:27.427Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 6/6] Refining visual prompt...",
+      "timestamp": "2026-03-26T23:14:27.430Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 6/6] Generating video clip via Runway Gen-3...",
+      "timestamp": "2026-03-26T23:14:40.589Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 6/6] Generating 3 voice line(s) via ElevenLabs...",
+      "timestamp": "2026-03-26T23:14:40.593Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 6/99] Generating voice: Uncle — \"Jace. Sit down, nephew.\"",
+      "timestamp": "2026-03-26T23:14:40.596Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 6/99] Generating voice: Jace — \"I'm standing.\"",
+      "timestamp": "2026-03-26T23:14:40.858Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 6/99] ElevenLabs plan restriction — falling back to default voice.",
+      "timestamp": "2026-03-26T23:14:41.011Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 6/99] Generating voice: Uncle — \"Then you already know.\"",
+      "timestamp": "2026-03-26T23:14:41.113Z"
+    },
+    {
+      "agent": "production",
+      "status": "active",
+      "message": "[Scene 6/6] ✅ Complete — clip: real, audio lines: 0",
+      "timestamp": "2026-03-26T23:14:41.212Z"
+    },
+    {
+      "agent": "production",
+      "status": "completed",
+      "message": "Production complete — 6/6 real clips, 0 voice lines, 0 failures",
+      "timestamp": "2026-03-26T23:14:41.223Z",
+      "output": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\output\\ep1_production_manifest.json"
+    },
+    {
+      "agent": "assembly",
+      "status": "active",
+      "message": "Starting assembly for episode 1 (6 scenes)",
+      "timestamp": "2026-03-26T23:14:41.232Z"
+    },
+    {
+      "agent": "assembly",
+      "status": "completed",
+      "message": "Episode 1 assembled",
+      "timestamp": "2026-03-26T23:15:27.224Z",
+      "output": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\output\\ep_1_final.mp4"
+    },
+    {
+      "agent": "marketing",
+      "status": "active",
+      "message": "Generating marketing package for episode 1",
+      "timestamp": "2026-03-26T23:15:27.231Z"
+    },
+    {
+      "agent": "marketing",
+      "status": "failed",
+      "message": "Marketing generation failed: Unexpected non-whitespace character after JSON at position 1898 (line 26 column 1)",
+      "timestamp": "2026-03-26T23:15:37.994Z"
+    },
+    {
+      "agent": "marketing",
+      "status": "active",
+      "message": "Generating marketing package for episode 1",
+      "timestamp": "2026-03-26T23:15:40.009Z"
+    },
+    {
+      "agent": "marketing",
+      "status": "failed",
+      "message": "Marketing generation failed: Unexpected token 'H', \"Here's the\"... is not valid JSON",
+      "timestamp": "2026-03-26T23:15:51.633Z"
+    },
+    {
+      "agent": "marketing",
+      "status": "active",
+      "message": "Generating marketing package for episode 1",
+      "timestamp": "2026-03-26T23:15:55.643Z"
+    },
+    {
+      "agent": "marketing",
+      "status": "completed",
+      "message": "Marketing package ready for episode 1",
+      "timestamp": "2026-03-26T23:16:21.547Z",
+      "output": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\marketing\\ep_1_marketing.json"
+    },
+    {
+      "agent": "posting",
+      "status": "active",
+      "message": "Preparing posts for episode 1",
+      "timestamp": "2026-03-26T23:16:21.552Z"
+    },
+    {
+      "agent": "posting",
+      "status": "failed",
+      "message": "Post preparation failed: Unexpected token 'H', \"Here's the\"... is not valid JSON",
+      "timestamp": "2026-03-26T23:16:39.615Z"
+    },
+    {
+      "agent": "posting",
+      "status": "active",
+      "message": "Preparing posts for episode 1",
+      "timestamp": "2026-03-26T23:16:41.635Z"
+    },
+    {
+      "agent": "posting",
+      "status": "failed",
+      "message": "Post preparation failed: Unexpected token 'H', \"Here's the\"... is not valid JSON",
+      "timestamp": "2026-03-26T23:16:57.911Z"
+    },
+    {
+      "agent": "posting",
+      "status": "active",
+      "message": "Preparing posts for episode 1",
+      "timestamp": "2026-03-26T23:17:01.925Z"
+    },
+    {
+      "agent": "posting",
+      "status": "failed",
+      "message": "Post preparation failed: Unexpected token 'H', \"Here's the\"... is not valid JSON",
+      "timestamp": "2026-03-26T23:17:14.832Z"
+    },
+    {
+      "agent": "monitoring",
+      "status": "active",
+      "message": "Agent [posting] flagged unrecoverable after 3 retries.",
+      "timestamp": "2026-03-26T23:17:14.834Z"
+    },
+    {
+      "agent": "monitoring",
+      "status": "failed",
+      "message": "Pipeline failed for episode 1: Unexpected token 'H', \"Here's the\"... is not valid JSON",
+      "timestamp": "2026-03-26T23:17:14.835Z"
+    }
+  ],
+  "finalVideoPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\output\\ep_1_final.mp4"
+}
