@@ -1,8 +1,9 @@
-﻿import dotenv from "dotenv";
+import dotenv from "dotenv";
 import { TelegramBot } from "./bot/telegram.js";
 import { startMorningBriefing } from "./cron/morningBriefing.js";
 import { startLeadAlerts } from "./cron/leadAlerts.js";
 import { startOutreachCron, registerOutreachHandlers } from "./services/outreachService.js";
+import { startWebServer } from "./webServer.js";
 
 dotenv.config();
 

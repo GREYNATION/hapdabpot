@@ -1,4 +1,4 @@
-﻿import { Telegraf } from "telegraf";
+import { Telegraf } from "telegraf";
 import { CrmManager } from "../core/crm.js";
 import { db } from "../core/memory.js";
 import { promptOutreachApproval } from "../services/outreachService.js";
@@ -254,7 +254,7 @@ async function sendLeadAlertSummary(bot: Telegraf, chatId: number, leads: Scrape
 
     await bot.telegram.sendMessage(chatId, msg, {
         parse_mode: "Markdown",
-        disable_web_page_preview: true,
+        link_preview_options: { is_disabled: true },
     });
 
     // Store leads in memory for /addlead command
