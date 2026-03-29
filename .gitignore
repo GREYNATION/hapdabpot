@@ -6,3 +6,5 @@ data/*.db
 *.txt
 data/outtheway/clips/
 data/outtheway/output/
+tmp/
+workspace/

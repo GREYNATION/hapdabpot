@@ -33,7 +33,7 @@ export async function driveListFiles(query?: string, maxResults = 10): Promise<s
     });
     const files = res.data.files ?? [];
     if (files.length === 0) return "📂 No files found.";
-    return files.map((f, i) =>
+    return files.map((f: {name?: string|null; mimeType?: string|null; webViewLink?: string|null}, i: number) =>
         `${i + 1}. 📄 ${f.name}\n   Type: ${f.mimeType?.split(".").pop()}\n   🔗 ${f.webViewLink}`
     ).join("\n\n");
 }
@@ -152,7 +152,7 @@ export async function listEvents(days = 7): Promise<string> {
     });
     const events = res.data.items ?? [];
     if (events.length === 0) return `📅 No events in the next ${days} day(s).`;
-    return events.map((e, i) => {
+    return events.map((e: {summary?: string|null; start?: {dateTime?: string|null; date?: string|null}}, i: number) => {
         const start = e.start?.dateTime ?? e.start?.date ?? "?";
         return `${i + 1}. 📅 ${e.summary}\n   🕐 ${new Date(start).toLocaleString()}`;
     }).join("\n\n");

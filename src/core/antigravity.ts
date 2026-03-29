@@ -3,7 +3,7 @@ import { DeveloperAgent } from "../agents/developerAgent.js";
 import { ResearcherAgent } from "../agents/researcherAgent.js";
 import { MarketerAgent } from "../agents/marketerAgent.js";
 import { GitHubAgent } from "../agents/githubAgent.js";
-import { handleTask } from "../services/openrouter.js";
+import { handleTask } from "../openrouter.js";
 import { AgentType } from "./router.js";
 
 export interface AntigravityRequest {

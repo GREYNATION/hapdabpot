@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { TelegramBot } from "./bot/telegram.js";
+import { startWebServer } from "./webServer.js";
 
 dotenv.config();
 
@@ -8,6 +9,7 @@ console.log("[system] Initializing Gravity Claw Specialist Agent Architecture...
 const bot = new TelegramBot();
 
 bot.launch();
+startWebServer();
 
 // Global Error Handling
 process.on("unhandledRejection", (reason, promise) => {
