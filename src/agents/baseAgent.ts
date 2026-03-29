@@ -1,4 +1,4 @@
-import fs from "fs";
+﻿import fs from "fs";
 import path from "path";
 import { config, log } from "../core/config.js";
 import { askAI } from "../core/ai.js";
@@ -379,3 +379,4 @@ export abstract class BaseAgent {
         }
     }
 }
+

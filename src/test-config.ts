@@ -1,4 +1,4 @@
-import { config } from "./core/config.js";
+﻿import { config } from "./core/config.js";
 
 console.log("--- CONFIG DIAGNOSTIC ---");
 console.log("TELEGRAM_BOT_TOKEN:", config.telegramToken ? "EXISTS" : "MISSING");
@@ -12,3 +12,4 @@ if (config.braveApiKey) {
 } else {
     console.log("BRAVE_API_KEY is null/undefined in the config object.");
 }
+

@@ -1,4 +1,4 @@
-import { CrmManager, Deal } from './crm.js';
+﻿import { CrmManager, Deal } from './crm.js';
 import { createInvoice } from '../services/stripeService.js';
 import { config, log } from './config.js';
 
@@ -16,23 +16,17 @@ export class DealWatcher {
 
   static init() {
     log('[DealWatcher] Initializing deal watcher...');
-    
-    // Check for deals that might already be "Under Contract"
-    this.checkExistingDeals();
-    
-    // Set up periodic check (every 5 minutes)
-    setInterval(() => this.checkExistingDeals(), 5 * 60 * 1000);
+    // No automatic checks on startup anymore - only on status change
   }
 
   static async checkDealStatus(dealId: number): Promise<void> {
     const deal = CrmManager.getDeal(dealId);
     if (!deal) return;
 
-    // If deal is "Under Contract" and not already watched
-    if (deal.status === 'contract' && !this.watchedDeals.has(dealId)) {
-      log(`[DealWatcher] Deal ${dealId} (${deal.address}) is now Under Contract`);
+    // If deal is "Under Contract" and not already prompted
+    if (deal.status === 'contract' && deal.invoice_prompted === 0) {
+      log(`[DealWatcher] Deal ${dealId} (${deal.address}) is now Under Contract. Triggering invoice prompt.`);
       await this.handleUnderContractDeal(deal);
-      this.watchedDeals.add(dealId);
     }
   }
 
@@ -80,7 +74,10 @@ export class DealWatcher {
     (global as any).pendingInvoices = (global as any).pendingInvoices || [];
     (global as any).pendingInvoices.push(invoiceReadyEvent);
     
-    log(`[DealWatcher] Invoice ready event emitted for deal ${deal.id}`);
+    // Set persistent flag in database so it doesn't fire again
+    CrmManager.updateDeal(deal.id, { invoice_prompted: 1 });
+    
+    log(`[DealWatcher] Invoice ready event emitted for deal ${deal.id}. Flag persisted.`);
   }
 
   static async confirmAndSendInvoice(dealId: number): Promise<boolean> {
@@ -120,19 +117,8 @@ export class DealWatcher {
   }
 
   static async checkExistingDeals(): Promise<void> {
-    try {
-      const deals = CrmManager.listDeals(50);
-      const contractDeals = deals.filter(d => d.status === 'contract');
-      
-      for (const deal of contractDeals) {
-        if (!this.watchedDeals.has(deal.id)) {
-          await this.handleUnderContractDeal(deal);
-          this.watchedDeals.add(deal.id);
-        }
-      }
-    } catch (error: any) {
-      log(`[DealWatcher] Error checking existing deals: ${error.message}`, 'error');
-    }
+    // Deprecated for safety - user wants explicit triggers only
+    log('[DealWatcher] Manual check of existing deals triggered (skipped per user request)');
   }
 
   static getConfig(): DealWatcherConfig {

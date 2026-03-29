@@ -1,4 +1,4 @@
-import { ArchitectAgent } from "./architectAgent.js";
+﻿import { ArchitectAgent } from "./architectAgent.js";
 
 const agent = new ArchitectAgent();
 
@@ -32,3 +32,4 @@ export const architectAgent = async (task: string) => {
   };
   return JSON.stringify(plan, null, 2);
 };
+

@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+﻿import { exec } from "child_process";
 import util from "util";
 
 const execAsync = util.promisify(exec);
@@ -12,6 +12,7 @@ export async function runCommand(command: string, cwd: string) {
 
     return stdout || stderr || "Command executed";
   } catch (err: any) {
-    return `❌ Command failed: ${err.message}`;
+    return `âŒ Command failed: ${err.message}`;
   }
 }
+

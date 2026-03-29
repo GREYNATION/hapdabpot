@@ -1,4 +1,5 @@
-import { openai, anthropic, config, log } from "./config.js";
+﻿import { openai, anthropic, config, log } from "./config.js";
+import { getRecentMessages } from "./memory.js";
 
 export interface ToolCall {
     id: string;
@@ -37,7 +38,7 @@ export async function askAI(
     log(`[ai] Calling ${provider} with model ${model}...`);
 
     try {
-        if (provider === "openrouter") {
+        if (provider === "groq") {
             const messages = options.messages || [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: prompt }
@@ -47,7 +48,7 @@ export async function askAI(
                 model,
                 messages: messages as any[],
                 temperature: options.temperature ?? 0.7,
-                max_tokens: options.maxTokens,
+                max_tokens: options.maxTokens || 1000,
                 response_format: options.jsonMode ? { type: "json_object" } : undefined,
                 tools: options.tools as any,
                 tool_choice: options.toolChoice as any
@@ -61,7 +62,7 @@ export async function askAI(
         }
 
         if (provider === "gemini") {
-            throw new Error("Gemini SDK has been removed. Please use OpenRouter for Gemini models.");
+            throw new Error("Gemini SDK has been removed. Please use Groq or OpenAI for compatible models.");
         }
 
         if (provider === "anthropic") {
@@ -86,6 +87,11 @@ export async function askAI(
         throw new Error(`Unsupported AI provider: ${provider}`);
     } catch (err: any) {
         log(`[error] AI Call failed: ${err.message}`, "error");
+        if (err.status === 401 || err.message.includes("401") || err.message.includes("unauthorized") || err.message.includes("Authentication")) {
+            return {
+                content: "âš ï¸ AI service temporarily unavailable (Authentication error). Try again in a moment."
+            };
+        }
         throw err;
     }
 }
@@ -93,20 +99,29 @@ export async function askAI(
 /**
  * Fast, cost-effective chat for general bot responses.
  */
-export async function simpleChat(input: string) {
-    const res = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-            {
-                role: "system",
-                content: "You are HapdaBot, an advanced AI Trading Assistant and wholesale real estate agent. You have a built-in Master Trader agent hooked up to a TradingView webhook capable of institutional-grade order flow execution. If a user asks you to trade, tell them to send a TradingView webhook payload to `/webhook/tradingview` or execute the `/trade` and `/performance` commands to view their live P&L.",
-            },
-            {
-                role: "user",
-                content: input,
-            },
-        ],
-    });
+export async function simpleChat(input: string, chatId?: number) {
+    try {
+        const systemPrompt = "You are hapdabot. You have persistent memory of past conversations with this user. You are an advanced AI Trading Assistant and wholesale real estate agent. You have a built-in Master Trader agent hooked up to a TradingView webhook capable of institutional-grade order flow execution. If a user asks you to trade, tell them to send a TradingView webhook payload to `/webhook/tradingview` or execute the `/trade` and `/performance` commands to view their live P&L.";
+        
+        const history = chatId ? getRecentMessages(chatId, 10) : [];
+        const messages = [
+            { role: "system", content: systemPrompt },
+            ...history.map(m => ({ role: m.role, content: m.content })),
+            { role: "user", content: input }
+        ];
 
-    return res.choices[0].message.content || "No response";
+        const res = await openai.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages: messages as any[],
+        });
+
+        return res.choices[0].message.content || "No response";
+    } catch (err: any) {
+        log(`[error] SimpleChat failed: ${err.message}`, "error");
+        if (err.status === 401 || err.message.includes("401") || err.message.includes("unauthorized")) {
+            return "âš ï¸ AI service temporarily unavailable. Try again in a moment.";
+        }
+        return "I encountered an error. Please try again later.";
+    }
 }
+

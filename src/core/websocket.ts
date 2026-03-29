@@ -1,4 +1,4 @@
-import { WebSocketServer } from "ws";
+﻿import { WebSocketServer } from "ws";
 import { log } from "./config.js";
 
 let wss: WebSocketServer | null = null;
@@ -20,3 +20,4 @@ export function sendUpdate(data: any) {
     }
   });
 }
+

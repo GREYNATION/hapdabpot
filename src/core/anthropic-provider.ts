@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+﻿import Anthropic from "@anthropic-ai/sdk";
 import { config, log } from './config.js';
 
 export interface AnthropicMessage {
@@ -50,3 +50,4 @@ export class AnthropicProvider {
     }
   }
 }
+

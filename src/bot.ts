@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import { processUserInput } from "./taskOrchestrator.js";
 import { PropertyScraper } from "./services/PropertyScraper.js";
 
@@ -17,29 +17,29 @@ async function handleCommand(input: string, userId: string = "default-user") {
     case "scrape":
       const url = args[0];
       if (!url) {
-        return "❌ Please provide a URL to scrape. Usage: /scrape [url]";
+        return "âŒ Please provide a URL to scrape. Usage: /scrape [url]";
       }
       const data = await PropertyScraper.scrapeListings(url);
       if (data.length === 0) {
-        return "❌ No listings found. Check the URL or CSS selectors.";
+        return "âŒ No listings found. Check the URL or CSS selectors.";
       }
-      return data.map((p, i) => `${i + 1}. ${p.title}\n   💰 ${p.price}\n   📍 ${p.address}\n   🔗 ${p.link}`).join("\n\n");
+      return data.map((p, i) => `${i + 1}. ${p.title}\n   ðŸ’° ${p.price}\n   ðŸ“ ${p.address}\n   ðŸ”— ${p.link}`).join("\n\n");
 
     case "agents":
       return listAgents();
 
     default:
-      return "❌ Unknown command. Available: /build, /scrape, /agents";
+      return "âŒ Unknown command. Available: /build, /scrape, /agents";
   }
 }
 
 function listAgents() {
   return [
-    "📝 DeveloperAgent - Software development",
-    "📊 TraderAgent - Market trading",
-    "🏠 RealEstateAgent - Property analysis",
-    "📱 MarketerAgent - Content & outreach",
-    "🔍 ResearcherAgent - Web research & scraping"
+    "ðŸ“ DeveloperAgent - Software development",
+    "ðŸ“Š TraderAgent - Market trading",
+    "ðŸ  RealEstateAgent - Property analysis",
+    "ðŸ“± MarketerAgent - Content & outreach",
+    "ðŸ” ResearcherAgent - Web research & scraping"
   ].join("\n");
 }
 
@@ -47,7 +47,7 @@ function listAgents() {
 async function main() {
   const args = process.argv.slice(2);
   if (args.length === 0) {
-    console.log("🤖 Gravity Claw CLI Bot");
+    console.log("ðŸ¤– Gravity Claw CLI Bot");
     console.log("Usage:");
     console.log("  npm run bot -- /scrape [url]");
     console.log("  npm run bot -- /build [task]");

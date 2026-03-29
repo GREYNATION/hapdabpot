@@ -1,13 +1,20 @@
-import Stripe from 'stripe';
+﻿import Stripe from 'stripe';
 
 let stripeInstance: Stripe | null = null;
 
 function getStripe() {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('STRIPE_SECRET_KEY not set');
+  const key = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_API_KEY;
+  if (!key) {
+    console.warn('[Stripe] âš ï¸ No STRIPE_SECRET_KEY or STRIPE_API_KEY found in environment');
+    throw new Error('STRIPE_SECRET_KEY or STRIPE_API_KEY not set');
   }
+  
   if (!stripeInstance) {
-    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    const keySource = process.env.STRIPE_SECRET_KEY ? 'STRIPE_SECRET_KEY' : 'STRIPE_API_KEY';
+    const redactedKey = `${key.substring(0, 7)}...${key.substring(key.length - 4)}`;
+    console.log(`[Stripe] ðŸ›¡ï¸ Initializing with ${keySource}: ${redactedKey}`);
+    
+    stripeInstance = new Stripe(key, {
       // Use account default version to avoid TS version mismatch
     });
   }

@@ -1,4 +1,4 @@
-import { aiRoute } from "./agents/aiRouter.js";
+﻿import { aiRoute } from "./agents/aiRouter.js";
 import { TraderAgent } from "./agents/TraderAgent.js";
 import { RealEstateAgent } from "./agents/RealEstateAgent.js";
 import { ContentAgent } from "./agents/ContentAgent.js";
@@ -10,26 +10,26 @@ const agents = {
 };
 
 export async function processUserInput(userInput: string, userId: string = "default-user") {
-  console.log("🔍 Processing user input:", userInput);
+  console.log("ðŸ” Processing user input:", userInput);
   
   // Step 1: AI Router decides which agent to use
-  console.log("🧠 AI Router analyzing request...");
+  console.log("ðŸ§  AI Router analyzing request...");
   const agentName = await aiRoute(userInput);
   
   if (!agentName || !agents[agentName as keyof typeof agents]) {
     return {
       success: false,
-      response: "🤖 AI could not determine the best agent for your request.",
+      response: "ðŸ¤– AI could not determine the best agent for your request.",
       agent: null
     };
   }
   
   // Step 2: Best Agent Selected
   const selectedAgent = agents[agentName as keyof typeof agents];
-  console.log(`✅ Selected agent: ${agentName}`);
+  console.log(`âœ… Selected agent: ${agentName}`);
   
   // Step 3-6: Agent handles the task (includes vector memory search and storage)
-  console.log("📊 Agent executing with vector memory search...");
+  console.log("ðŸ“Š Agent executing with vector memory search...");
   const result = await selectedAgent.execute(userInput, userId);
   
   return {

@@ -1,4 +1,4 @@
-import { BaseAgent } from "./baseAgent.js";
+﻿import { BaseAgent } from "./baseAgent.js";
 import { saveMemory, getRelevantMemory } from "../memory/memoryService.js";
 
 export class ContentAgent extends BaseAgent {
@@ -19,7 +19,7 @@ export class ContentAgent extends BaseAgent {
 
     const context = memories.map((m: any) => m.content).join("\n");
 
-    const result = `✍️ Content Strategy:
+    const result = `âœï¸ Content Strategy:
 Task: ${task}
 
 Relevant Memory:

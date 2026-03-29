@@ -1,5 +1,5 @@
-// ============================================================
-// OUT THE WAY — Posting Agent
+﻿// ============================================================
+// OUT THE WAY â€” Posting Agent
 // Prepares post payloads for TikTok, Instagram Reels, YouTube Shorts
 // ============================================================
 
@@ -24,7 +24,7 @@ export class PostingAgent extends BaseAgent {
     getName(): string { return "PostingAgent"; }
 
     getSystemPrompt(): string {
-        return `You are the Posting Agent for "Out the Way" — a vertical AI drama series.
+        return `You are the Posting Agent for "Out the Way" â€” a vertical AI drama series.
 Your job is to prepare optimized post metadata for each social platform.
 You understand platform-specific requirements and audience behavior:
 - TikTok: Short punchy captions, trending sounds, fast hooks
@@ -58,7 +58,7 @@ Return ONLY a JSON array of 3 post objects (one per platform: tiktok, instagram,
     "platform": "tiktok",
     "caption": "Platform-optimized caption",
     "hashtags": ["tag1", "tag2"],
-    "bestPostTime": "Evening 7–9 PM EST",
+    "bestPostTime": "Evening 7â€“9 PM EST",
     "audienceNote": "Short observation about expected engagement"
   },
   { "platform": "instagram", ... },
@@ -89,7 +89,7 @@ Return ONLY a JSON array of 3 post objects (one per platform: tiktok, instagram,
                 const filePath = path.join(POSTS_DIR, filename);
                 const fullPayload = { ...payload, bestPostTime: p.bestPostTime, audienceNote: p.audienceNote };
                 fs.writeFileSync(filePath, JSON.stringify(fullPayload, null, 2), "utf-8");
-                log(`[posting] 📦 Post queued for ${p.platform}: ${filename}`);
+                log(`[posting] ðŸ“¦ Post queued for ${p.platform}: ${filename}`);
 
                 payloads.push(payload);
             }
@@ -98,7 +98,7 @@ Return ONLY a JSON array of 3 post objects (one per platform: tiktok, instagram,
 
         } catch (err: any) {
             this.emit("failed", `Post preparation failed: ${err.message}`);
-            log(`[posting] ❌ Failed: ${err.message}`, "error");
+            log(`[posting] âŒ Failed: ${err.message}`, "error");
             throw err;
         }
 
@@ -118,11 +118,11 @@ Return ONLY a JSON array of 3 post objects (one per platform: tiktok, instagram,
      * YouTube Shorts: YouTube Data API v3
      *   POST https://www.googleapis.com/upload/youtube/v3/videos
      * 
-     * Each platform requires OAuth tokens — store in .env as:
+     * Each platform requires OAuth tokens â€” store in .env as:
      *   TIKTOK_ACCESS_TOKEN, INSTAGRAM_ACCESS_TOKEN, YOUTUBE_ACCESS_TOKEN
      */
     async postToplatform(payload: PostPayload): Promise<PostPayload> {
-        log(`[posting] 🚀 Would post to ${payload.platform} — add API credentials to .env to enable`, "warn");
+        log(`[posting] ðŸš€ Would post to ${payload.platform} â€” add API credentials to .env to enable`, "warn");
 
         // Update payload status
         payload.status = "queued";
@@ -135,3 +135,4 @@ Return ONLY a JSON array of 3 post objects (one per platform: tiktok, instagram,
         if (!fs.existsSync(POSTS_DIR)) fs.mkdirSync(POSTS_DIR, { recursive: true });
     }
 }
+

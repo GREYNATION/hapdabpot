@@ -1,4 +1,4 @@
-import { BaseAgent } from "../agents/baseAgent.js";
+﻿import { BaseAgent } from "../agents/baseAgent.js";
 import { ResearcherAgent } from "../agents/researcherAgent.js";
 import { db } from "./memory.js";
 import { log } from "./config.js";
@@ -70,3 +70,4 @@ export class SkipTracer {
         }
     }
 }
+

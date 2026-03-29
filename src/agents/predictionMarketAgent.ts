@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // Prediction Market Scanner Agent
 // Fetches live markets from Polymarket (CLOB API) and applies
 // signal filters: liquidity, volume, time, and edge detection
@@ -13,7 +13,7 @@ const openai = new OpenAI({
     baseURL: process.env.OPENAI_BASE_URL,
 });
 
-// ── Types ──────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export type Market = {
     id: string;
     name: string;
@@ -21,12 +21,12 @@ export type Market = {
     liquidity: number;    // total liquidity in USD
     daysToResolve: number;
     priceChange: number;  // % change in best YES price over 24h
-    bestYes: number;      // current best YES price (0–100)
-    bestNo: number;       // current best NO price (0–100)
+    bestYes: number;      // current best YES price (0â€“100)
+    bestNo: number;       // current best NO price (0â€“100)
     url: string;
 };
 
-// ── Polymarket CLOB API ────────────────────────────────────
+// â”€â”€ Polymarket CLOB API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const POLY_API = "https://gamma-api.polymarket.com";
 
 async function fetchPolymarkets(limit = 100): Promise<Market[]> {
@@ -69,12 +69,12 @@ async function fetchPolymarkets(limit = 100): Promise<Market[]> {
             };
         });
     } catch (err: any) {
-        log(`[predMarket] ⚠️  API fetch failed: ${err.message}`, "warn");
+        log(`[predMarket] âš ï¸  API fetch failed: ${err.message}`, "warn");
         return [];
     }
 }
 
-// ── Signal Filters ─────────────────────────────────────────
+// â”€â”€ Signal Filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function liquidityFilter(markets: Market[]): Market[] {
     return markets.filter(m => m.liquidity > 50_000);
 }
@@ -91,7 +91,7 @@ export function edgeDetection(markets: Market[]): Market[] {
     return markets.filter(m => Math.abs(m.priceChange) > 3);
 }
 
-// ── Pipeline: run all four filters in sequence ────────────
+// â”€â”€ Pipeline: run all four filters in sequence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function runPipeline(markets: Market[]): Market[] {
     let result = liquidityFilter(markets);
     result = volumeFilter(result);
@@ -100,48 +100,48 @@ export function runPipeline(markets: Market[]): Market[] {
     return result;
 }
 
-// ── Main entry point ───────────────────────────────────────
+// â”€â”€ Main entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function scanMarkets(): Promise<{
     all: Market[];
     filtered: Market[];
 }> {
-    log("[predMarket] 🔍 Fetching Polymarket live data...");
+    log("[predMarket] ðŸ” Fetching Polymarket live data...");
     const all = await fetchPolymarkets(200);
     const filtered = runPipeline(all);
-    log(`[predMarket] ✅ ${all.length} markets fetched, ${filtered.length} passed all filters`);
+    log(`[predMarket] âœ… ${all.length} markets fetched, ${filtered.length} passed all filters`);
     return { all, filtered };
 }
 
-// ── Format for Telegram ────────────────────────────────────
+// â”€â”€ Format for Telegram â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function formatMarketsReport(markets: Market[]): string {
     if (markets.length === 0) {
-        return "🔍 No markets matched all filters right now. Try again later or adjust thresholds.";
+        return "ðŸ” No markets matched all filters right now. Try again later or adjust thresholds.";
     }
 
     const top = markets.slice(0, 8); // cap at 8 for readability
     const lines = top.map((m, i) => {
-        const dir = m.priceChange > 0 ? "📈" : "📉";
-        const urgency = m.daysToResolve <= 3 ? "🔥" : m.daysToResolve <= 7 ? "⚡" : "📅";
+        const dir = m.priceChange > 0 ? "ðŸ“ˆ" : "ðŸ“‰";
+        const urgency = m.daysToResolve <= 3 ? "ðŸ”¥" : m.daysToResolve <= 7 ? "âš¡" : "ðŸ“…";
         return (
-            `${i + 1}. ${m.name.slice(0, 60)}${m.name.length > 60 ? "…" : ""}\n` +
+            `${i + 1}. ${m.name.slice(0, 60)}${m.name.length > 60 ? "â€¦" : ""}\n` +
             `   ${dir} ${m.priceChange > 0 ? "+" : ""}${m.priceChange.toFixed(1)}% | ` +
-            `YES: ${m.bestYes}¢ | ` +
+            `YES: ${m.bestYes}Â¢ | ` +
             `Vol: $${(m.volume / 1000).toFixed(0)}K | ` +
             `Liq: $${(m.liquidity / 1000).toFixed(0)}K | ` +
             `${urgency} ${m.daysToResolve}d\n` +
-            `   🔗 ${m.url}`
+            `   ðŸ”— ${m.url}`
         );
     });
 
     return (
-        `📊 PREDICTION MARKET SCANNER\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `ðŸ“Š PREDICTION MARKET SCANNER\n` +
+        `â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”\n` +
         `Filters: Liq >$50K | Vol >$10K | <14 days | Edge >3%\n` +
         `Found ${markets.length} signal(s)\n\n` +
         lines.join("\n\n")
     );
 }
-// ── AI Decision Layer ───────────────────────────────────
+// â”€â”€ AI Decision Layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function analyzeWithAI(filteredMarkets: Market[]): Promise<string> {
     if (filteredMarkets.length === 0) {
         return "No filtered markets available for AI analysis.";
@@ -186,3 +186,4 @@ export async function analyzeWithAI(filteredMarkets: Market[]): Promise<string> 
         return `AI analysis unavailable: ${err.message}`;
     }
 }
+

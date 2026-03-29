@@ -1,5 +1,5 @@
-// ============================================================
-// OUT THE WAY — Assembly Agent
+﻿// ============================================================
+// OUT THE WAY â€” Assembly Agent
 // Combines clips into a final 9:16 vertical video
 // Adds subtitles and audio using fluent-ffmpeg
 // ============================================================
@@ -47,7 +47,7 @@ export class AssemblyAgent {
         const stubClips      = clipPaths.filter(p => !fs.existsSync(p));
 
         if (stubClips.length > 0) {
-            log(`[assembly] ⚠️  ${stubClips.length} clip(s) are stubs (not yet generated). Creating assembly manifest.`, "warn");
+            log(`[assembly] âš ï¸  ${stubClips.length} clip(s) are stubs (not yet generated). Creating assembly manifest.`, "warn");
         }
 
         // Write assembly manifest regardless
@@ -68,7 +68,7 @@ export class AssemblyAgent {
         };
 
         fs.writeFileSync(metaPath, JSON.stringify(manifest, null, 2), "utf-8");
-        log(`[assembly] 📋 Assembly manifest saved: ${metaPath}`);
+        log(`[assembly] ðŸ“‹ Assembly manifest saved: ${metaPath}`);
 
         // If real MP4 clips exist, attempt actual FFmpeg concat
         if (existingClips.length > 0) {
@@ -77,18 +77,18 @@ export class AssemblyAgent {
                 episode.finalVideoPath = outputPath;
                 this.monitor.setFinalVideo(outputPath);
                 this.emit("completed", `Episode ${episode.episodeNumber} assembled`, outputPath);
-                log(`[assembly] ✅ Final video: ${outputPath}`);
+                log(`[assembly] âœ… Final video: ${outputPath}`);
             } catch (err: any) {
                 this.emit("failed", `FFmpeg assembly failed: ${err.message}`);
-                log(`[assembly] ❌ FFmpeg error: ${err.message}`, "error");
+                log(`[assembly] âŒ FFmpeg error: ${err.message}`, "error");
                 throw err;
             }
         } else {
-            // All stubs — record manifest as the output
+            // All stubs â€” record manifest as the output
             episode.finalVideoPath = metaPath;
             this.monitor.setFinalVideo(metaPath);
-            this.emit("completed", `Assembly manifest ready (no real clips yet) — ep ${episode.episodeNumber}`, metaPath);
-            log(`[assembly] 📄 No real clips — manifest ready at ${metaPath}`);
+            this.emit("completed", `Assembly manifest ready (no real clips yet) â€” ep ${episode.episodeNumber}`, metaPath);
+            log(`[assembly] ðŸ“„ No real clips â€” manifest ready at ${metaPath}`);
         }
 
         return episode.finalVideoPath!;
@@ -106,7 +106,7 @@ export class AssemblyAgent {
             const concatContent = clipPaths.map(p => `file '${p.replace(/\\/g, "/")}'`).join("\n");
             fs.writeFileSync(concatFile, concatContent, "utf-8");
 
-            log(`[assembly] 🎬 Running FFmpeg concat...`);
+            log(`[assembly] ðŸŽ¬ Running FFmpeg concat...`);
 
             const cmd = ffmpeg()
                 .input(concatFile)
@@ -153,7 +153,7 @@ export class AssemblyAgent {
         // Save SRT file alongside manifest
         const srtPath = path.join(OUTPUT_DIR, `ep_${episode.episodeNumber}.srt`);
         fs.writeFileSync(srtPath, srt, "utf-8");
-        log(`[assembly] 📝 Subtitles written: ${srtPath}`);
+        log(`[assembly] ðŸ“ Subtitles written: ${srtPath}`);
         return srt;
     }
 
@@ -169,3 +169,4 @@ export class AssemblyAgent {
         if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     }
 }
+

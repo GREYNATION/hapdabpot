@@ -1,5 +1,5 @@
-// ============================================================
-// OUT THE WAY — Production Agent (UPGRADED v2)
+﻿// ============================================================
+// OUT THE WAY â€” Production Agent (UPGRADED v2)
 // Real video generation via Runway Gen-3 Alpha Turbo
 // Real voice synthesis via ElevenLabs (per character, per line)
 // Granular dashboard updates every step
@@ -19,14 +19,14 @@ const BASE_DIR   = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
 const CLIPS_DIR  = path.join(BASE_DIR, "outtheway", "clips");
 const OUTPUT_DIR = path.join(BASE_DIR, "outtheway", "output");
 
-// ── Runway API constants ──────────────────────────────────────────────
+// â”€â”€ Runway API constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const RUNWAY_API  = "https://api.dev.runwayml.com/v1";
 const RUNWAY_VER  = "2024-11-06";
 
-// ── ElevenLabs voice model ───────────────────────────────────────────
+// â”€â”€ ElevenLabs voice model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const ELEVEN_MODEL = "eleven_multilingual_v2";
 
-// ── Character voice IDs (set per-character in .env to customize) ─────
+// â”€â”€ Character voice IDs (set per-character in .env to customize) â”€â”€â”€â”€â”€
 // Defaults: Jace=Adam (deep, calm), Nia=Rachel (warm, expressive), Rel=Antoni (fast, energetic)
 const VOICE_IDS: Record<string, string> = {
     Jace:       process.env.ELEVENLABS_VOICE_ID_JACE ?? "pNInz6obpg8ndEao7mAl",
@@ -36,7 +36,7 @@ const VOICE_IDS: Record<string, string> = {
 };
 const DEFAULT_VOICE = config.elevenVoiceId ?? "pNInz6obpg8ndEao7mAl";
 
-// ── Visual tone injected into every Runway prompt ────────────────────
+// â”€â”€ Visual tone injected into every Runway prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TONE_SUFFIX = [
     "dark, realistic street drama aesthetic",
     "vertical 9:16 framing",
@@ -47,14 +47,14 @@ const TONE_SUFFIX = [
     "no text overlays, no watermarks"
 ].join(", ");
 
-// ── Character appearance reference for prompt injection ─────────────
+// â”€â”€ Character appearance reference for prompt injection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CHAR_APPEARANCE: Record<string, string> = {
     Jace: CHARACTERS.jace.appearance,
     Nia:  CHARACTERS.nia.appearance,
     Rel:  CHARACTERS.rel.appearance,
 };
 
-// ── Voice settings per mood/character ──────────────────────────────
+// â”€â”€ Voice settings per mood/character â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const VOICE_SETTINGS = {
     default: { stability: 0.55, similarity_boost: 0.80, style: 0.30, use_speaker_boost: true },
     Jace:    { stability: 0.65, similarity_boost: 0.82, style: 0.20, use_speaker_boost: true }, // calm, measured
@@ -62,7 +62,7 @@ const VOICE_SETTINGS = {
     Rel:     { stability: 0.40, similarity_boost: 0.75, style: 0.60, use_speaker_boost: true }, // energetic, loose
 };
 
-// ── Production manifest entry ───────────────────────────────────────
+// â”€â”€ Production manifest entry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface SceneProductionRecord {
     sceneNumber: number;
     location: string;
@@ -88,27 +88,27 @@ export class ProductionAgent extends BaseAgent {
     getName(): string { return "ProductionAgent"; }
 
     getSystemPrompt(): string {
-        return `You are the Production Agent for "Out the Way" — a dark, cinematic street drama series.
-You refine visual prompts for Runway Gen-3 Alpha Turbo (vertical 9:16, 5–10s clips).
+        return `You are the Production Agent for "Out the Way" â€” a dark, cinematic street drama series.
+You refine visual prompts for Runway Gen-3 Alpha Turbo (vertical 9:16, 5â€“10s clips).
 Always embed character appearance details and lighting specifics for maximum visual consistency.`;
     }
 
-    // ── Dashboard emit helpers ────────────────────────────────────────
+    // â”€â”€ Dashboard emit helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     private emit(status: AgentEvent["status"], message: string, output?: string): void {
         this.monitor.report({ agent: "production", status, message, timestamp: "", output });
     }
 
     private emitScene(sceneNum: number, total: number, step: string): void {
         this.emit("active", `[Scene ${sceneNum}/${total}] ${step}`);
-        log(`[production] 🎬 [Scene ${sceneNum}/${total}] ${step}`);
+        log(`[production] ðŸŽ¬ [Scene ${sceneNum}/${total}] ${step}`);
     }
 
-    // ── Main entry: produce all scenes ──────────────────────────────
+    // â”€â”€ Main entry: produce all scenes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     async produceScenes(scenes: Scene[], episodeNumber: number): Promise<Scene[]> {
         this.ensureDirs();
         const total = scenes.length;
-        this.emit("active", `Starting production — ${total} scenes for episode ${episodeNumber}`);
-        log(`[production] ════ Starting Episode ${episodeNumber} Production — ${total} scenes ════`);
+        this.emit("active", `Starting production â€” ${total} scenes for episode ${episodeNumber}`);
+        log(`[production] â•â•â•â• Starting Episode ${episodeNumber} Production â€” ${total} scenes â•â•â•â•`);
 
         const productionManifest: SceneProductionRecord[] = [];
         const producedScenes: Scene[] = [];
@@ -127,11 +127,11 @@ Always embed character appearance details and lighting specifics for maximum vis
             };
 
             try {
-                // ── Step A: Refine prompt with character consistency ──
+                // â”€â”€ Step A: Refine prompt with character consistency â”€â”€
                 this.emitScene(scene.sceneNumber, total, "Refining visual prompt...");
                 const refinedScene = await this.refinePromptWithCharacters(scene);
 
-                // ── Step B: Generate video clip via Runway ────────────
+                // â”€â”€ Step B: Generate video clip via Runway â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 this.emitScene(scene.sceneNumber, total, "Generating video clip via Runway Gen-3...");
                 const { clipPath, taskId, runwayStatus } =
                     await this.generateClip(refinedScene, episodeNumber);
@@ -141,7 +141,7 @@ Always embed character appearance details and lighting specifics for maximum vis
                 record.runwayTaskId   = taskId;
                 record.runwayStatus   = runwayStatus;
 
-                // ── Step C: Generate voice per dialogue line ──────────
+                // â”€â”€ Step C: Generate voice per dialogue line â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 if (refinedScene.dialogue.length > 0) {
                     this.emitScene(scene.sceneNumber, total,
                         `Generating ${refinedScene.dialogue.length} voice line(s) via ElevenLabs...`);
@@ -154,48 +154,48 @@ Always embed character appearance details and lighting specifics for maximum vis
                     record.mergedAudioPath      = mergedPath;
                     record.elevenLabsLines      = audioPaths.length;
                 } else {
-                    this.emitScene(scene.sceneNumber, total, "No dialogue — audio step skipped");
-                    log(`[production] Scene ${scene.sceneNumber} has no dialogue — audio skipped`);
+                    this.emitScene(scene.sceneNumber, total, "No dialogue â€” audio step skipped");
+                    log(`[production] Scene ${scene.sceneNumber} has no dialogue â€” audio skipped`);
                 }
 
                 producedScenes.push(refinedScene);
                 this.emitScene(scene.sceneNumber, total,
-                    `✅ Complete — clip: ${record.clipGenerated ? "real" : "stub"}, audio lines: ${record.elevenLabsLines}`);
+                    `âœ… Complete â€” clip: ${record.clipGenerated ? "real" : "stub"}, audio lines: ${record.elevenLabsLines}`);
 
             } catch (err: any) {
                 record.errorLog.push(err.message);
                 this.emit("failed", `[Scene ${scene.sceneNumber}/${total}] FAILED: ${err.message}`);
-                log(`[production] ❌ Scene ${scene.sceneNumber} failed: ${err.message}`, "error");
+                log(`[production] âŒ Scene ${scene.sceneNumber} failed: ${err.message}`, "error");
                 producedScenes.push(scene);
             }
 
             productionManifest.push(record);
         }
 
-        // ── Save production manifest ──────────────────────────────────
+        // â”€â”€ Save production manifest â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const manifestPath = path.join(OUTPUT_DIR, `ep${episodeNumber}_production_manifest.json`);
         fs.writeFileSync(manifestPath, JSON.stringify(productionManifest, null, 2), "utf-8");
-        log(`[production] 📋 Production manifest saved: ${manifestPath}`);
+        log(`[production] ðŸ“‹ Production manifest saved: ${manifestPath}`);
 
         const clipCount   = productionManifest.filter(r => r.clipGenerated).length;
         const audioCount  = productionManifest.reduce((n, r) => n + r.elevenLabsLines, 0);
         const failCount   = productionManifest.filter(r => r.errorLog.length > 0).length;
 
         this.emit("completed",
-            `Production complete — ${clipCount}/${total} real clips, ${audioCount} voice lines, ${failCount} failures`,
+            `Production complete â€” ${clipCount}/${total} real clips, ${audioCount} voice lines, ${failCount} failures`,
             manifestPath
         );
 
         return producedScenes;
     }
 
-    // ── Prompt Refinement: inject character appearance + tone ─────────
+    // â”€â”€ Prompt Refinement: inject character appearance + tone â”€â”€â”€â”€â”€â”€â”€â”€â”€
     private async refinePromptWithCharacters(scene: Scene): Promise<Scene> {
         // Build character appearance block for every character in this scene
         const charNotes = scene.charactersPresent
             .map(name => {
                 const appearance = CHAR_APPEARANCE[name];
-                return appearance ? `• ${name}: ${appearance}` : null;
+                return appearance ? `â€¢ ${name}: ${appearance}` : null;
             })
             .filter(Boolean)
             .join("\n");
@@ -212,8 +212,8 @@ ORIGINAL PROMPT:
 ${scene.visualPrompt}
 
 RULES:
-- Vertical 9:16 framing — always
-- Close-up / intimate composition — no wide establishing shots unless the scene calls for it
+- Vertical 9:16 framing â€” always
+- Close-up / intimate composition â€” no wide establishing shots unless the scene calls for it
 - Lighting must match location: night scenes = neon, street lamp glow, phone glow only
 - Character descriptions from above must be embedded
 - No logos, text, or watermarks
@@ -234,12 +234,12 @@ Return ONLY JSON (no markdown):
         } catch {
             // Fallback: just append the tone suffix to original
             scene.visualPrompt = `${scene.visualPrompt}. ${TONE_SUFFIX}`;
-            log(`[production] ⚠️  Prompt refinement fallback for scene ${scene.sceneNumber}`, "warn");
+            log(`[production] âš ï¸  Prompt refinement fallback for scene ${scene.sceneNumber}`, "warn");
         }
         return scene;
     }
 
-    // ── RUNWAY GEN-3 ALPHA TURBO — Video Clip Generation ────────────
+    // â”€â”€ RUNWAY GEN-3 ALPHA TURBO â€” Video Clip Generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // API: https://docs.dev.runwayml.com/api/
     // Model: gen3a_turbo | ratio: "9:16" | duration: 5 or 10
     private async generateClip(
@@ -250,22 +250,22 @@ Return ONLY JSON (no markdown):
         const clipPath     = path.join(CLIPS_DIR, clipFilename);
 
         if (!config.runwayApiKey) {
-            log(`[production] ⚠️  RUNWAY_API_KEY missing — stubbing scene ${scene.sceneNumber}`, "warn");
+            log(`[production] âš ï¸  RUNWAY_API_KEY missing â€” stubbing scene ${scene.sceneNumber}`, "warn");
             this.writeStub(clipPath, { reason: "RUNWAY_API_KEY not set", prompt: scene.visualPrompt });
             return { clipPath, runwayStatus: "STUB_NO_KEY" };
         }
 
         // --- IDEMPOTENCY CHECK ---
         if (fs.existsSync(clipPath) && fs.statSync(clipPath).size > 1000) {
-            log(`[production] ⏩ Skipping Runway for Scene ${scene.sceneNumber} — valid clip already exists.`);
+            log(`[production] â© Skipping Runway for Scene ${scene.sceneNumber} â€” valid clip already exists.`);
             return { clipPath, runwayStatus: "SKIPPED_ALREADY_EXISTS" };
         }
 
         try {
-            log(`[production] 🎬 Runway: submitting scene ${scene.sceneNumber}...`);
+            log(`[production] ðŸŽ¬ Runway: submitting scene ${scene.sceneNumber}...`);
             log(`[production] Prompt (${scene.visualPrompt.length} chars): ${scene.visualPrompt.substring(0, 120)}...`);
 
-            // Duration must be integer 2–10 per Runway API
+            // Duration must be integer 2â€“10 per Runway API
             const duration = Math.min(Math.max(Math.round(scene.durationSeconds), 2), 10);
 
             const createRes = await axios.post(
@@ -292,13 +292,13 @@ Return ONLY JSON (no markdown):
                 throw new Error(`Runway returned no task ID: ${JSON.stringify(createRes.data)}`);
             }
 
-            log(`[production] Runway task ${taskId} created — polling...`);
+            log(`[production] Runway task ${taskId} created â€” polling...`);
             this.emitScene(scene.sceneNumber, 99,
-                `Runway task ${taskId} — waiting for render...`);
+                `Runway task ${taskId} â€” waiting for render...`);
 
             const videoUrl = await this.pollRunwayTask(taskId, scene.sceneNumber);
 
-            log(`[production] Runway complete — downloading clip...`);
+            log(`[production] Runway complete â€” downloading clip...`);
             const dlRes = await axios.get(videoUrl, {
                 responseType: "arraybuffer",
                 timeout: 180000,
@@ -311,19 +311,19 @@ Return ONLY JSON (no markdown):
             });
 
             fs.writeFileSync(clipPath, Buffer.from(dlRes.data));
-            log(`[production] ✅ Scene ${scene.sceneNumber} clip saved: ${clipFilename} (${Math.round(dlRes.data.byteLength / 1024)}KB)`);
+            log(`[production] âœ… Scene ${scene.sceneNumber} clip saved: ${clipFilename} (${Math.round(dlRes.data.byteLength / 1024)}KB)`);
 
             return { clipPath, taskId, runwayStatus: "SUCCEEDED" };
 
         } catch (err: any) {
             const msg = this.extractError(err);
-            log(`[production] ❌ Runway scene ${scene.sceneNumber}: ${msg}`, "error");
+            log(`[production] âŒ Runway scene ${scene.sceneNumber}: ${msg}`, "error");
             this.writeStub(clipPath, { error: msg, prompt: scene.visualPrompt, scene: scene.sceneNumber });
             return { clipPath, runwayStatus: "FAILED" };
         }
     }
 
-    /** Poll Runway task — handles: PENDING, RUNNING, THROTTLED, SUCCEEDED, FAILED */
+    /** Poll Runway task â€” handles: PENDING, RUNNING, THROTTLED, SUCCEEDED, FAILED */
     private async pollRunwayTask(taskId: string, sceneNum: number): Promise<string> {
         const MAX_WAIT_MS = 8 * 60 * 1000; // 8 minutes
         const POLL_MS     = 6000;
@@ -345,14 +345,14 @@ Return ONLY JSON (no markdown):
                 });
                 statusData = res.data;
             } catch (pollErr: any) {
-                log(`[production] Poll attempt ${attempt} failed: ${pollErr.message} — retrying`, "warn");
+                log(`[production] Poll attempt ${attempt} failed: ${pollErr.message} â€” retrying`, "warn");
                 continue;
             }
 
             const { status, output, failure, progress } = statusData;
             const elapsed = Math.round((Date.now() - started) / 1000);
             const pctStr  = progress != null ? ` (${Math.round(progress * 100)}%)` : "";
-            log(`[production] Runway ${taskId}${pctStr} — ${status} [${elapsed}s elapsed]`);
+            log(`[production] Runway ${taskId}${pctStr} â€” ${status} [${elapsed}s elapsed]`);
 
             if (status === "SUCCEEDED") {
                 const url = Array.isArray(output) ? output[0] : output;
@@ -366,7 +366,7 @@ Return ONLY JSON (no markdown):
 
             // THROTTLED = rate limited, keep waiting with longer gap
             if (status === "THROTTLED") {
-                log(`[production] Runway throttled — waiting 15s...`, "warn");
+                log(`[production] Runway throttled â€” waiting 15s...`, "warn");
                 await new Promise(r => setTimeout(r, 15000));
             }
 
@@ -376,14 +376,14 @@ Return ONLY JSON (no markdown):
         throw new Error(`Runway task ${taskId} timed out after ${MAX_WAIT_MS / 1000}s`);
     }
 
-    // ── ELEVENLABS — Per-character, per-line voice generation ────────
+    // â”€â”€ ELEVENLABS â€” Per-character, per-line voice generation â”€â”€â”€â”€â”€â”€â”€â”€
     // Generates one mp3 per dialogue line, then concatenates into scene audio
     private async generateVoiceLines(
         scene: Scene,
         episodeNumber: number
     ): Promise<{ audioPaths: string[]; mergedPath: string | null }> {
         if (!config.elevenKey) {
-            log(`[production] ⚠️  ELEVENLABS_API_KEY missing — stubbing scene ${scene.sceneNumber} audio`, "warn");
+            log(`[production] âš ï¸  ELEVENLABS_API_KEY missing â€” stubbing scene ${scene.sceneNumber} audio`, "warn");
             const stubPath = path.join(CLIPS_DIR, `ep${episodeNumber}_scene${scene.sceneNumber}.stub.json`);
             this.writeStub(stubPath, { reason: "ELEVENLABS_API_KEY not set", script: scene.dialogue });
             return { audioPaths: [], mergedPath: null };
@@ -401,17 +401,17 @@ Return ONLY JSON (no markdown):
 
             // --- IDEMPOTENCY CHECK ---
             if (fs.existsSync(linePath) && fs.statSync(linePath).size > 1000) {
-                log(`[production] ⏩ Skipping ElevenLabs for ${character} — valid audio already exists.`);
+                log(`[production] â© Skipping ElevenLabs for ${character} â€” valid audio already exists.`);
                 audioPaths.push(linePath);
                 continue;
             }
 
-            log(`[production] 🎙️  ElevenLabs: ${character} — line ${i + 1}/${scene.dialogue.length}: "${line.line.substring(0, 50)}..."`);
+            log(`[production] ðŸŽ™ï¸  ElevenLabs: ${character} â€” line ${i + 1}/${scene.dialogue.length}: "${line.line.substring(0, 50)}..."`);
             this.emitScene(scene.sceneNumber, 99,
-                `Generating voice: ${character} — "${line.line.substring(0, 40)}${line.line.length > 40 ? "..." : ""}"`);
+                `Generating voice: ${character} â€” "${line.line.substring(0, 40)}${line.line.length > 40 ? "..." : ""}"`);
 
             try {
-                // Use standard (non-streaming) endpoint — streaming requires additional plan tier
+                // Use standard (non-streaming) endpoint â€” streaming requires additional plan tier
                 const ttsRes = await axios.post(
                     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
                     {
@@ -432,7 +432,7 @@ Return ONLY JSON (no markdown):
 
                 fs.writeFileSync(linePath, Buffer.from(ttsRes.data));
                 audioPaths.push(linePath);
-                log(`[production] ✅ Voice line ${i + 1}: ${character} — ${linePath}`);
+                log(`[production] âœ… Voice line ${i + 1}: ${character} â€” ${linePath}`);
 
                 // Brief pause between ElevenLabs calls to avoid rate limits
                 if (i < scene.dialogue.length - 1) {
@@ -444,8 +444,8 @@ Return ONLY JSON (no markdown):
 
                 // --- FALLBACK CHECK FOR LIBRARY VOICES ON FREE TIER ---
                 if (msg.includes("paid_plan_required") || msg.includes("payment_required")) {
-                    log(`[production] ⚠️ Paid plan required for custom voice ${voiceId}. Falling back to default voice.`, "warn");
-                    this.emitScene(scene.sceneNumber, 99, `ElevenLabs plan restriction — falling back to default voice.`);
+                    log(`[production] âš ï¸ Paid plan required for custom voice ${voiceId}. Falling back to default voice.`, "warn");
+                    this.emitScene(scene.sceneNumber, 99, `ElevenLabs plan restriction â€” falling back to default voice.`);
                     
                     try {
                         const fallbackRes = await axios.post(
@@ -468,16 +468,16 @@ Return ONLY JSON (no markdown):
                         
                         fs.writeFileSync(linePath, Buffer.from(fallbackRes.data));
                         audioPaths.push(linePath);
-                        log(`[production] ✅ Voice line ${i + 1} (Fallback): ${character} — ${linePath}`);
+                        log(`[production] âœ… Voice line ${i + 1} (Fallback): ${character} â€” ${linePath}`);
                         continue;
                     } catch (fallbackErr: any) {
                         const fbMsg = this.extractError(fallbackErr);
-                        log(`[production] ❌ ElevenLabs Fallback FAILED for line ${i + 1}: ${fbMsg}`, "error");
+                        log(`[production] âŒ ElevenLabs Fallback FAILED for line ${i + 1}: ${fbMsg}`, "error");
                         // Let it fall to stub creation below if fallback fails too
                     }
                 }
 
-                log(`[production] ❌ ElevenLabs line ${i + 1} (${character}): ${msg}`, "error");
+                log(`[production] âŒ ElevenLabs line ${i + 1} (${character}): ${msg}`, "error");
                 this.writeStub(linePath, { character, line: line.line, error: msg });
             }
         }
@@ -513,17 +513,17 @@ Return ONLY JSON (no markdown):
         if (buffers.length === 0) return audioPaths[0];
 
         fs.writeFileSync(mergedPath, Buffer.concat(buffers));
-        log(`[production] 🔗 Merged ${buffers.length} audio lines → ${mergedFilename}`);
+        log(`[production] ðŸ”— Merged ${buffers.length} audio lines â†’ ${mergedFilename}`);
         return mergedPath;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private writeStub(basePath: string, data: object): void {
         const stubPath = basePath.replace(/\.(mp4|mp3)$/, "").concat(".stub.json");
         fs.writeFileSync(stubPath, JSON.stringify({
             ...data,
-            stubNote: "This is a stub — real generation failed or API key missing",
+            stubNote: "This is a stub â€” real generation failed or API key missing",
             generatedAt: new Date().toISOString()
         }, null, 2), "utf-8");
     }
@@ -544,3 +544,4 @@ Return ONLY JSON (no markdown):
         });
     }
 }
+

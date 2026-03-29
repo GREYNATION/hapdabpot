@@ -1,4 +1,4 @@
-import { ResearcherAgent } from '../agents/researcherAgent.js';
+﻿import { ResearcherAgent } from '../agents/researcherAgent.js';
 import { log } from './config.js';
 
 export interface PropertyLead {
@@ -91,3 +91,4 @@ export class PropertyScraper {
         }
     }
 }
+

@@ -1,4 +1,4 @@
-export async function fetchJSON(url: string) {
+﻿export async function fetchJSON(url: string) {
   const res = await fetch(url);
 
   if (!res.ok) {
@@ -7,3 +7,4 @@ export async function fetchJSON(url: string) {
 
   return await res.json();
 }
+

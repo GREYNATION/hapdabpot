@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+﻿import { randomUUID } from "crypto";
 import { saveTask, updateTaskInDB, getTasks, getTask as getTaskFromDB } from "./taskMemory.js";
 
 export type TaskStatus = "pending" | "running" | "complete" | "failed";
@@ -42,3 +42,4 @@ export function getAllTasks(): Task[] {
 export function getTask(id: string): Task | undefined {
     return getTaskFromDB(id) as Task | undefined;
 }
+

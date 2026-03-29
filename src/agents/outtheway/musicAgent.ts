@@ -1,5 +1,5 @@
-// ============================================================
-// OUT THE WAY — Music Agent
+﻿// ============================================================
+// OUT THE WAY â€” Music Agent
 // Creates original R&B / soulful rap songs for Nia Brooks
 // Generates lyrics via AI, produces audio via kie.ai (Suno V4)
 // API: https://api.kie.ai/api/v1/generate
@@ -32,18 +32,18 @@ export class MusicAgent extends BaseAgent {
     getName(): string { return "MusicAgent"; }
 
     getSystemPrompt(): string {
-        return `You are the Music Agent for "Out the Way" — the creative engine behind Nia Brooks' music career.
+        return `You are the Music Agent for "Out the Way" â€” the creative engine behind Nia Brooks' music career.
 
 NIA BROOKS CHARACTER:
 ${CHARACTERS.nia.role}
 Voice: ${CHARACTERS.nia.voiceTone}
-Musical Style: R&B / Soulful rap — think SZA, H.E.R., Jhené Aiko meets Noname and Syd.
+Musical Style: R&B / Soulful rap â€” think SZA, H.E.R., JhenÃ© Aiko meets Noname and Syd.
 
 SONGWRITING RULES:
-- Write in Nia's authentic voice — emotional, poetic, lived-in
-- Structure: VERSE 1 → PRE-CHORUS → CHORUS → VERSE 2 → BRIDGE → OUTRO
+- Write in Nia's authentic voice â€” emotional, poetic, lived-in
+- Structure: VERSE 1 â†’ PRE-CHORUS â†’ CHORUS â†’ VERSE 2 â†’ BRIDGE â†’ OUTRO
 - Each section clearly labeled
-- Lyrics: specific images, real pain, earned joy — never generic
+- Lyrics: specific images, real pain, earned joy â€” never generic
 - Themes: love vs. ambition, streets vs. dreams, loyalty, self-discovery
 
 PRODUCTION NOTES (for kie.ai Suno):
@@ -65,9 +65,9 @@ Return valid JSON only.`;
     ): Promise<MusicTrack> {
         this.ensureMusicDir();
         this.emit("active", `Composing track: "${theme}" (${mood})`);
-        log(`[music] Writing song — theme: "${theme}", mood: ${mood}`);
+        log(`[music] Writing song â€” theme: "${theme}", mood: ${mood}`);
 
-        // ── Step 1: Generate lyrics + metadata via AI ────────────
+        // â”€â”€ Step 1: Generate lyrics + metadata via AI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const songData = await this.generateLyrics(theme, mood, episodeContext);
 
         const track: MusicTrack = {
@@ -79,30 +79,30 @@ Return valid JSON only.`;
             createdAt: new Date().toISOString(),
         };
 
-        // ── Step 2: Save lyrics text file ─────────────────────────
+        // â”€â”€ Step 2: Save lyrics text file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const safeTitle = track.title.toLowerCase().replace(/[^a-z0-9]+/g, "_");
         const lyricsPath = path.join(MUSIC_DIR, `${safeTitle}_lyrics.txt`);
         fs.writeFileSync(lyricsPath, this.formatLyricsFile(track, songData), "utf-8");
         track.lyricsPath = lyricsPath;
-        log(`[music] 📝 Lyrics saved: ${lyricsPath}`);
+        log(`[music] ðŸ“ Lyrics saved: ${lyricsPath}`);
 
-        // ── Step 3: Generate audio via kie.ai Suno V4 ─────────────
+        // â”€â”€ Step 3: Generate audio via kie.ai Suno V4 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const audioPath = path.join(MUSIC_DIR, `${safeTitle}.mp3`);
         const generatedAudioPath = await this.generateAudio(track, songData, audioPath);
         track.audioPath = generatedAudioPath;
 
-        // ── Step 4: Save full track metadata ──────────────────────
+        // â”€â”€ Step 4: Save full track metadata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const metaPath = path.join(MUSIC_DIR, `${safeTitle}_track.json`);
         fs.writeFileSync(metaPath, JSON.stringify({ ...track, ...songData }, null, 2), "utf-8");
-        log(`[music] 🎵 Track metadata saved: ${metaPath}`);
+        log(`[music] ðŸŽµ Track metadata saved: ${metaPath}`);
 
         this.emit("completed", `"${track.title}" created`, lyricsPath);
         return track;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // AI: Generate full lyrics + production metadata
-    // ──────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     private async generateLyrics(
         theme: string,
         mood: string,
@@ -125,12 +125,12 @@ Return ONLY JSON:
   "sunoNegativeTags": "Heavy metal, fast EDM, comedy, low quality",
   "lyrics": "Full lyrics with sections labeled: [VERSE 1] [PRE-CHORUS] [CHORUS] [VERSE 2] [BRIDGE] [OUTRO]",
   "vocalNotes": {
-    "verse": "Soft, intimate — close mic feel",
+    "verse": "Soft, intimate â€” close mic feel",
     "chorus": "Belted, soaring, raw",
     "bridge": "Spoken word into crescendo"
   },
   "adlibs": ["ad-lib1", "ad-lib2"],
-  "moodBoard": "SZA 'Good Days' + Jhené Aiko 'While We're Young'"
+  "moodBoard": "SZA 'Good Days' + JhenÃ© Aiko 'While We're Young'"
 }`;
 
         try {
@@ -139,31 +139,31 @@ Return ONLY JSON:
             const jsonStr = raw.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
             return JSON.parse(jsonStr);
         } catch (err: any) {
-            log(`[music] ❌ Lyric generation failed: ${err.message}`, "error");
+            log(`[music] âŒ Lyric generation failed: ${err.message}`, "error");
             throw err;
         }
     }
 
-    // ──────────────────────────────────────────────────────────
-    // KIE.AI (Suno V4) — Music Generation
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // KIE.AI (Suno V4) â€” Music Generation
     // POST https://api.kie.ai/api/v1/generate
     // Polls GET https://api.kie.ai/api/v1/generate/{taskId}
-    // ──────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     private async generateAudio(track: MusicTrack, songData: any, audioPath: string): Promise<string> {
         if (!config.kieAiApiKey) {
-            log(`[music] ⚠️  KIE_AI_API_KEY not set — writing audio stub`, "warn");
+            log(`[music] âš ï¸  KIE_AI_API_KEY not set â€” writing audio stub`, "warn");
             this.writeStub(audioPath, {
                 title: track.title,
                 style: songData.sunoStyle,
                 lyrics_preview: track.lyrics.substring(0, 200),
-                status: "STUB — add KIE_AI_API_KEY to .env to activate",
+                status: "STUB â€” add KIE_AI_API_KEY to .env to activate",
                 note: "Get your key at https://kie.ai and add it to .env as KIE_AI_API_KEY"
             });
             return audioPath;
         }
 
         try {
-            log(`[music] 🎵 kie.ai: submitting song generation for "${track.title}"...`);
+            log(`[music] ðŸŽµ kie.ai: submitting song generation for "${track.title}"...`);
 
             // 1. Submit generation task
             const createRes = await axios.post(
@@ -192,7 +192,7 @@ Return ONLY JSON:
 
             const taskId = createRes.data?.data?.taskId ?? createRes.data?.taskId;
             if (!taskId) throw new Error(`kie.ai returned no taskId: ${JSON.stringify(createRes.data)}`);
-            log(`[music] kie.ai task submitted: ${taskId} — polling for completion...`);
+            log(`[music] kie.ai task submitted: ${taskId} â€” polling for completion...`);
 
             // 2. Poll until complete (max 10 min)
             const audioUrl = await this.pollKieTask(taskId);
@@ -200,20 +200,20 @@ Return ONLY JSON:
             // 3. Download the generated mp3
             const dlRes = await axios.get(audioUrl, { responseType: "arraybuffer", timeout: 120000 });
             fs.writeFileSync(audioPath, Buffer.from(dlRes.data));
-            log(`[music] ✅ kie.ai audio downloaded: ${path.basename(audioPath)}`);
+            log(`[music] âœ… kie.ai audio downloaded: ${path.basename(audioPath)}`);
             return audioPath;
 
         } catch (err: any) {
             const msg = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-            log(`[music] ❌ kie.ai error: ${msg}`, "error");
+            log(`[music] âŒ kie.ai error: ${msg}`, "error");
             this.writeStub(audioPath, { title: track.title, error: msg });
             return audioPath;
         }
     }
 
-    /** Poll kie.ai task until completed or failed — max 10 minutes */
+    /** Poll kie.ai task until completed or failed â€” max 10 minutes */
     private async pollKieTask(taskId: string): Promise<string> {
-        const maxAttempts = 120;  // 120 × 5s = 10 min
+        const maxAttempts = 120;  // 120 Ã— 5s = 10 min
         const pollMs = 5000;
 
         for (let i = 0; i < maxAttempts; i++) {
@@ -227,7 +227,7 @@ Return ONLY JSON:
             // kie.ai wraps in .data
             const taskData = statusRes.data?.data ?? statusRes.data;
             const status   = taskData?.status ?? taskData?.state;
-            log(`[music] kie.ai ${taskId} — status: ${status} (${i + 1}/${maxAttempts})`);
+            log(`[music] kie.ai ${taskId} â€” status: ${status} (${i + 1}/${maxAttempts})`);
 
             if (status === "completed" || status === "SUCCESS" || status === "success") {
                 // Try common output field paths
@@ -251,16 +251,16 @@ Return ONLY JSON:
 
     private formatLyricsFile(track: MusicTrack, data: any): string {
         return [
-            `=== OUT THE WAY — NIA BROOKS ===`,
+            `=== OUT THE WAY â€” NIA BROOKS ===`,
             `Song: "${track.title}"`,
             `Theme: ${track.theme} | Mood: ${track.mood}`,
             `BPM: ${data.bpm} | Key: ${data.key}`,
             `Suno Style: ${data.sunoStyle}`,
             `Mood Board: ${data.moodBoard ?? ""}`,
             ``,
-            `─────────────────────────────────`,
+            `â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€`,
             track.lyrics,
-            `─────────────────────────────────`,
+            `â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€`,
             ``,
             `VOCAL NOTES:`,
             `  Verse:  ${data.vocalNotes?.verse ?? ""}`,
@@ -274,10 +274,11 @@ Return ONLY JSON:
     private writeStub(basePath: string, data: object): void {
         const stubPath = basePath.replace(/\.mp3$/, ".audio.json");
         fs.writeFileSync(stubPath, JSON.stringify({ ...data, generatedAt: new Date().toISOString() }, null, 2), "utf-8");
-        log(`[music] 📄 Audio stub written: ${path.basename(stubPath)}`);
+        log(`[music] ðŸ“„ Audio stub written: ${path.basename(stubPath)}`);
     }
 
     private ensureMusicDir(): void {
         if (!fs.existsSync(MUSIC_DIR)) fs.mkdirSync(MUSIC_DIR, { recursive: true });
     }
 }
+

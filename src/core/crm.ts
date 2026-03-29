@@ -1,4 +1,4 @@
-import { db } from "./memory.js";
+﻿import { db } from "./memory.js";
 
 export interface Deal {
     id: number;
@@ -11,13 +11,16 @@ export interface Deal {
     status: string;
     assigned_buyer?: string;
     profit: number;
+    invoice_prompted: number;
     created_at: string;
     updated_at: string;
 }
 
+import { DealWatcher } from "./dealWatcher.js";
+
 export class CrmManager {
     static calculateMaxOffer(arv: number, repairs: number): number {
-        // Formula: (ARV × 70%) - Repairs
+        // Formula: (ARV Ã— 70%) - Repairs
         return (arv * 0.70) - repairs;
     }
 
@@ -63,7 +66,14 @@ export class CrmManager {
             .concat([maxOffer]);
 
         const stmt = db.prepare(`UPDATE deals SET ${fields.join(", ")} WHERE id = ?`);
-        return stmt.run(...values, id);
+        const result = stmt.run(...values, id);
+        
+        // After any update, check if we need to trigger logic (like invoice prompt)
+        DealWatcher.checkDealStatus(id).catch(err => {
+            console.log(`[crm] Error in checkDealStatus for ${id}: ${err.message}`);
+        });
+
+        return result;
     }
 
     static getDeal(id: number): Deal | undefined {
@@ -96,4 +106,52 @@ export class CrmManager {
             return foundKeywords.length > 0;
         });
     }
+
+    static getStats() {
+        const counts = db.prepare(`
+            SELECT status, COUNT(*) as count 
+            FROM deals 
+            GROUP BY status
+        `).all() as { status: string, count: number }[];
+
+        const stats = {
+            leads: 0,
+            contacted: 0,
+            contract: 0
+        };
+
+        counts.forEach(c => {
+            if (c.status === 'lead') stats.leads = c.count;
+            if (c.status === 'contacted') stats.contacted = c.count;
+            if (c.status === 'contract') stats.contract = c.count;
+        });
+
+        return stats;
+    }
+
+    static getHottestDeal(): Deal | undefined {
+        const stmt = db.prepare("SELECT * FROM deals ORDER BY profit DESC LIMIT 1");
+        return stmt.get() as Deal | undefined;
+    }
+
+    static getTotalRevenue(): { month: number, allTime: number } {
+        const allTimeResult = db.prepare("SELECT SUM(profit) as total FROM deals WHERE status = 'closed'").get() as { total: number };
+        const monthResult = db.prepare("SELECT SUM(profit) as total FROM deals WHERE status = 'closed' AND updated_at > date('now', 'start of month')").get() as { total: number };
+        
+        return {
+            month: monthResult ? monthResult.total || 0 : 0,
+            allTime: allTimeResult ? allTimeResult.total || 0 : 0
+        };
+    }
+
+    static getFollowUpsDueToday(): Deal[] {
+        const stmt = db.prepare(`
+            SELECT * FROM deals 
+            WHERE status != 'closed' 
+            AND updated_at < date('now', '-3 days')
+            LIMIT 5
+        `);
+        return stmt.all() as Deal[];
+    }
 }
+

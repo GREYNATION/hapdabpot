@@ -1,4 +1,4 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 import { config, log } from '../core/config.js';
 
 export interface EmailMessage {
@@ -115,3 +115,4 @@ export class AgentMailService {
 }
 
 export const agentMail = new AgentMailService();
+

@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+﻿import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
@@ -51,3 +51,4 @@ export function getTasks() {
 export function getTask(id: string) {
     return db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(id);
 }
+

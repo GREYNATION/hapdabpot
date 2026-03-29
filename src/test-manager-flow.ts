@@ -1,4 +1,4 @@
-import { ai, manager } from "./core/manager.js";
+﻿import { ai, manager } from "./core/manager.js";
 import { executeTask } from "./core/executor.js";
 import { initDb } from "./core/memory.js";
 
@@ -28,9 +28,9 @@ async function testManagerFlow() {
             console.log(`[RESULT] ${result.substring(0, 100)}...`);
         }
 
-        console.log("\n✅ SUCCESS: Functional flow completed.");
+        console.log("\nâœ… SUCCESS: Functional flow completed.");
     } catch (e: any) {
-        console.error("❌ TEST FAILED WITH ERROR:");
+        console.error("âŒ TEST FAILED WITH ERROR:");
         console.error("Message:", e.message);
         if (e.code) console.error("Code:", e.code);
         if (e.stack) console.error(e.stack);
@@ -39,3 +39,4 @@ async function testManagerFlow() {
 }
 
 testManagerFlow().catch(console.error);
+

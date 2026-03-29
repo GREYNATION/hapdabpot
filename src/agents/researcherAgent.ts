@@ -1,4 +1,4 @@
-import { BaseAgent } from "./baseAgent.js";
+﻿import { BaseAgent } from "./baseAgent.js";
 
 export class ResearcherAgent extends BaseAgent {
     constructor() {
@@ -21,3 +21,4 @@ export class ResearcherAgent extends BaseAgent {
         6. Do not apologize; just use your tools to provide accurate, well-cited information. Be thorough and factual.`;
     }
 }
+

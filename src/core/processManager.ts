@@ -1,4 +1,4 @@
-import { spawn } from "child_process";
+﻿import { spawn } from "child_process";
 
 type ProcessRecord = {
   id: string;
@@ -11,7 +11,7 @@ type ProcessRecord = {
 const processes: Record<string, ProcessRecord> = {};
 let nextPort = 3000;
 
-// 🔌 AUTO PORT
+// ðŸ”Œ AUTO PORT
 function getNextPort() {
   return nextPort++;
 }
@@ -20,7 +20,7 @@ function getNextPort() {
  * Starts an application with automatic port assignment and log capturing.
  */
 export function startApp(id: string, cwd: string) {
-  // 🔥 STOP ALL EXISTING APPS FIRST
+  // ðŸ”¥ STOP ALL EXISTING APPS FIRST
   Object.keys(processes).forEach(existingId => {
     try {
         processes[existingId].process.kill();
@@ -66,12 +66,12 @@ export function startApp(id: string, cwd: string) {
     // To preserve port on restart, we'd need a variation.
     // For now, I'll follow the user's snippet exactly as requested.
     setTimeout(() => {
-      console.log(`🔁 Restarting ${id}...`);
+      console.log(`ðŸ” Restarting ${id}...`);
       startApp(id, cwd);
     }, 3000);
   });
 
-  return { message: `🚀 ${id} running on port ${port}`, port };
+  return { message: `ðŸš€ ${id} running on port ${port}`, port };
 }
 
 /**
@@ -80,13 +80,13 @@ export function startApp(id: string, cwd: string) {
 export function stopApp(id: string) {
   const proc = processes[id];
 
-  if (!proc) return `❌ ${id} not found`;
+  if (!proc) return `âŒ ${id} not found`;
 
   proc.process.kill();
   proc.status = "stopped";
   delete processes[id];
 
-  return `🛑 ${id} stopped`;
+  return `ðŸ›‘ ${id} stopped`;
 }
 
 /**
@@ -102,7 +102,8 @@ export function listApps() {
 export function getLogs(id: string) {
   const proc = processes[id];
 
-  if (!proc) return `❌ ${id} not found`;
+  if (!proc) return `âŒ ${id} not found`;
 
   return proc.logs.slice(-20).join("\n"); // last 20 logs
 }
+

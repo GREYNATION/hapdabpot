@@ -1,5 +1,5 @@
-// ============================================================
-// OUT THE WAY — Shared Types & Character Definitions
+﻿// ============================================================
+// OUT THE WAY â€” Shared Types & Character Definitions
 // ============================================================
 
 /** Agent status lifecycle */
@@ -49,14 +49,14 @@ export const CHARACTERS: Record<string, Character> = {
         name: "Nia",
         role: "Aspiring R&B artist and Jace's childhood sweetheart. Caught between her music dreams and their world.",
         appearance: "Brown-skinned, natural hair or protective styles, stylish but understated. Often has headphones.",
-        personality: "Emotionally intelligent, creative, strong-willed — but carries secrets of her own.",
+        personality: "Emotionally intelligent, creative, strong-willed â€” but carries secrets of her own.",
         voiceTone: "Warm, melodic speaking voice. Expressive. Sings under stress."
     },
     rel: {
         name: "Rel",
         role: "Jace's cousin and right-hand. Comic relief with a dangerous edge.",
         appearance: "Lighter complexion, stocky build, always in loud colors or fits. Fresh sneakers every episode.",
-        personality: "Loud, funny, impulsive — but intensely protective of family.",
+        personality: "Loud, funny, impulsive â€” but intensely protective of family.",
         voiceTone: "Fast talker, uses slang, exaggerates everything, lovable chaos energy."
     }
 };
@@ -78,7 +78,7 @@ export interface Scene {
     dialoguePrompt: string;     // AI voice synthesis prompt
     dialogue: SceneDialogueLine[];
     charactersPresent: string[];
-    durationSeconds: number;    // Target clip duration (2–5 sec)
+    durationSeconds: number;    // Target clip duration (2â€“5 sec)
     clipPath?: string;          // Set by ProductionAgent after generation
     audioPath?: string;         // Set by ProductionAgent after generation
 }
@@ -86,7 +86,7 @@ export interface Scene {
 export interface Episode {
     episodeNumber: number;
     title: string;
-    hook: string;               // Opening line / cold open teaser (≤ 15 words)
+    hook: string;               // Opening line / cold open teaser (â‰¤ 15 words)
     synopsis: string;           // 1-paragraph summary
     scenes: Scene[];
     cliffhanger: string;        // Final line / image beat that ends the episode
@@ -118,7 +118,7 @@ export interface MarketingPackage {
     episodeNumber: number;
     caption: string;
     hashtags: string[];
-    teaserClipPath?: string;    // Short clip (≤ 10 sec) for promotion
+    teaserClipPath?: string;    // Short clip (â‰¤ 10 sec) for promotion
     platforms: ("tiktok" | "instagram" | "youtube_shorts")[];
     createdAt: string;
 }
@@ -158,3 +158,4 @@ export interface Dashboard {
     finalVideoPath?: string;
     postStatus?: Record<string, PostPayload>;
 }
+

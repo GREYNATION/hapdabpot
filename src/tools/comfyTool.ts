@@ -1,4 +1,4 @@
-import fs from "fs";
+﻿import fs from "fs";
 import path from "path";
 
 const COMFY_URL = "http://127.0.0.1:8188";
@@ -69,3 +69,4 @@ export async function generateImage(prompt: string): Promise<string> {
     throw err;
   }
 }
+

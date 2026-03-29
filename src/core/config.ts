@@ -1,5 +1,4 @@
-import OpenAI from "openai";
-import { OpenRouter } from "@openrouter/sdk";
+﻿import OpenAI from "openai";
 
 import Anthropic from "@anthropic-ai/sdk";
 import dotenv from "dotenv";
@@ -14,21 +13,11 @@ export const config = {
         .split(",")
         .map(id => parseInt(id.trim()))
         .filter(id => !isNaN(id)),
-    openaiApiKey: (() => {
-        const orKey = process.env.OPENROUTER_API_KEY?.trim();
-        const oaKey = process.env.OPENAI_API_KEY?.trim();
-        const baseUrl = process.env.OPENAI_BASE_URL?.trim() || "https://openrouter.ai/api/v1";
-        
-        // If using OpenRouter base URL, prioritize OpenRouter key
-        if (baseUrl.includes("openrouter.ai")) {
-            return orKey || oaKey;
-        }
-        return oaKey || orKey;
-    })(),
-    openaiBaseUrl: process.env.OPENAI_BASE_URL?.trim() || "https://openrouter.ai/api/v1",
-    openaiModel: process.env.OPENAI_MODEL?.trim() || "openai/gpt-4o-mini",
-    backupModel: process.env.BACKUP_MODEL?.trim() || "meta-llama/llama-3.3-70b-instruct",
-    visionModel: process.env.VISION_MODEL?.trim() || "openai/gpt-4o-mini",
+    openaiApiKey: (process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY)?.trim(),
+    openaiBaseUrl: process.env.OPENAI_BASE_URL?.trim() || "https://api.groq.com/openai/v1",
+    openaiModel: process.env.OPENAI_MODEL?.trim() || "llama-3.3-70b-versatile",
+    backupModel: process.env.BACKUP_MODEL?.trim() || "llama-3.3-70b-versatile",
+    visionModel: process.env.VISION_MODEL?.trim() || "llama-3.2-11b-vision-preview",
     elevenKey: process.env.ELEVENLABS_API_KEY?.trim(),
     elevenVoiceId: process.env.ELEVENLABS_VOICE_ID?.trim() || "pNInz6obpg8ndEao7mAl",
     runwayApiKey: process.env.RUNWAY_API_KEY?.trim(),
@@ -42,7 +31,7 @@ export const config = {
     geminiApiKey: process.env.GEMINI_API_KEY?.trim(),
     geminiModel: process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash",
 
-    aiProvider: (process.env.AI_PROVIDER?.trim() || "openrouter") as "openrouter" | "gemini" | "anthropic",
+    aiProvider: (process.env.AI_PROVIDER?.trim() || "groq") as "groq" | "gemini" | "anthropic",
     ownerId: (() => {
         const id = process.env.TELEGRAM_OWNER_ID || process.env.OWNER_CHAT_ID;
         if (!id) return undefined;
@@ -58,10 +47,11 @@ if(!config.ownerId && config.allowedUserIds.length > 0) {
 
 log(`[system] Config loaded. Provider: ${config.aiProvider}. Owner: ${config.ownerId || 'NOT CONFIGURED'}`);
 if (config.openaiApiKey) {
-    const keyPrefix = config.openaiApiKey.startsWith("sk-or-") ? "OpenRouter" : "OpenAI";
+    const keyPrefix = config.openaiApiKey.startsWith("gsk_") ? "Groq" : "OpenAI";
     log(`[system] LLM Auth: Using ${keyPrefix} key (ends in ...${config.openaiApiKey.slice(-4)})`);
+    log(`[ai] Groq key loaded: ${config.openaiApiKey.slice(0, 10)}...`);
 } else {
-    log(`[system] ⚠️ LLM Auth: No API Key found in environment!`, "error");
+    log(`[system] âš ï¸ LLM Auth: No API Key found in environment!`, "error");
 }
 
 export const openai = new OpenAI({
@@ -69,8 +59,9 @@ export const openai = new OpenAI({
     baseURL: config.openaiBaseUrl,
 });
 
-export const openrouter = new OpenRouter({
+export const groq = new OpenAI({
     apiKey: config.openaiApiKey,
+    baseURL: "https://api.groq.com/openai/v1",
 });
 
 export const gemini = null;
@@ -86,3 +77,4 @@ export function log(msg: string, level: "info" | "warn" | "error" = "info") {
         // Ignore logging errors
     }
 }
+

@@ -1,4 +1,4 @@
-import { startApp } from "../core/processManager.js";
+﻿import { startApp } from "../core/processManager.js";
 
 /**
  * Starts the Node.js server in the specified directory using the App Manager.
@@ -21,8 +21,9 @@ export async function testEndpoint(url: string) {
     const res = await fetch(url);
     const text = await res.text();
 
-    return `✅ Endpoint working:\n${text}`;
+    return `âœ… Endpoint working:\n${text}`;
   } catch (err: any) {
-    return `❌ Endpoint failed: ${err.message}`;
+    return `âŒ Endpoint failed: ${err.message}`;
   }
 }
+

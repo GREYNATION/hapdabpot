@@ -1,10 +1,10 @@
-import fetch from "node-fetch";
+﻿import fetch from "node-fetch";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export async function aiRoute(task: string) {
   if (!process.env.OPENROUTER_API_KEY) {
-    console.warn("⚠️ OPENROUTER_API_KEY not set - AI routing unavailable");
+    console.warn("âš ï¸ OPENROUTER_API_KEY not set - AI routing unavailable");
     return null;
   }
 
@@ -42,13 +42,13 @@ Respond ONLY with the agent name.
     const data: any = await res.json();
     
     if (data.error) {
-      console.error("❌ OpenRouter error:", data.error);
+      console.error("âŒ OpenRouter error:", data.error);
       return null;
     }
 
     return data.choices?.[0]?.message?.content?.trim();
   } catch (error) {
-    console.error("❌ AI router failed:", error);
+    console.error("âŒ AI router failed:", error);
     return null;
   }
 }

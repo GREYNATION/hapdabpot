@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+﻿import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
@@ -150,3 +150,4 @@ export function setVoiceMode(chatId: number, mode: boolean) {
     const stmt = db.prepare("INSERT OR REPLACE INTO settings (chat_id, voice_mode) VALUES (?, ?)");
     return stmt.run(chatId, mode ? 1 : 0);
 }
+

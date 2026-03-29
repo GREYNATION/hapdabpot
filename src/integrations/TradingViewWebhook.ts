@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+﻿import express, { Request, Response } from 'express';
 import { MasterTraderAgent, PriceLevel } from '../agents/MasterTraderAgent.js';
 
 const app = express();
@@ -16,11 +16,11 @@ app.post('/webhook/tradingview', async (req: Request, res: Response) => {
     // Security check: Validate secret token
     const expectedSecret = process.env.TRADINGVIEW_WEBHOOK_SECRET;
     if (expectedSecret && alert.secret !== expectedSecret) {
-      console.warn(`🚨 WARNING: Unauthorized webhook attempt blocked.`);
+      console.warn(`ðŸš¨ WARNING: Unauthorized webhook attempt blocked.`);
       return res.status(401).json({ error: 'Unauthorized payload' });
     }
 
-    console.log(`\n📨 TradingView Alert Received:`);
+    console.log(`\nðŸ“¨ TradingView Alert Received:`);
     console.log(`Symbol: ${alert.symbol}`);
     console.log(`Signal: ${alert.signal}`);
     console.log(`Price: ${alert.price}`);
@@ -91,7 +91,7 @@ app.post('/webhook/close-trade', (req: Request, res: Response) => {
   // Security check: Validate secret token
   const expectedSecret = process.env.TRADINGVIEW_WEBHOOK_SECRET;
   if (expectedSecret && secret !== expectedSecret) {
-    console.warn(`🚨 WARNING: Unauthorized webhook attempt blocked.`);
+    console.warn(`ðŸš¨ WARNING: Unauthorized webhook attempt blocked.`);
     return res.status(401).json({ error: 'Unauthorized payload' });
   }
 
@@ -138,8 +138,9 @@ app.get('/api/performance', (req: Request, res: Response) => {
 
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
-  console.log(`✅ TradingView Webhook Server running on port ${PORT}`);
-  console.log(`📍 Webhook URL: https://your-railway-url.railway.app/webhook/tradingview`);
+  console.log(`âœ… TradingView Webhook Server running on port ${PORT}`);
+  console.log(`ðŸ“ Webhook URL: https://your-railway-url.railway.app/webhook/tradingview`);
 });
 
 export default app;
+

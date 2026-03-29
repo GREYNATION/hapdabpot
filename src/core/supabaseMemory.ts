@@ -1,9 +1,9 @@
-// ============================================================
+﻿// ============================================================
 // Supabase Vector Memory
 // Stores and retrieves semantic memories using pgvector + OpenAI embeddings
 //
 // Supabase SQL setup (run once in SQL Editor):
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // CREATE EXTENSION IF NOT EXISTS vector;
 //
 // CREATE TABLE IF NOT EXISTS memories (
@@ -34,11 +34,11 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
-import { log } from "./config.js";
+import { config, log, openai as sharedOpenAI } from "./config.js";
+import { getRecentMessages } from "./memory.js";
 
-// ── Lazy singletons ────────────────────────────────────────
+// â”€â”€ Lazy singletons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let supabase: SupabaseClient | null = null;
-let openai: OpenAI | null = null;
 
 function getSupabase(): SupabaseClient {
     if (!supabase) {
@@ -51,23 +51,18 @@ function getSupabase(): SupabaseClient {
 }
 
 function getOpenAI(): OpenAI {
-    if (!openai) {
-        openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-            baseURL: process.env.OPENAI_BASE_URL,
-        });
-    }
-    return openai;
+    // Always use the shared, hardened client from config.ts
+    return sharedOpenAI;
 }
 
-// ── Types ──────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface Memory {
     id: number;
     content: string;
     similarity: number;
 }
 
-// ── Embedding ─────────────────────────────────────────────
+// â”€â”€ Embedding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function getEmbedding(text: string): Promise<number[]> {
     const res = await getOpenAI().embeddings.create({
         model: "text-embedding-3-small",
@@ -76,7 +71,7 @@ async function getEmbedding(text: string): Promise<number[]> {
     return res.data[0].embedding;
 }
 
-// ── Store a new memory (named export for direct use) ──────
+// â”€â”€ Store a new memory (named export for direct use) â”€â”€â”€â”€â”€â”€
 export async function storeMemory(userId: string, content: string): Promise<void> {
     return saveMemory(userId, content);
 }
@@ -88,13 +83,13 @@ async function saveMemory(userId: string, message: string): Promise<void> {
             .from("memories")
             .insert({ user_id: userId, content: message, embedding });
         if (error) throw error;
-        log(`[memory] ✅ Stored memory for user ${userId}: "${message.slice(0, 60)}..."`);
+        log(`[memory] âœ… Stored memory for user ${userId}: "${message.slice(0, 60)}..."`);
     } catch (err: any) {
-        log(`[memory] ⚠️  Failed to store memory: ${err.message}`, "warn");
+        log(`[memory] âš ï¸  Failed to store memory: ${err.message}`, "warn");
     }
 }
 
-// ── Retrieve similar memories ─────────────────────────────
+// â”€â”€ Retrieve similar memories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function getMemories(
     userId: string,
     message: string,
@@ -112,41 +107,54 @@ export async function getMemories(
         if (error) throw error;
         return (data ?? []) as Memory[];
     } catch (err: any) {
-        log(`[memory] ⚠️  Failed to retrieve memories: ${err.message}`, "warn");
+        log(`[memory] âš ï¸  Failed to retrieve memories: ${err.message}`, "warn");
         return [];
     }
 }
 
-// ── Full chat() wrapper: memory → prompt → AI → store ────
-export async function chat(userId: string, message: string): Promise<string> {
-    // 1. Retrieve relevant past memories
-    const memories = await getMemories(userId, message);
-    const memoryText = memories.map(m => m.content).join("\n");
+// â”€â”€ Full chat() wrapper: memory â†’ prompt â†’ AI â†’ store â”€â”€â”€â”€
+export async function chat(userId: string, message: string, chatId?: number): Promise<string> {
+    try {
+        // 1. Retrieve relevant past vector memories (long-term)
+        const memories = await getMemories(userId, message);
+        const memoryText = memories.map(m => m.content).join("\n");
 
-    // 2. Build prompt with memory context
-    const prompt = `You are hapda_bot — a sharp, capable AI assistant.
-${
-    memoryText
-        ? `\nRelevant past memories:\n${memoryText}\n`
-        : ""
+        // 2. Load the last 10 messages from SQL (short-term)
+        const history = chatId ? getRecentMessages(chatId, 10) : [];
+
+        // 3. Build messages array
+        const systemPrompt = `You are hapdabot. You have persistent memory of past conversations with this user. You are an advanced AI Trading Assistant and wholesale real estate agent.
+${memoryText ? `\nRelevant past memories from long-term storage:\n${memoryText}\n` : ""}`;
+
+        const messages = [
+            { role: "system", content: systemPrompt },
+            ...history.map(m => ({ role: m.role, content: m.content })),
+            { role: "user", content: message }
+        ];
+
+        // 4. Generate response
+        const response = await getOpenAI().chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages: messages as any[],
+        });
+
+        const reply = response.choices[0]?.message?.content ?? "I couldn't generate a response.";
+
+        // 5. Save the user's message to vector memory (non-blocking)
+        saveMemory(userId, message).catch(() => {});
+
+        return reply;
+    } catch (err: any) {
+        log(`[error] Supabase Chat failed: ${err.message}`, "error");
+        if (err.status === 401 || err.message.includes("401") || err.message.includes("unauthorized")) {
+            return "âš ï¸ AI service temporarily unavailable. Try again in a moment.";
+        }
+        return "I encountered an error. Please try again later.";
+    }
 }
-User: ${message}`;
 
-    // 3. Generate response
-    const response = await getOpenAI().chat.completions.create({
-        model: (process.env.OPENAI_MODEL ?? "gpt-4o-mini"),
-        messages: [{ role: "user", content: prompt }],
-    });
-
-    const reply = response.choices[0]?.message?.content ?? "I couldn't generate a response.";
-
-    // 4. Save the user's message to memory (non-blocking)
-    saveMemory(userId, message).catch(() => {});
-
-    return reply;
-}
-
-// ── Check if Supabase is configured ──────────────────────
+// â”€â”€ Check if Supabase is configured â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function isSupabaseEnabled(): boolean {
     return !!(process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
 }
+

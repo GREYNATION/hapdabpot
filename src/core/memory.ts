@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+﻿import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
@@ -36,8 +36,6 @@ export function initDb() {
     `);
 
     // 2. FTS5 Virtual Table for searching content
-    // Note: External content FTS5 is often preferred for large DBs, 
-    // but for this bot, a simple managed FTS table is cleaner.
     db.exec(`
         CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
             content,
@@ -83,10 +81,19 @@ export function initDb() {
             status TEXT DEFAULT 'lead', -- 'lead', 'contacted', 'offer sent', 'contract', 'closed'
             assigned_buyer TEXT,
             profit REAL DEFAULT 0,
+            invoice_prompted INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
     `);
+
+    // Migration for existing databases: check if invoice_prompted exists
+    try {
+        db.prepare("SELECT invoice_prompted FROM deals LIMIT 1").get();
+    } catch (e) {
+        console.log("[db] Adding invoice_prompted column to deals table...");
+        db.exec("ALTER TABLE deals ADD COLUMN invoice_prompted INTEGER DEFAULT 0;");
+    }
 
     // 6. Buyers table
     db.exec(`
@@ -131,6 +138,81 @@ export function initDb() {
         );
     `);
 
+    // 9. Lead Alerts table
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS scraped_leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            address TEXT NOT NULL,
+            source TEXT,
+            price REAL,
+            estimated_arv REAL,
+            estimated_repairs REAL,
+            mao REAL,
+            potential_profit REAL,
+            days_on_market INTEGER,
+            motivation_signals TEXT,
+            url TEXT,
+            alerted INTEGER DEFAULT 0,
+            deal_id INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+    // 10. Search Criteria table
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS lead_search_criteria (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT NOT NULL,
+            city TEXT,
+            state TEXT,
+            zip TEXT,
+            max_price REAL DEFAULT 150000,
+            min_arv REAL DEFAULT 100000,
+            max_dom INTEGER DEFAULT 90,
+            min_profit REAL DEFAULT 10000,
+            active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+    // Seed default search criteria if empty
+    const existing = db.prepare("SELECT COUNT(*) as count FROM lead_search_criteria").get() as any;
+    if (existing.count === 0) {
+        db.prepare(`
+            INSERT INTO lead_search_criteria (label, city, state, zip, max_price, min_arv, max_dom, min_profit)
+            VALUES 
+            ('South Jersey', 'Camden', 'NJ', null, 120000, 100000, 90, 10000),
+            ('Brooklyn Wholesale', 'Brooklyn', 'NY', null, 400000, 350000, 60, 20000),
+            ('Philadelphia', 'Philadelphia', 'PA', null, 100000, 90000, 90, 10000)
+        `).run();
+        console.log("[leads] Default search criteria seeded.");
+    }
+
+    // 11. Outreach Sequences (for multi-day follow-ups)
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS outreach_sequences (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deal_id INTEGER NOT NULL,
+            status TEXT DEFAULT 'pending', -- 'pending', 'active', 'completed', 'stopped'
+            current_step INTEGER DEFAULT 0,
+            next_run_at DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+    // 12. Outreach Logs
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS outreach_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deal_id INTEGER NOT NULL,
+            type TEXT, -- 'sms', 'email'
+            content TEXT,
+            status TEXT, -- 'sent', 'failed'
+            sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
     console.log("[db] Database initialization complete.");
 }
 
@@ -146,14 +228,10 @@ export function saveMessage(chatId: number, role: "user" | "assistant", content:
  * Perform FTS search
  */
 export function searchMessages(query: string, limit = 5) {
-    // Sanitize query: keep only alphanumeric characters and spaces to prevent FTS5 syntax errors
     const sanitized = query.replace(/[^\p{L}\p{N} ]/gu, " ").trim();
     if (!sanitized) return [];
-
-    // Construct a safe "OR" query from words longer than 2 characters
     const safeQuery = sanitized.split(/\s+/).filter(w => w.length > 2).join(" OR ");
     if (!safeQuery) return [];
-
     const stmt = db.prepare(`
         SELECT m.* FROM messages m
         JOIN messages_fts f ON m.id = f.rowid
@@ -182,9 +260,6 @@ export function getRecentMessages(chatId: number, limit = 10) {
         content: r.content
     }));
 }
-/**
- * Background Queue Helpers
- */
 
 export function addToQueue(chatId: number, text: string, context: any, isVoice: boolean) {
     const stmt = db.prepare(`
@@ -235,3 +310,4 @@ export function markTaskAsFailed(id: number, error: string) {
     `);
     return stmt.run(error, id);
 }
+

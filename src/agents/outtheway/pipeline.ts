@@ -1,7 +1,7 @@
-// ============================================================
-// OUT THE WAY — Episode Pipeline Orchestrator
+﻿// ============================================================
+// OUT THE WAY â€” Episode Pipeline Orchestrator
 // Runs the full agent chain for a complete episode
-// Chains: Story → Scene → Production → Assembly → (Posting + Marketing)
+// Chains: Story â†’ Scene â†’ Production â†’ Assembly â†’ (Posting + Marketing)
 // Music runs in parallel, independent of the main chain
 // MonitoringAgent tracks everything
 // ============================================================
@@ -32,7 +32,7 @@ export interface PipelineOptions {
     musicTheme?: string;
     /** Music mood */
     musicMood?: MusicTrack["mood"];
-    /** If true, skip posting agent — prepare but do not queue posts */
+    /** If true, skip posting agent â€” prepare but do not queue posts */
     skipPosting?: boolean;
     /** If true, skip music generation for this run */
     skipMusic?: boolean;
@@ -65,11 +65,11 @@ export async function runEpisodePipeline(
         skipMusic = false,
     } = options;
 
-    log(`\n🎬 ═══════════════════════════════════════════════════`);
-    log(`🎬  OUT THE WAY — STARTING EPISODE ${episodeNumber} PIPELINE`);
-    log(`🎬 ═══════════════════════════════════════════════════\n`);
+    log(`\nðŸŽ¬ â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•`);
+    log(`ðŸŽ¬  OUT THE WAY â€” STARTING EPISODE ${episodeNumber} PIPELINE`);
+    log(`ðŸŽ¬ â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n`);
 
-    // ── Initialize Monitoring (always first) ─────────────────
+    // â”€â”€ Initialize Monitoring (always first) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const monitor = new MonitoringAgent(episodeNumber);
     monitor.report({
         agent: "monitoring",
@@ -78,7 +78,7 @@ export async function runEpisodePipeline(
         timestamp: ""
     });
 
-    // ── Initialize all agents ─────────────────────────────────
+    // â”€â”€ Initialize all agents â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const storyAgent      = new StoryAgent(monitor);
     const sceneAgent      = new SceneAgent(monitor);
     const productionAgent = new ProductionAgent(monitor);
@@ -93,42 +93,42 @@ export async function runEpisodePipeline(
     let musicTrack: MusicTrack | undefined;
 
     try {
-        // ── PHASE 1: Story Generation ─────────────────────────
-        log(`\n📖 PHASE 1 — Story Generation`);
+        // â”€â”€ PHASE 1: Story Generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        log(`\nðŸ“– PHASE 1 â€” Story Generation`);
         episode = await withRetry(
             () => storyAgent.generateEpisode(episodeNumber, previousEpisodeSummary, directorNote),
             monitor, "story", 3
         );
 
-        // ── PHASE 2: Scene Enhancement ────────────────────────
-        log(`\n🎨 PHASE 2 — Scene Enhancement`);
+        // â”€â”€ PHASE 2: Scene Enhancement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        log(`\nðŸŽ¨ PHASE 2 â€” Scene Enhancement`);
         episode.scenes = await withRetry(
             () => sceneAgent.enhanceScenes(episode),
             monitor, "scene", 3
         );
 
-        // ── PHASE 3: Production (clips + audio) ───────────────
-        log(`\n🎥 PHASE 3 — Production`);
+        // â”€â”€ PHASE 3: Production (clips + audio) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        log(`\nðŸŽ¥ PHASE 3 â€” Production`);
         if (!dryRun) {
             episode.scenes = await withRetry(
                 () => productionAgent.produceScenes(episode.scenes, episodeNumber),
                 monitor, "production", 3
             );
         } else {
-            log(`[pipeline] DRY RUN — Skipping production, using stub paths`);
-            monitor.report({ agent: "production", status: "completed", message: "DRY RUN — production skipped", timestamp: "" });
+            log(`[pipeline] DRY RUN â€” Skipping production, using stub paths`);
+            monitor.report({ agent: "production", status: "completed", message: "DRY RUN â€” production skipped", timestamp: "" });
         }
 
-        // ── PHASE 4: Assembly ────────────────────────────────
-        log(`\n🔧 PHASE 4 — Assembly`);
+        // â”€â”€ PHASE 4: Assembly â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        log(`\nðŸ”§ PHASE 4 â€” Assembly`);
         finalVideoPath = await withRetry(
             () => assemblyAgent.assembleEpisode(episode, episode.scenes),
             monitor, "assembly", 3
         );
 
-        // ── PHASE 5: Marketing + Posting (parallel) ───────────
+        // â”€â”€ PHASE 5: Marketing + Posting (parallel) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (!skipPosting) {
-            log(`\n📣 PHASE 5 — Marketing & Posting (parallel)`);
+            log(`\nðŸ“£ PHASE 5 â€” Marketing & Posting (parallel)`);
             const [marketingPkg] = await Promise.all([
                 withRetry(
                     () => marketingAgent.generatePackage(episode, finalVideoPath),
@@ -146,20 +146,20 @@ export async function runEpisodePipeline(
             monitor.report({ agent: "marketing", status: "idle", message: "Marketing skipped per options", timestamp: "" });
         }
 
-        // ── MUSIC: Independent parallel track ─────────────────
+        // â”€â”€ MUSIC: Independent parallel track â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (!skipMusic) {
-            log(`\n🎵 MUSIC — Composing Nia Brooks track`);
+            log(`\nðŸŽµ MUSIC â€” Composing Nia Brooks track`);
             try {
                 musicTrack = await musicAgent.createTrack(musicTheme, musicMood, episode.synopsis);
             } catch (err: any) {
-                log(`[pipeline] ⚠️  Music track failed (non-critical): ${err.message}`, "warn");
+                log(`[pipeline] âš ï¸  Music track failed (non-critical): ${err.message}`, "warn");
             }
         } else {
             log(`[pipeline] Music skipped (skipMusic=true)`);
             monitor.report({ agent: "music", status: "idle", message: "Music skipped per options", timestamp: "" });
         }
 
-        // ── Done ──────────────────────────────────────────────
+        // â”€â”€ Done â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         monitor.report({
             agent: "monitoring",
             status: "completed",
@@ -208,11 +208,11 @@ async function withRetry<T>(
             attempts++;
             const isUnrecoverable = monitor.isUnrecoverable(agentName);
             if (attempts >= maxRetries || isUnrecoverable) {
-                log(`[pipeline] ❌ Agent [${agentName}] failed after ${attempts} attempts. Aborting.`, "error");
+                log(`[pipeline] âŒ Agent [${agentName}] failed after ${attempts} attempts. Aborting.`, "error");
                 throw err;
             }
             const delay = attempts * 2000;
-            log(`[pipeline] 🔁 Retrying [${agentName}] in ${delay}ms... (attempt ${attempts}/${maxRetries})`, "warn");
+            log(`[pipeline] ðŸ” Retrying [${agentName}] in ${delay}ms... (attempt ${attempts}/${maxRetries})`, "warn");
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
@@ -230,18 +230,19 @@ if (isCLI) {
     const episodeArg = parseInt(process.argv[2] ?? "1", 10);
     const isDryRun   = process.argv.includes("--dry-run");
 
-    log(`🚀 Running pipeline via CLI — Episode ${episodeArg}${isDryRun ? " (dry run)" : ""}`);
+    log(`ðŸš€ Running pipeline via CLI â€” Episode ${episodeArg}${isDryRun ? " (dry run)" : ""}`);
 
     runEpisodePipeline(episodeArg, { dryRun: isDryRun })
         .then(result => {
-            log(`\n✅ Episode ${episodeArg} COMPLETE`);
+            log(`\nâœ… Episode ${episodeArg} COMPLETE`);
             log(`   Video:  ${result.finalVideoPath}`);
             log(`   Posts:  ${result.posts.length} platforms queued`);
             log(`   Music:  ${result.musicTrack?.title ?? "none"}`);
             process.exit(0);
         })
         .catch(err => {
-            log(`\n❌ Pipeline FAILED: ${err.message}`, "error");
+            log(`\nâŒ Pipeline FAILED: ${err.message}`, "error");
             process.exit(1);
         });
 }
+

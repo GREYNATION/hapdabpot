@@ -1,4 +1,4 @@
-import { BaseAgent } from "./baseAgent.js";
+﻿import { BaseAgent } from "./baseAgent.js";
 
 export class MarketerAgent extends BaseAgent {
     constructor() {
@@ -13,3 +13,4 @@ export class MarketerAgent extends BaseAgent {
         return "You are the Marketer Agent. You specialize in communication strategy, copywriting, market positioning, and branding. Your goal is to create compelling, high-impact messaging. Be persuasive, creative, and professional.";
     }
 }
+

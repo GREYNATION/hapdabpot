@@ -1,5 +1,5 @@
-// ============================================================
-// OUT THE WAY — Story Agent
+﻿// ============================================================
+// OUT THE WAY â€” Story Agent
 // Generates full episodes with hook, scenes, and cliffhanger
 // Maintains continuity for characters: Jace, Nia, and Rel
 // ============================================================
@@ -26,18 +26,18 @@ export class StoryAgent extends BaseAgent {
     getName(): string { return "StoryAgent"; }
 
     getSystemPrompt(): string {
-        return `You are the Story Agent for "Out the Way" — a vertical short-form AI drama series.
+        return `You are the Story Agent for "Out the Way" â€” a vertical short-form AI drama series.
 
 Your job is to generate complete, emotionally driven episodes centered on three characters:
 
 ${Object.values(CHARACTERS).map(c =>
-    `• ${c.name}: ${c.role}\n  Appearance: ${c.appearance}\n  Personality: ${c.personality}\n  Voice: ${c.voiceTone}`
+    `â€¢ ${c.name}: ${c.role}\n  Appearance: ${c.appearance}\n  Personality: ${c.personality}\n  Voice: ${c.voiceTone}`
 ).join("\n\n")}
 
 EPISODE FORMAT RULES:
-- Each episode is a tightly structured story arc of 4–6 scenes
-- Hook: A single punchy teaser line (≤ 15 words) — the emotional bait
-- Each scene has: location, prose description, 2–4 lines of sharp dialogue, and a visual beat
+- Each episode is a tightly structured story arc of 4â€“6 scenes
+- Hook: A single punchy teaser line (â‰¤ 15 words) â€” the emotional bait
+- Each scene has: location, prose description, 2â€“4 lines of sharp dialogue, and a visual beat
 - Cliffhanger: A final image or line that demands the next episode be watched
 - Tone: Real, raw, cinematic. Street-level emotion. Urban Black drama with heart.
 - NO generic plots. Every episode should feel lived-in and specific.
@@ -66,7 +66,7 @@ Return ONLY a JSON object matching this exact structure (no markdown, no extra t
 {
   "episodeNumber": ${episodeNumber},
   "title": "Episode title",
-  "hook": "One-sentence teaser ≤ 15 words",
+  "hook": "One-sentence teaser â‰¤ 15 words",
   "synopsis": "1-paragraph summary of the episode",
   "scenes": [
     {
@@ -74,7 +74,7 @@ Return ONLY a JSON object matching this exact structure (no markdown, no extra t
       "location": "Location description",
       "description": "What happens in this scene",
       "visualPrompt": "Vertical 9:16 AI video generation prompt, cinematic, detailed",
-      "dialoguePrompt": "Voice synthesis context — who is speaking, what emotion, tone",
+      "dialoguePrompt": "Voice synthesis context â€” who is speaking, what emotion, tone",
       "dialogue": [
         { "character": "Jace", "line": "Line of dialogue" }
       ],
@@ -103,12 +103,12 @@ Return ONLY a JSON object matching this exact structure (no markdown, no extra t
             fs.writeFileSync(filePath, JSON.stringify(episode, null, 2), "utf-8");
 
             this.emit("completed", `Episode ${episodeNumber} generated: "${episode.title}"`, filePath);
-            log(`[story] ✅ Episode ${episodeNumber} saved to ${filePath}`);
+            log(`[story] âœ… Episode ${episodeNumber} saved to ${filePath}`);
             return episode;
 
         } catch (err: any) {
             this.emit("failed", `Episode generation failed: ${err.message}`);
-            log(`[story] ❌ Failed: ${err.message}`, "error");
+            log(`[story] âŒ Failed: ${err.message}`, "error");
             throw err;
         }
     }
@@ -124,3 +124,4 @@ Return ONLY a JSON object matching this exact structure (no markdown, no extra t
         if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 }
+
