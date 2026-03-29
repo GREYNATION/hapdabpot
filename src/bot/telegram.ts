@@ -1,4 +1,4 @@
-﻿import { Telegraf, Context } from "telegraf";
+import { Telegraf, Context } from "telegraf";
 import { CrmManager } from "../core/crm.js";
 import { ai, manager } from "../core/manager.js";
 import { simpleChat } from "../core/ai.js";
@@ -654,7 +654,7 @@ export class TelegramBot {
     private setupStatusHandlers() {
         this.bot.command("status", async (ctx) => {
             log(`[bot] Status check requested by ${ctx.from?.id}`);
-            const response = "HaptaBap AI is online using OpenRouter (gpt-4o-mini)";
+            const response = "HaptaBap AI is online using Groq (llama-3.3-70b)";
             
             // Persistence for status command
             import("../core/memory.js").then(m => {

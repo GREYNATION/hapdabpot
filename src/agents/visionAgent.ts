@@ -1,8 +1,8 @@
-﻿import axios from "axios";
+import axios from "axios";
 import { openai, config, log } from "../core/config.js";
 
 /**
- * Standalone vision agent that calls OpenAI (OpenRouter) directly.
+ * Standalone vision agent that calls Groq directly.
  * Bypasses the shared askAI function to ensure multimodal content is properly formatted.
  */
 export async function visionAgent(multimodalPrompt: any[]) {
