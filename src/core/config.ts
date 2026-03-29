@@ -33,15 +33,20 @@ export const config = {
     geminiModel: process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash",
 
     aiProvider: (process.env.AI_PROVIDER?.trim() || "openrouter") as "openrouter" | "gemini" | "anthropic",
-    ownerId: (process.env.TELEGRAM_OWNER_ID ? parseInt(process.env.TELEGRAM_OWNER_ID) : undefined),
+    ownerId: (() => {
+        const id = process.env.TELEGRAM_OWNER_ID || process.env.OWNER_CHAT_ID;
+        if (!id) return undefined;
+        const parsed = parseInt(id);
+        return isNaN(parsed) ? undefined : parsed;
+    })(),
     glm5turboapikey: "bc9acf3d7cf44d7ab61ca63df309adab.KbLFEbBbSMD4A21K"
 };
 // Set default owner if not explicitly provided
 if(!config.ownerId && config.allowedUserIds.length > 0) {
-        config.ownerId = config.allowedUserIds[0];
+    config.ownerId = config.allowedUserIds[0];
 }
 
-log(`[system] Config loaded. Provider: ${config.aiProvider}`);
+log(`[system] Config loaded. Provider: ${config.aiProvider}. Owner: ${config.ownerId || 'NOT CONFIGURED'}`);
 
 export const openai = new OpenAI({
     apiKey: config.openaiApiKey,
