@@ -43,8 +43,8 @@ let openai: OpenAI | null = null;
 function getSupabase(): SupabaseClient {
     if (!supabase) {
         const url = process.env.SUPABASE_URL;
-        const key = process.env.SUPABASE_KEY;
-        if (!url || !key) throw new Error("SUPABASE_URL and SUPABASE_KEY must be set");
+        const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+        if (!url || !key) throw new Error("SUPABASE_URL and SUPABASE_ANON_KEY must be set");
         supabase = createClient(url, key);
     }
     return supabase;
@@ -148,5 +148,5 @@ User: ${message}`;
 
 // ── Check if Supabase is configured ──────────────────────
 export function isSupabaseEnabled(): boolean {
-    return !!(process.env.SUPABASE_URL && process.env.SUPABASE_KEY);
+    return !!(process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
 }
