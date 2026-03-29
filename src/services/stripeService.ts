@@ -1,8 +1,18 @@
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  // API version will use the account's default
-});
+let stripeInstance: Stripe | null = null;
+
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY not set');
+  }
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2024-06-20',
+    });
+  }
+  return stripeInstance;
+}
 
 export interface InvoiceData {
   dealId: number;
@@ -16,7 +26,7 @@ export interface InvoiceData {
 export async function createInvoice(data: InvoiceData): Promise<string | null> {
   try {
     // Create or retrieve customer
-    const customers = await stripe.customers.list({
+    const customers = await getStripe().customers.list({
       email: data.customerEmail,
       limit: 1,
     });
@@ -25,7 +35,7 @@ export async function createInvoice(data: InvoiceData): Promise<string | null> {
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
     } else {
-      const customer = await stripe.customers.create({
+      const customer = await getStripe().customers.create({
         email: data.customerEmail,
         name: data.customerName,
         metadata: {
@@ -36,7 +46,7 @@ export async function createInvoice(data: InvoiceData): Promise<string | null> {
     }
 
     // Create invoice item
-    await stripe.invoiceItems.create({
+    await getStripe().invoiceItems.create({
       customer: customerId,
       amount: Math.round(data.amount * 100), // Convert to cents
       currency: 'usd',
@@ -48,7 +58,7 @@ export async function createInvoice(data: InvoiceData): Promise<string | null> {
     });
 
     // Create invoice
-    const invoice = await stripe.invoices.create({
+    const invoice = await getStripe().invoices.create({
       customer: customerId,
       collection_method: 'send_invoice',
       days_until_due: 30,
@@ -63,8 +73,8 @@ export async function createInvoice(data: InvoiceData): Promise<string | null> {
     }
 
     // Finalize and send invoice
-    await stripe.invoices.finalizeInvoice(invoice.id);
-    await stripe.invoices.sendInvoice(invoice.id);
+    await getStripe().invoices.finalizeInvoice(invoice.id);
+    await getStripe().invoices.sendInvoice(invoice.id);
 
     console.log(`[Stripe] Invoice ${invoice.id} created and sent for deal ${data.dealId}`);
     return invoice.id;
@@ -76,7 +86,7 @@ export async function createInvoice(data: InvoiceData): Promise<string | null> {
 
 export async function getInvoiceStatus(invoiceId: string): Promise<string | null> {
   try {
-    const invoice = await stripe.invoices.retrieve(invoiceId);
+    const invoice = await getStripe().invoices.retrieve(invoiceId);
     return invoice.status || null;
   } catch (error: any) {
     console.error(`[Stripe] Failed to retrieve invoice ${invoiceId}:`, error.message);
@@ -96,7 +106,7 @@ export async function handleWebhook(
   }
 
   try {
-    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    const event = getStripe().webhooks.constructEvent(body, signature, webhookSecret);
     
     switch (event.type) {
       case 'invoice.paid':
@@ -130,7 +140,7 @@ export async function handleWebhook(
 
 export async function createPaymentLink(dealId: number, amount: number, address: string): Promise<string | null> {
   try {
-    const paymentLink = await stripe.paymentLinks.create({
+    const paymentLink = await getStripe().paymentLinks.create({
       line_items: [
         {
           price_data: {
