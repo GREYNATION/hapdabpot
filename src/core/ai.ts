@@ -46,8 +46,8 @@ export async function askAI(
                 { role: "user", content: prompt }
             ];
 
-            // Cleanup: remove tool_calls/toolCalls from assistant messages for Groq compatibility
-            messages = messages.map(m => {
+            // Cleanup: remove tool_calls/toolCalls and strip 'tool' role messages for Groq compatibility
+            messages = messages.filter(m => m.role !== 'tool').map(m => {
                 if (m.role === 'assistant') {
                     const { tool_calls, toolCalls, ...rest } = m;
                     return rest;
@@ -61,14 +61,12 @@ export async function askAI(
                 temperature: options.temperature ?? 0.7,
                 max_tokens: options.maxTokens || 1000,
                 response_format: options.jsonMode ? { type: "json_object" } : undefined,
-                tools: options.tools as any,
-                tool_choice: options.toolChoice as any
+                // Do not pass tools or tool_choice to Groq
             });
 
             const message = completion.choices[0].message;
             return {
                 content: message.content || "",
-                toolCalls: message.tool_calls as ToolCall[]
             };
         }
 
@@ -121,8 +119,8 @@ export async function simpleChat(input: string, chatId?: number) {
             { role: "user", content: input }
         ];
 
-        // Cleanup: remove tool_calls/toolCalls from assistant messages for Groq compatibility
-        messages = messages.map((m: any) => {
+        // Cleanup: remove tool_calls/toolCalls and strip 'tool' role messages for Groq compatibility
+        messages = messages.filter((m: any) => m.role !== 'tool').map((m: any) => {
             if (m.role === 'assistant') {
                 const { tool_calls, toolCalls, ...rest } = m;
                 return rest;
