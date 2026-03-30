@@ -49,7 +49,7 @@ export async function askAI(
             // Cleanup: remove tool_calls/toolCalls and strip 'tool' role messages for Groq compatibility
             messages = messages.filter(m => m.role !== 'tool').map(m => {
                 if (m.role === 'assistant') {
-                    const { tool_calls, toolCalls, ...rest } = m;
+                    const { tool_calls, toolCalls, ...rest } = m as any;
                     return rest;
                 }
                 return m;
@@ -120,9 +120,9 @@ export async function simpleChat(input: string, chatId?: number) {
         ];
 
         // Cleanup: remove tool_calls/toolCalls and strip 'tool' role messages for Groq compatibility
-        messages = messages.filter((m: any) => m.role !== 'tool').map((m: any) => {
-            if (m.role === 'assistant') {
-                const { tool_calls, toolCalls, ...rest } = m;
+        messages = messages.filter(m => (m as any).role !== 'tool').map(m => {
+            if ((m as any).role === 'assistant') {
+                const { tool_calls, toolCalls, ...rest } = m as any;
                 return rest;
             }
             return m;
