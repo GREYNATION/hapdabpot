@@ -38,10 +38,10 @@ export const config = {
         const parsed = parseInt(id);
         return isNaN(parsed) ? undefined : parsed;
     })(),
-    glm5turboapikey: "bc9acf3d7cf44d7ab61ca63df309adab.KbLFEbBbSMD4A21K"
+
 };
 // Set default owner if not explicitly provided
-if(!config.ownerId && config.allowedUserIds.length > 0) {
+if (!config.ownerId && config.allowedUserIds.length > 0) {
     config.ownerId = config.allowedUserIds[0];
 }
 
