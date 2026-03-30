@@ -41,10 +41,19 @@ export async function askAI(
 
     try {
         if (provider === "groq") {
-            const messages = options.messages || [
+            let messages = options.messages || [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: prompt }
             ];
+
+            // Cleanup: remove tool_calls/toolCalls from assistant messages for Groq compatibility
+            messages = messages.map(m => {
+                if (m.role === 'assistant') {
+                    const { tool_calls, toolCalls, ...rest } = m;
+                    return rest;
+                }
+                return m;
+            });
 
             const completion = await openai.chat.completions.create({
                 model,
@@ -106,11 +115,20 @@ export async function simpleChat(input: string, chatId?: number) {
         const systemPrompt = "You are hapdabot. You have persistent memory of past conversations with this user. You are an advanced AI Trading Assistant and wholesale real estate agent. You have a built-in Master Trader agent hooked up to a TradingView webhook capable of institutional-grade order flow execution. If a user asks you to trade, tell them to send a TradingView webhook payload to `/webhook/tradingview` or execute the `/trade` and `/performance` commands to view their live P&L.";
         
         const history = chatId ? getRecentMessages(chatId, 10) : [];
-        const messages = [
+        let messages = [
             { role: "system", content: systemPrompt },
             ...history.map(m => ({ role: m.role, content: m.content })),
             { role: "user", content: input }
         ];
+
+        // Cleanup: remove tool_calls/toolCalls from assistant messages for Groq compatibility
+        messages = messages.map((m: any) => {
+            if (m.role === 'assistant') {
+                const { tool_calls, toolCalls, ...rest } = m;
+                return rest;
+            }
+            return m;
+        }) as any;
 
         const res = await openai.chat.completions.create({
             model: "llama-3.3-70b-versatile",
