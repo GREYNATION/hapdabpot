@@ -6,13 +6,14 @@ import { openai, config, log } from "../core/config.js";
  * Bypasses the shared askAI function to ensure multimodal content is properly formatted.
  */
 export async function visionAgent(multimodalPrompt: any[]) {
-    const systemPrompt = `You are a visual analysis expert. Examine the provided image carefully and describe exactly what you see. Include:
-- Objects, people, text, or diagrams visible
-- Layout and structure
-- Colors and notable visual elements
-- Any labels, titles, or annotations
+    const systemPrompt = `Analyze this property image and return:
 
-Be thorough and precise.`;
+{
+  "condition": "good | average | bad",
+  "estimated_repairs": number,
+  "deal_rating": 1-10,
+  "reason": "short explanation"
+}`;
 
     // Extract text from the multimodal prompt
     const userText = multimodalPrompt.find(p => p.type === "text")?.text || "Describe this image.";
@@ -27,24 +28,34 @@ Be thorough and precise.`;
     const MAX_RETRIES = 3;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
-            const completion = await openai.chat.completions.create({
-                model: config.visionModel,
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    {
-                        role: "user",
-                        content: [
-                            { type: "text", text: userText },
-                            { type: "image_url", image_url: imagePart.image_url }
-                        ]
-                    }
-                ],
-                max_tokens: 1200,
-            } as any);
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    model: "openai/gpt-4o", // ✅ FIXED
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        {
+                            role: "user",
+                            content: [
+                                { type: "text", text: userText },
+                                {
+                                    type: "image_url",
+                                    image_url: imagePart.image_url
+                                }
+                            ]
+                        }
+                    ]
+                })
+            });
 
-            const result = completion.choices[0]?.message?.content;
+            const data = await response.json();
+            const result = data.choices?.[0]?.message?.content;
             log(`[visionAgent] Analysis complete. Result length: ${result?.length}`);
-            return result || "âŒ Model returned no content.";
+            return result || "❌ Model returned no content.";
 
         } catch (err: any) {
             const isRateLimit = err.status === 429 || err.message?.includes("429") || err.message?.includes("retry");
@@ -54,11 +65,31 @@ Be thorough and precise.`;
                 await new Promise(r => setTimeout(r, wait));
             } else {
                 log(`[visionAgent] Failed: ${err.message}`, "error");
-                return `âŒ Visual analysis failed: ${err.message}`;
+                console.log("⚠️ Vision failed, fallback to text");
+
+                try {
+                    const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            model: "openai/gpt-4o",
+                            messages: [
+                                { role: "system", content: systemPrompt },
+                                { role: "user", content: "Analyze deal based on text only: " + userText }
+                            ]
+                        })
+                    });
+                    const fallbackData = await fallbackResponse.json();
+                    return fallbackData.choices?.[0]?.message?.content || "❌ Fallback text model returned no content.";
+                } catch (fallbackErr: any) {
+                    return `❌ Visual analysis and text fallback failed: ${fallbackErr.message}`;
+                }
             }
         }
     }
 
-    return "âŒ Analysis timed out after multiple retries.";
+    return "❌ Analysis timed out after multiple retries.";
 }
-
