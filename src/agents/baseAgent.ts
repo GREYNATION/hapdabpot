@@ -1,4 +1,4 @@
-﻿import fs from "fs";
+import fs from "fs";
 import path from "path";
 import { config, log } from "../core/config.js";
 import { askAI } from "../core/ai.js";
@@ -225,6 +225,11 @@ export abstract class BaseAgent {
                 }
             }
         ];
+    }
+
+    async chat(userText: string): Promise<string> {
+        const res = await this.ask(userText);
+        return res.content;
     }
 
     async ask(userText: any, history: any[] = [], systemOverride?: string): Promise<any> {

@@ -83,8 +83,7 @@ export class RealEstateAgent extends BaseAgent {
       ? "Draft a short conversational SMS under 160 chars to a motivated seller at " + lead.address + ". Goal: get them on the phone. Be friendly, not salesy. Sign off as Hap."
       : "Draft a brief email subject and body to a motivated seller at " + lead.address + ". Keep it under 100 words. Empathetic, professional. Sign as Hap / HapdaInvestments.";
 
-    const res = await this.ask(prompt);
-    return res.content;
+    return await this.chat(prompt);
   }
 
   async handle(userMessage: string): Promise<string> {
@@ -110,8 +109,7 @@ export class RealEstateAgent extends BaseAgent {
     }
 
     log(`[realEstate] Routing to AI chat: "${userMessage.slice(0, 60)}"`);
-    const res = await this.ask(userMessage);
-    return res.content;
+    return await this.chat(userMessage);
   }
 }
 
