@@ -10,6 +10,7 @@ import { SKILLS } from "../core/skills.js";
 import { ResearcherAgent } from "../agents/researcherAgent.js";
 import { MarketerAgent } from "../agents/marketerAgent.js";
 import { MasterTraderAgent } from "../agents/MasterTraderAgent.js";
+import { orchestrator } from "../agents/orchestratorAgent.js";
 import { scanMarkets, formatMarketsReport, analyzeWithAI } from "../agents/predictionMarketAgent.js";
 import {
     driveListFiles, driveSearch, readDoc, createDoc,
@@ -29,6 +30,7 @@ import { listApps, stopApp, getLogs } from "../core/processManager.js";
 import { DealWatcher } from '../core/dealWatcher.js';
 import { setupInvoiceHandlers } from './invoiceHandlers.js';
 import { registerLeadAlertHandlers } from '../cron/leadAlerts.js';
+import { SupabaseCrm } from "../core/supabaseCrm.js";
 
 interface AnalysisSession {
     address: string;
@@ -54,6 +56,7 @@ export class TelegramBot {
         this.bot = new Telegraf(config.telegramToken);
         
         initDb();
+        orchestrator.registerTraderAgent(this.masterTrader);
         this.setupMiddleware();
         this.setupCrmHandlers();
         this.setupSkillHandlers();
@@ -144,6 +147,23 @@ export class TelegramBot {
     }
 
     private setupCrmHandlers() {
+        // [COMMAND] /scan [city] - Scans for new deals
+        this.bot.command("scan", async (ctx) => {
+            if (!this.checkOwner(ctx)) return;
+            const args = ctx.message.text.split(" ").slice(1);
+            const city = args.join(" ").trim() || "Camden NJ";
+
+            await this.safeReply(ctx, `ðŸ¤– Starting market scan for "${city}"... this may take a moment.`);
+            
+            try {
+                const count = await SupabaseCrm.scanMarket(city);
+                return this.safeReply(ctx, `âœ… Found ${count} new potential deals in ${city}. All leads have been analyzed and saved to Supabase.`);
+            } catch (err: any) {
+                log(`[bot] /scan failed: ${err.message}`, "error");
+                return this.safeReply(ctx, `â Œ Market scan failed: ${err.message}`);
+            }
+        });
+
         this.bot.command("deal", async (ctx) => {
             if (!this.checkOwner(ctx)) return;
             const args = ctx.message.text.split(" ").slice(1);
@@ -156,6 +176,8 @@ export class TelegramBot {
                         return this.safeReply(ctx, "âŒ Usage: /deal add [address] | [seller] | [phone] | [arv] | [repairs]");
                     }
                     const [address, seller, phone, arv, repairs] = params;
+                    
+                    // 1. Save to SQLite (Legacy)
                     const dealId = CrmManager.addDeal({
                         address,
                         seller_name: seller,
@@ -163,8 +185,18 @@ export class TelegramBot {
                         arv: parseFloat(arv) || 0,
                         repair_estimate: parseFloat(repairs) || 0
                     });
+
+                    // 2. Save to Supabase (New)
+                    await SupabaseCrm.insertDeal({
+                        address,
+                        seller,
+                        phone,
+                        arv: parseFloat(arv) || 0,
+                        repairs: parseFloat(repairs) || 0
+                    });
+
                     const deal = CrmManager.getDeal(dealId);
-                    return this.safeReply(ctx, `âœ… Deal added! ID: ${dealId}\nAddress: ${address}\nMax Offer: $${deal?.max_offer.toLocaleString()}`);
+                    return this.safeReply(ctx, `âœ… Deal added to both CRM and Supabase!\nID: ${dealId}\nAddress: ${address}\nMax Offer: $${deal?.max_offer.toLocaleString()}`);
                 }
 
                 case "update": {
@@ -221,6 +253,16 @@ export class TelegramBot {
                         `ðŸ¤ Buyer: ${deal.assigned_buyer || "Unassigned"}\n` +
                         `ðŸ’µ Profit: $${deal.profit.toLocaleString()}`;
                     return this.safeReply(ctx, msg);
+                }
+
+                case "stats": {
+                    const stats = await SupabaseCrm.getStats();
+                    const msg = `ðŸ“Š **CRM DASHBOARD (Supabase)**\n` +
+                        `â” â” â” â” â” â” â” â” â” â” â” â” â” â” â” â” \n` +
+                        `ðŸ“‹ Total Leads: ${stats.leads}\n` +
+                        `ðŸ¤  Under Contract: ${stats.underContract}\n` +
+                        `ðŸ’° Total Revenue: $${stats.revenue.toLocaleString()}`;
+                    return this.safeReply(ctx, msg, true);
                 }
 
                 default:
@@ -481,6 +523,8 @@ export class TelegramBot {
                         let matchedBuyer = null;
                         try {
                             const profit = Math.max(0, mao - asking);
+                            
+                            // 1. Save to SQLite
                             const dealId = CrmManager.addDeal({
                                 address: session.address,
                                 arv: arv,
@@ -489,7 +533,17 @@ export class TelegramBot {
                                 profit: profit,
                                 status: asking <= mao ? 'contract' : 'lead'
                             });
-                            log(`[bot] Deal saved to database: ID ${dealId}`);
+
+                            // 2. Save to Supabase
+                            await SupabaseCrm.insertDeal({
+                                address: session.address,
+                                seller: "Unknown (Analyzed)",
+                                phone: "N/A",
+                                arv: arv,
+                                repairs: repairs
+                            });
+
+                            log(`[bot] Deal saved to both databases: ID ${dealId}`);
                             
                             // Check for buyers
                             const matches = CrmManager.findMatchingBuyers(session.address);
@@ -528,7 +582,7 @@ export class TelegramBot {
                     return this.runBuild(text, reply);
                 }
 
-                // 4. ðŸ’¬ NORMAL CHAT â€” with Supabase vector memory
+                // 4. ðŸ’¬ NORMAL CHAT â€” with OrchestratorAgent
                 const userId = String(ctx.from?.id ?? "unknown");
 
                 // Save user message to SQL history
@@ -536,14 +590,24 @@ export class TelegramBot {
 
                 log(`[bot] ðŸ’¬ Chat debug: Key=${config.openaiApiKey?.slice(0, 10)}... Base=${config.openaiBaseUrl}`);
 
-                const response = isSupabaseEnabled()
-                    ? await supabaseChat(userId, text, chatId)
-                    : await simpleChat(text, chatId);
+                // Show typing indicator
+                await ctx.sendChatAction("typing");
 
-                // Save assistant message to SQL history
-                if (chatId) saveMessage(chatId, "assistant", response);
+                try {
+                    const result = await orchestrator.route(text);
 
-                return reply(response);
+                    // Save assistant message to SQL history
+                    if (chatId) saveMessage(chatId, "assistant", result.response);
+
+                    const agentLabel =
+                        result.intent === "trading" ? "📈 Trading" :
+                        result.intent === "real_estate" ? "🏠 Real Estate" :
+                        "🤖 HapdaBot";
+
+                    return reply(`${agentLabel}\n\n${result.response}`);
+                } catch (e: any) {
+                    await reply(`❌ Something went wrong: ${e.message}`);
+                }
 
             } catch (err: any) {
                 log(`[error] Handler failed: ${err.message}`, "error");
@@ -654,7 +718,7 @@ export class TelegramBot {
     private setupStatusHandlers() {
         this.bot.command("status", async (ctx) => {
             log(`[bot] Status check requested by ${ctx.from?.id}`);
-            const response = "HaptaBap AI is online using Groq (llama-3.3-70b)";
+            const response = orchestrator.getStatus();
             
             // Persistence for status command
             import("../core/memory.js").then(m => {
