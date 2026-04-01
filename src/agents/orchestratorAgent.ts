@@ -15,7 +15,7 @@ const TRADING_KEYWORDS = [
   "trade", "trading", "btc", "bitcoin", "gbp", "forex",
   "p&l", "performance", "position", "signal", "profit",
   "loss", "long", "short", "entry", "exit", "stop loss",
-  "take profit", "buy", "sell", "market", "chart", "candle",
+  "take profit", "buy", "sell", "chart", "candle",
   "iq buy", "iq sell", "mastertrader", "webhook"
 ];
 
