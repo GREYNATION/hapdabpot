@@ -11,6 +11,7 @@ export interface Deal {
     status: string;
     assigned_buyer?: string;
     profit: number;
+    notes?: string;
     invoice_prompted: number;
     created_at: string;
     updated_at: string;
@@ -30,8 +31,8 @@ export class CrmManager {
         const maxOffer = this.calculateMaxOffer(arv, repairs);
 
         const stmt = db.prepare(`
-            INSERT INTO deals (address, seller_name, seller_phone, arv, repair_estimate, max_offer, status, assigned_buyer, profit)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO deals (address, seller_name, seller_phone, arv, repair_estimate, max_offer, status, assigned_buyer, profit, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         const info = stmt.run(
             deal.address,
@@ -42,7 +43,8 @@ export class CrmManager {
             maxOffer,
             deal.status || "lead",
             deal.assigned_buyer || null,
-            deal.profit || 0
+            deal.profit || 0,
+            deal.notes || null
         );
         return info.lastInsertRowid as number;
     }

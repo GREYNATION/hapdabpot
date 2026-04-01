@@ -1,4 +1,4 @@
-﻿import Database from "better-sqlite3";
+import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
@@ -82,6 +82,7 @@ export function initDb() {
             assigned_buyer TEXT,
             profit REAL DEFAULT 0,
             invoice_prompted INTEGER DEFAULT 0,
+            notes TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -93,6 +94,13 @@ export function initDb() {
     } catch (e) {
         console.log("[db] Adding invoice_prompted column to deals table...");
         db.exec("ALTER TABLE deals ADD COLUMN invoice_prompted INTEGER DEFAULT 0;");
+    }
+
+    try {
+        db.prepare("SELECT notes FROM deals LIMIT 1").get();
+    } catch (e) {
+        console.log("[db] Adding notes column to deals table...");
+        db.exec("ALTER TABLE deals ADD COLUMN notes TEXT;");
     }
 
     // 6. Buyers table
