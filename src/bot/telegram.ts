@@ -904,7 +904,9 @@ Default: DEMO mode (no real money).
     }
 
     public launch() {
-        DealWatcher.init();
+        DealWatcher.init(); const traderAgent = new MasterTraderAgent();
+        orchestrator.registerTraderAgent(traderAgent);
+        orchestrator.registerRealEstateAgent(realEstateAgent);
         this.setupGoogleHandlers();
         this.bot.launch();
         log("[bot] Polling launched successfully.");
