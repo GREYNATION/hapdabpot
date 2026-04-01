@@ -577,7 +577,7 @@ export class TelegramBot {
                 }
 
                 // 3. AUTO-DETECT BUILD
-                const taskKeywords = ["build", "api", "app", "email", "mail", "scrape", "search", "analyze", "check", "find", "who"];
+                const taskKeywords = ["build", "api", "app", "scrape"];
                 if (taskKeywords.some(k => text.toLowerCase().includes(k))) {
                     return this.runBuild(text, reply);
                 }
