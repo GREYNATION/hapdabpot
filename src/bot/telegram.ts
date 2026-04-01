@@ -55,7 +55,7 @@ export class TelegramBot {
         if (!config.telegramToken) throw new Error("TELEGRAM_BOT_TOKEN is missing");
 
         this.bot = new Telegraf(config.telegramToken);
-        
+
         initDb();
         this.setupMiddleware();
         this.setupCrmHandlers();
@@ -82,15 +82,15 @@ export class TelegramBot {
         this.bot.use(async (ctx: any, next) => {
             const userId = ctx.from?.id;
             const isOwner = userId === config.ownerId;
-            
+
             log(`[security] Checking access for userID: ${userId}. Owner: ${isOwner}`);
-            
+
             // Allow anyone in the allowed list, but set an owner flag
             if (userId && config.allowedUserIds.includes(Number(userId))) {
                 ctx.state.isOwner = isOwner;
                 return next();
             }
-            
+
             log(`[security] Blocked access from unauthorized user ID: ${userId}`, "warn");
         });
     }
@@ -106,13 +106,13 @@ export class TelegramBot {
     private async safeReply(ctx: any, text: string, isMarkdown: boolean = false) {
         if (!text) return;
         const CHUNK_SIZE = 4000;
-        
+
         if (text.length <= CHUNK_SIZE) {
             return isMarkdown ? ctx.replyWithMarkdownV2(text) : ctx.reply(text);
         }
 
         log(`[bot] Message too long (${text.length} chars). Splitting into chunks...`, "warn");
-        
+
         let start = 0;
         while (start < text.length) {
             let end = start + CHUNK_SIZE;
@@ -154,7 +154,7 @@ export class TelegramBot {
             const city = args.join(" ").trim() || "Camden NJ";
 
             await this.safeReply(ctx, `ðŸ¤– Starting market scan for "${city}"... this may take a moment.`);
-            
+
             try {
                 const count = await SupabaseCrm.scanMarket(city);
                 return this.safeReply(ctx, `âœ… Found ${count} new potential deals in ${city}. All leads have been analyzed and saved to Supabase.`);
@@ -176,7 +176,7 @@ export class TelegramBot {
                         return this.safeReply(ctx, "âŒ Usage: /deal add [address] | [seller] | [phone] | [arv] | [repairs]");
                     }
                     const [address, seller, phone, arv, repairs] = params;
-                    
+
                     // 1. Save to SQLite (Legacy)
                     const dealId = CrmManager.addDeal({
                         address,
@@ -242,7 +242,7 @@ export class TelegramBot {
                     if (isNaN(id)) return this.safeReply(ctx, "âŒ Usage: /deal view [id]");
                     const deal = CrmManager.getDeal(id);
                     if (!deal) return this.safeReply(ctx, "âŒ Deal not found.");
-                    
+
                     const msg = `ðŸ  Deal #${deal.id}\n` +
                         `ðŸ“ Address: ${deal.address}\n` +
                         `ðŸ‘¤ Seller: ${deal.seller_name || "N/A"} (${deal.seller_phone || "N/A"})\n` +
@@ -282,30 +282,30 @@ export class TelegramBot {
                     if (pendingInvoices.length === 0) {
                         return this.safeReply(ctx, "ðŸ“­ No pending invoices.");
                     }
-                    
-                    const list = pendingInvoices.map((inv: any) => 
+
+                    const list = pendingInvoices.map((inv: any) =>
                         `ðŸ’° ${inv.address} - $${inv.amount.toLocaleString()} (Deal #${inv.dealId})`
                     ).join("\n");
-                    
+
                     return this.safeReply(ctx, `ðŸ“‹ *Pending Invoices*\n\n${list}`, true);
                 }
-                
+
                 case "send": {
                     const dealId = parseInt(args[1]);
                     if (isNaN(dealId)) {
                         return this.safeReply(ctx, "âŒ Usage: /invoice send [dealId]");
                     }
-                    
+
                     await this.safeReply(ctx, `ðŸ”„ Sending invoice for deal #${dealId}...`);
                     const success = await DealWatcher.confirmAndSendInvoice(dealId);
-                    
+
                     if (success) {
                         return this.safeReply(ctx, `âœ… Invoice sent for deal #${dealId}!`);
                     } else {
                         return this.safeReply(ctx, `âŒ Failed to send invoice. Check Stripe configuration.`);
                     }
                 }
-                
+
                 case "test": {
                     // Create a test deal and move to Under Contract
                     const dealId = CrmManager.addDeal({
@@ -315,13 +315,13 @@ export class TelegramBot {
                         repair_estimate: 40000,
                         status: 'lead'
                     });
-                    
+
                     CrmManager.updateDeal(dealId, { status: 'contract' });
                     await DealWatcher.checkDealStatus(dealId);
-                    
+
                     return this.safeReply(ctx, `âœ… Test deal #${dealId} created and set to "Under Contract". Invoice should be ready for confirmation.`);
                 }
-                
+
                 default:
                     return this.safeReply(ctx, "ðŸ’° Invoice Management\n\nUsage:\n/invoice list - Show pending invoices\n/invoice send [dealId] - Send invoice for deal\n/invoice test - Create test deal and invoice");
             }
@@ -337,7 +337,7 @@ export class TelegramBot {
                 const desc = s.description.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
                 return `â€¢ *${name}* (\`${id}\`): ${desc}`;
             }).join("\n");
-            
+
             const message = `ðŸ›  *Gravity Claw Specialist Skills*\n\n${list}\n\n_Ask about these topics to trigger them automatically\\!_`;
             return this.safeReply(ctx, message, true);
         });
@@ -352,13 +352,13 @@ export class TelegramBot {
             }
 
             await this.safeReply(ctx, `ðŸ” Analyzing ${address}... searching for comparables...`);
-            
+
             // Use Researcher to get snippets
             const researcher = new ResearcherAgent();
             const searchResults = await researcher.executeTool("web_search", { query: `${address} recent sales listings` });
-            
+
             await this.safeReply(ctx, searchResults);
-            
+
             this.analysisSessions.set(ctx.chat.id, {
                 address,
                 step: 'arv'
@@ -374,7 +374,7 @@ export class TelegramBot {
             if (!chatId) return;
             const from = ctx.from;
             const msg = ctx.message as any;
-            
+
             let userText = "";
             let isVoiceInput = false;
             let visualContext: any = null;
@@ -444,14 +444,14 @@ export class TelegramBot {
                     const response = await axios.get(fileLink.toString(), { responseType: "arraybuffer" });
                     const base64Image = Buffer.from(response.data).toString("base64");
                     const caption = msg.caption || "Describe everything you see in this image in detail.";
-                    
+
                     const multimodalPrompt = [
                         { type: "text", text: caption },
                         { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Image}` } }
                     ];
-                    
+
                     log(`[bot] Photo encoded (${response.data.byteLength} bytes). Routing to visionAgent...`);
-                    
+
                     // Route directly to vision â€” bypass the text handler below
                     const reply = (t: string) => this.safeReply(ctx, t);
                     return this.runBuild(multimodalPrompt, reply);
@@ -462,14 +462,14 @@ export class TelegramBot {
                     log(`[bot] Processing document: ${msg.document.file_name}...`);
                     const fileLink = await ctx.telegram.getFileLink(msg.document.file_id);
                     const docResponse = await axios.get(fileLink.toString(), { responseType: "arraybuffer" });
-                    
+
                     // Save to shared data folder
                     const sharedDir = path.join(process.cwd(), "data", "shared");
                     if (!fs.existsSync(sharedDir)) fs.mkdirSync(sharedDir, { recursive: true });
                     const safeName = msg.document.file_name.replace(/[^a-zA-Z0-9.-]/g, "_");
                     const filePath = path.join(sharedDir, safeName);
                     fs.writeFileSync(filePath, Buffer.from(docResponse.data));
-                    
+
                     const fileContent = Buffer.from(docResponse.data).toString("utf-8"); // Assume text/utf-8 for now
                     userText = msg.caption || `I've uploaded '${msg.document.file_name}' to the shared data folder. Please analyze it.`;
                     visualContext = `DATA INPUT (File: ${msg.document.file_name} saved to shared folder):\n\n${fileContent.substring(0, 5000)}`;
@@ -482,7 +482,7 @@ export class TelegramBot {
                 const session = this.analysisSessions.get(chatId);
                 if (session && userText && !userText.startsWith("/")) {
                     const val = parseFloat(userText.replace(/[^0-9.]/g, ""));
-                    
+
                     if (session.step === 'arv') {
                         if (isNaN(val)) return this.safeReply(ctx, "âŒ Please enter a valid number for the ARV.");
                         session.arv = val;
@@ -499,12 +499,12 @@ export class TelegramBot {
 
                     if (session.step === 'askingPrice') {
                         if (isNaN(val)) return this.safeReply(ctx, "âŒ Please enter a valid number for the Asking Price.");
-                        
+
                         const arv = session.arv || 0;
                         const repairs = session.repairs || 0;
                         const asking = val;
                         const mao = (arv * 0.7) - repairs;
-                        
+
                         let verdict = "";
                         if (asking <= mao) {
                             verdict = `ðŸ”¥ **THIS IS A GOOD DEAL!**\n\nYour Maximum Allowable Offer (MAO) is **$${mao.toLocaleString()}**. Since the asking price is $${asking.toLocaleString()}, you have a potential profit spread.`;
@@ -523,7 +523,7 @@ export class TelegramBot {
                         let matchedBuyer = null;
                         try {
                             const profit = Math.max(0, mao - asking);
-                            
+
                             // 1. Save to SQLite
                             const dealId = CrmManager.addDeal({
                                 address: session.address,
@@ -544,7 +544,7 @@ export class TelegramBot {
                             });
 
                             log(`[bot] Deal saved to both databases: ID ${dealId}`);
-                            
+
                             // Check for buyers
                             const matches = CrmManager.findMatchingBuyers(session.address);
                             if (matches.length > 0) {
@@ -562,7 +562,7 @@ export class TelegramBot {
                 }
 
                 if (!userText && !visualContext) return;
-                
+
                 const text = userText;
                 const reply = (t: string) => this.safeReply(ctx, t);
 
@@ -624,20 +624,20 @@ export class TelegramBot {
                 const photo = ctx.message.photo[ctx.message.photo.length - 1];
                 const fileLink = await this.bot.telegram.getFileLink(photo.file_id);
                 const imageUrl = fileLink.toString();
-                
+
                 log(`[bot] Photo file_id: ${photo.file_id}, fetching...`);
-                
+
                 // Telegram URLs require auth â€” must download and base64-encode
                 const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
                 const base64 = Buffer.from(response.data).toString('base64');
                 const dataUrl = `data:image/jpeg;base64,${base64}`;
-                
+
                 log(`[bot] Image encoded. Size: ${response.data.byteLength} bytes, base64 length: ${base64.length}`);
 
                 const multimodalPrompt = [
                     { type: "text", text: caption },
-                    { 
-                        type: "image_url", 
+                    {
+                        type: "image_url",
                         image_url: { url: dataUrl }
                     }
                 ];
@@ -655,9 +655,9 @@ export class TelegramBot {
         this.bot.command('scrape', async (ctx) => {
             if (!this.checkOwner(ctx)) return;
             await ctx.reply("ðŸ” Searching NYC Open Data for latest Brooklyn deeds...");
-            
+
             const leads = await PropertyScraper.fetchLatestDeeds('3', 3); // Top 3 from BK
-            
+
             if (leads.length === 0) {
                 return ctx.reply("âŒ No new deeds found in the last refresh.");
             }
@@ -670,7 +670,7 @@ export class TelegramBot {
                 } as any);
 
                 await ctx.reply(`ðŸ†• New Lead: ${lead.address}\nOwner: ${lead.ownerName}\n\nðŸ•µï¸ Initiating AI Skip Trace...`);
-                
+
                 const contact = await SkipTracer.trace(lead.ownerName, lead.address);
                 if (contact.phone || contact.email) {
                     await SkipTracer.updateLeadWithContact(dealId, contact);
@@ -718,7 +718,7 @@ export class TelegramBot {
         this.bot.command("status", async (ctx) => {
             log(`[bot] Status check requested by ${ctx.from?.id}`);
             const response = orchestrator.getStatus();
-            
+
             // Persistence for status command
             import("../core/memory.js").then(m => {
                 m.saveMessage(ctx.chat.id, "user", "/status");
@@ -763,7 +763,7 @@ export class TelegramBot {
         this.bot.command("apps", async (ctx) => {
             if (!this.checkOwner(ctx)) return;
             const apps = listApps();
-            
+
             if (apps.length === 0) return this.safeReply(ctx, "âš ï¸ No running apps");
 
             const listStr = apps
@@ -814,7 +814,7 @@ export class TelegramBot {
 
             // STEP 1: PLAN
             const plan = await manager(prompt);
-            
+
             if (plan.tasks.length === 0) {
                 return; // Nothing more to do for simple chat
             }
