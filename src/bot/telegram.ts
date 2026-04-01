@@ -20,6 +20,7 @@ import {
     isGoogleEnabled
 } from "../agents/googleWorkspaceAgent.js";
 import { PropertyScraper } from "../core/scraper.js";
+import { findMotivatedSellers, formatLeads } from "../core/leadScraper.js";
 import { SkipTracer } from "../core/skiptrace.js";
 import fs from "fs";
 import path from "path";
@@ -642,7 +643,7 @@ export class TelegramBot {
                 return this.runBuild(multimodalPrompt, reply);
             } catch (err: any) {
                 log(`[error] Photo handling failed: ${err.message}`, "error");
-                await reply(`âŒ Failed to process image: ${err.message}`);
+                await reply(`❌ Failed to process image: ${err.message}`);
             }
         });
     }
@@ -651,12 +652,12 @@ export class TelegramBot {
         // [COMMAND] /scrape - Pulls latest deeds and skip traces them
         this.bot.command('scrape', async (ctx) => {
             if (!this.checkOwner(ctx)) return;
-            await ctx.reply("ðŸ” Searching NYC Open Data for latest Brooklyn deeds...");
+            await ctx.reply("🔍 Searching NYC Open Data for latest Brooklyn deeds...");
 
             const leads = await PropertyScraper.fetchLatestDeeds('3', 3); // Top 3 from BK
 
             if (leads.length === 0) {
-                return ctx.reply("âŒ No new deeds found in the last refresh.");
+                return ctx.reply("❌ No new deeds found in the last refresh.");
             }
 
             for (const lead of leads) {
@@ -666,18 +667,38 @@ export class TelegramBot {
                     notes: `Scraped from NYC Open Data (Deed recorded: ${lead.docDate})`
                 } as any);
 
-                await ctx.reply(`ðŸ†• New Lead: ${lead.address}\nOwner: ${lead.ownerName}\n\nðŸ•µï¸ Initiating AI Skip Trace...`);
+                await ctx.reply(`🆕 New Lead: ${lead.address}\nOwner: ${lead.ownerName}\n\n🕵️ Initiating AI Skip Trace...`);
 
                 const contact = await SkipTracer.trace(lead.ownerName, lead.address);
                 if (contact.phone || contact.email) {
                     await SkipTracer.updateLeadWithContact(dealId, contact);
-                    await ctx.reply(`âœ… Trace Success!\nPhone: ${contact.phone || 'N/A'}\nEmail: ${contact.email || 'N/A'}`);
+                    await ctx.reply(`✅ Trace Success!\nPhone: ${contact.phone || 'N/A'}\nEmail: ${contact.email || 'N/A'}`);
                 } else {
-                    await ctx.reply("âš ï¸ Skip trace returned no direct contact info. Manual research required.");
+                    await ctx.reply("⚠️ Skip trace returned no direct contact info. Manual research required.");
                 }
             }
 
-            await ctx.reply("âœ… Scrape complete. Check your WholesaleOS dashboard for full details.");
+            await ctx.reply("✅ Scrape complete. Check your WholesaleOS dashboard for full details.");
+        });
+
+        // [COMMAND] /leads - Programmatic scraping of motivated sellers
+        this.bot.command('leads', async (ctx) => {
+            if (!this.checkOwner(ctx)) return;
+            const args = ctx.message.text.split(" ").slice(1);
+            const state = args[0] || undefined;
+            const city = args[1] || undefined;
+
+            await ctx.reply(`🔍 Searching for motivated sellers... ${state ? `in ${state}` : "across all markets"} ${city ? `(${city})` : ""}`);
+            await ctx.sendChatAction("typing");
+
+            try {
+                const leads = await findMotivatedSellers(state, city);
+                const response = formatLeads(leads);
+                return this.safeReply(ctx, response);
+            } catch (e: any) {
+                log(`[bot] /leads command failed: ${e.message}`, "error");
+                return ctx.reply(`❌ Scraping failed: ${e.message}`);
+            }
         });
 
         // [COMMAND] /outreach - Generates SMS/Email template for a lead
