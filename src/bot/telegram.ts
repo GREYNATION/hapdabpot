@@ -10,8 +10,6 @@ import { SKILLS } from "../core/skills.js";
 import { ResearcherAgent } from "../agents/researcherAgent.js";
 import { MarketerAgent } from "../agents/marketerAgent.js";
 import { MasterTraderAgent } from "../agents/MasterTraderAgent.js";
-import { orchestrator } from "../agents/orchestratorAgent.js";
-import { realEstateAgent } from "../agents/RealEstateAgent.js";
 import { scanMarkets, formatMarketsReport, analyzeWithAI } from "../agents/predictionMarketAgent.js";
 import {
     driveListFiles, driveSearch, readDoc, createDoc,
@@ -57,8 +55,6 @@ export class TelegramBot {
         this.bot = new Telegraf(config.telegramToken);
         
         initDb();
-        orchestrator.registerTraderAgent(this.masterTrader);
-        orchestrator.registerRealEstateAgent(realEstateAgent);
         this.setupMiddleware();
         this.setupCrmHandlers();
         this.setupSkillHandlers();
@@ -596,17 +592,16 @@ export class TelegramBot {
                 await ctx.sendChatAction("typing");
 
                 try {
-                    const result = await orchestrator.route(text);
+                    let response: string;
+                    if (isSupabaseEnabled()) {
+                        response = await supabaseChat(userId, text, chatId);
+                    } else {
+                        response = await simpleChat(text);
+                    }
 
-                    // Save assistant message to SQL history
-                    if (chatId) saveMessage(chatId, "assistant", result.response);
+                    if (chatId) saveMessage(chatId, "assistant", response);
 
-                    const agentLabel =
-                        result.intent === "trading" ? "📈 Trading" :
-                        result.intent === "real_estate" ? "🏠 Real Estate" :
-                        "🤖 HapdaBot";
-
-                    return reply(`${agentLabel}\n\n${result.response}`);
+                    return reply(`🤖 HapdaBot\n\n${response}`);
                 } catch (e: any) {
                     await reply(`❌ Something went wrong: ${e.message}`);
                 }
@@ -720,7 +715,7 @@ export class TelegramBot {
     private setupStatusHandlers() {
         this.bot.command("status", async (ctx) => {
             log(`[bot] Status check requested by ${ctx.from?.id}`);
-            const response = orchestrator.getStatus();
+            const response = "🤖 HapdaBot Status: Online & Ready!";
             
             // Persistence for status command
             import("../core/memory.js").then(m => {
@@ -731,15 +726,8 @@ export class TelegramBot {
             return ctx.reply(response);
         });
 
-        // Quick MAO calc — /mao 200000 30000
         this.bot.command("mao", async (ctx) => {
-            const args = ctx.message.text.split(" ").slice(1).map(Number);
-            if (args.length < 2 || args.some(isNaN)) {
-                return ctx.reply("Usage: /mao <arv> <repairs>\nExample: /mao 200000 30000");
-            }
-            const [arv, repairs] = args;
-            const analysis = realEstateAgent.calculateMAO(arv, repairs);
-            await ctx.reply(realEstateAgent.formatMAOResult(analysis));
+            await ctx.reply("The RealEstateAgent and MAO tool have been removed per request.");
         });
     }
 

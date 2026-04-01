@@ -1,11 +1,9 @@
-﻿import { aiRoute } from "./agents/aiRouter.js";
+import { aiRoute } from "./agents/aiRouter.js";
 import { TraderAgent } from "./agents/TraderAgent.js";
-import { RealEstateAgent } from "./agents/RealEstateAgent.js";
 import { ContentAgent } from "./agents/ContentAgent.js";
 
 const agents = {
   TraderAgent: new TraderAgent(),
-  RealEstateAgent: new RealEstateAgent(),
   ContentAgent: new ContentAgent()
 };
 

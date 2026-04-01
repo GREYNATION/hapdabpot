@@ -1,8 +1,7 @@
 import { BaseAgent } from "./baseAgent.js";
 import { log } from "../core/config.js";
 
-// --- Intent Types ---
-
+// Intent Types
 type Intent = "trading" | "real_estate" | "general";
 
 interface RouteResult {
@@ -11,8 +10,7 @@ interface RouteResult {
   response: string;
 }
 
-// --- Keyword Maps ---
-
+// Keyword Maps
 const TRADING_KEYWORDS = [
   "trade", "trading", "btc", "bitcoin", "gbp", "forex",
   "p&l", "performance", "position", "signal", "profit",
@@ -29,25 +27,12 @@ const REAL_ESTATE_KEYWORDS = [
   "south jersey", "brooklyn", "philadelphia", "philly"
 ];
 
-// --- OrchestratorAgent ---
-
 export class OrchestratorAgent extends BaseAgent {
-  private masterTraderAgent: BaseAgent | null = null;
-  private realEstateAgent: BaseAgent | null = null;
-
-  private systemPromptString: string;
+  private masterTraderAgent: any | null = null;
+  private realEstateAgent: any | null = null;
 
   constructor() {
-    const prompt = `You are HapdaBot — an autonomous AI business operator for Hap. 
-You manage two specialized agents:
-- MasterTraderAgent: handles all crypto/forex trading (BTC/USD, GBP/USD)
-- RealEstateAgent: handles wholesaling leads, deal analysis, and seller outreach
-
-Your job is to understand what Hap wants and route it to the right agent.
-For general conversation, help directly. Be sharp, fast, and results-oriented.
-Never ask for unnecessary clarification — take action and report back.`;
-    super("OrchestratorAgent", prompt);
-    this.systemPromptString = prompt;
+    super("OrchestratorAgent", "");
   }
 
   getName(): string {
@@ -55,10 +40,14 @@ Never ask for unnecessary clarification — take action and report back.`;
   }
 
   getSystemPrompt(): string {
-    return this.systemPromptString;
+    return "You are HapdaBot, an autonomous AI business operator for Hap. " +
+      "You manage two specialized agents: " +
+      "MasterTraderAgent for crypto/forex trading (BTC/USD, GBP/USD), " +
+      "and RealEstateAgent for wholesaling leads, deal analysis, and seller outreach. " +
+      "Route requests to the right agent. For general conversation, respond directly. " +
+      "Be sharp, fast, and results-oriented. Never ask for unnecessary clarification.";
   }
 
-  // Register sub-agents
   registerTraderAgent(agent: any) {
     this.masterTraderAgent = agent;
     log("[orchestrator] MasterTraderAgent registered");
@@ -68,8 +57,6 @@ Never ask for unnecessary clarification — take action and report back.`;
     this.realEstateAgent = agent;
     log("[orchestrator] RealEstateAgent registered");
   }
-
-  // --- Intent Detection ---
 
   private detectIntent(message: string): { intent: Intent; confidence: "high" | "low" } {
     const lower = message.toLowerCase();
@@ -89,11 +76,8 @@ Never ask for unnecessary clarification — take action and report back.`;
       return { intent: "real_estate", confidence: realEstateScore >= 2 ? "high" : "low" };
     }
 
-    // Tie — default to general, let AI decide
     return { intent: "general", confidence: "low" };
   }
-
-  // --- Main Router ---
 
   async route(userMessage: string): Promise<RouteResult> {
     const { intent, confidence } = this.detectIntent(userMessage);
@@ -104,52 +88,36 @@ Never ask for unnecessary clarification — take action and report back.`;
       switch (intent) {
         case "trading": {
           if (this.masterTraderAgent) {
-            const response = await this.masterTraderAgent.ask(userMessage);
-            return { intent, confidence, response: response.content };
+            const res = await this.masterTraderAgent.ask(userMessage);
+            return { intent, confidence, response: res.content };
           }
-          return {
-            intent,
-            confidence,
-            response: "⚠️ MasterTraderAgent not connected yet."
-          };
+          return { intent, confidence, response: "MasterTraderAgent not connected yet." };
         }
 
         case "real_estate": {
           if (this.realEstateAgent) {
-            const response = await this.realEstateAgent.ask(userMessage);
-            return { intent, confidence, response: response.content };
+            const response = await this.realEstateAgent.handle(userMessage);
+            return { intent, confidence, response };
           }
-          return {
-            intent,
-            confidence,
-            response: "⚠️ RealEstateAgent not connected yet."
-          };
+          return { intent, confidence, response: "RealEstateAgent not connected yet." };
         }
 
         default: {
-          // Handle directly as orchestrator
-          const response = await this.ask(userMessage);
-          return { intent, confidence, response: response.content };
+          const res = await this.ask(userMessage);
+          return { intent, confidence, response: res.content };
         }
       }
     } catch (e: any) {
       log(`[orchestrator] Routing error: ${e.message}`, "error");
-      return {
-        intent,
-        confidence,
-        response: `❌ Agent error: ${e.message}`
-      };
+      return { intent, confidence, response: `Agent error: ${e.message}` };
     }
   }
 
-  // --- Status Report ---
-
   getStatus(): string {
-    const trader = this.masterTraderAgent ? "✅ Connected" : "❌ Not connected";
-    const realEstate = this.realEstateAgent ? "✅ Connected" : "❌ Not connected";
-    return `🤖 HapdaBot Orchestrator Status\n\n📈 MasterTraderAgent: ${trader}\n🏠 RealEstateAgent: ${realEstate}`;
+    const trader = this.masterTraderAgent ? "Connected" : "Not connected";
+    const realEstate = this.realEstateAgent ? "Connected" : "Not connected";
+    return "HapdaBot Orchestrator Status\n\nMasterTraderAgent: " + trader + "\nRealEstateAgent: " + realEstate;
   }
 }
 
-// Singleton export
 export const orchestrator = new OrchestratorAgent();
