@@ -12,9 +12,11 @@ export interface AgentResponse {
 
 export abstract class BaseAgent {
     protected model: string;
+    protected systemPrompt: string;
 
     constructor(name: string, systemPrompt: string) {
         this.model = config.openaiModel;
+        this.systemPrompt = systemPrompt;
     }
 
     abstract getName(): string;

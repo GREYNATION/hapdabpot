@@ -20,7 +20,7 @@ import {
     isGoogleEnabled
 } from "../agents/googleWorkspaceAgent.js";
 import { PropertyScraper } from "../core/scraper.js";
-import { findMotivatedSellers, formatLeads } from "../core/leadScraper.js";
+import { findMotivatedSellers, formatLeads } from "../services/universalLeadScraper.js";
 import { SkipTracer } from "../core/skiptrace.js";
 import fs from "fs";
 import path from "path";

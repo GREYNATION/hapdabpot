@@ -1,5 +1,5 @@
 import axios from "axios";
-import { log, config } from "./config.js";
+import { log, config } from "../core/config.js";
 
 // Target markets — wide net
 export const TARGET_MARKETS = {
