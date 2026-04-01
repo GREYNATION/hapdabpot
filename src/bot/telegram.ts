@@ -10,6 +10,7 @@ import { SKILLS } from "../core/skills.js";
 import { ResearcherAgent } from "../agents/researcherAgent.js";
 import { MarketerAgent } from "../agents/marketerAgent.js";
 import { MasterTraderAgent } from "../agents/MasterTraderAgent.js";
+import { orchestrator } from "../agents/orchestratorAgent.js";
 import { scanMarkets, formatMarketsReport, analyzeWithAI } from "../agents/predictionMarketAgent.js";
 import {
     driveListFiles, driveSearch, readDoc, createDoc,
@@ -715,7 +716,7 @@ export class TelegramBot {
     private setupStatusHandlers() {
         this.bot.command("status", async (ctx) => {
             log(`[bot] Status check requested by ${ctx.from?.id}`);
-            const response = "🤖 HapdaBot Status: Online & Ready!";
+            const response = orchestrator.getStatus();
             
             // Persistence for status command
             import("../core/memory.js").then(m => {
