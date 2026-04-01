@@ -1,6 +1,6 @@
 import { BaseAgent } from "./baseAgent.js";
 import { log } from "../core/config.js";
-import { findMotivatedSellers, formatLeads, TARGET_MARKETS } from "../services/universalLeadScraper.js";
+import { findMotivatedSellers, formatLeads, TARGET_MARKETS, Lead } from "../services/universalLeadScraper.js";
 
 interface DealAnalysis {
   arv: number;
@@ -8,11 +8,6 @@ interface DealAnalysis {
   mao: number;
   maxOffer: number;
   verdict: string;
-}
-
-interface Lead {
-  address: string;
-  price?: number;
 }
 
 const STATE_ALIASES: Record<string, string> = {
@@ -39,6 +34,9 @@ const CITY_ALIASES: Record<string, string> = {
 };
 
 export class RealEstateAgent extends BaseAgent {
+  private lastDeals: Lead[] = [];
+  private offset: number = 0;
+
   constructor() {
     super(
       "RealEstateAgent",
@@ -101,10 +99,11 @@ export class RealEstateAgent extends BaseAgent {
     return { state, city };
   }
 
-  async draftOutreach(lead: Lead, channel: "sms" | "email" = "sms"): Promise<string> {
+  async draftOutreach(lead: Partial<Lead>, channel: "sms" | "email" = "sms"): Promise<string> {
+    const addressStr = lead.address || "their property";
     const prompt = channel === "sms"
-      ? "Draft a short conversational SMS under 160 chars to a motivated seller at " + lead.address + ". Goal: get them on the phone. Friendly, not salesy. Sign off as Hap."
-      : "Draft a brief email subject and body to a motivated seller at " + lead.address + ". Under 100 words. Empathetic, professional. Sign as Hap / HapdaInvestments.";
+      ? "Draft a short conversational SMS under 160 chars to a motivated seller at " + addressStr + ". Goal: get them on the phone. Friendly, not salesy. Sign off as Hap."
+      : "Draft a brief email subject and body to a motivated seller at " + addressStr + ". Under 100 words. Empathetic, professional. Sign as Hap / HapdaInvestments.";
     return await this.chat(prompt);
   }
 
@@ -120,6 +119,19 @@ export class RealEstateAgent extends BaseAgent {
     ) {
       const [arv, repairs] = numbers;
       return this.formatMAOResult(this.calculateMAO(arv, repairs));
+    }
+
+    // Pagination for leads
+    if (lower.includes("more leads") || (lower.includes("more") && lower.includes("lead"))) {
+      if (this.lastDeals.length === 0) {
+        return "No recent search memory. Ask me to find motivated sellers first.";
+      }
+      this.offset += 5;
+      if (this.offset >= this.lastDeals.length) {
+        return "That's all the leads from the last search! Try searching a different market.";
+      }
+      const nextBatch = this.lastDeals.slice(this.offset, this.offset + 5);
+      return formatLeads(nextBatch, 5);
     }
 
     // Lead finding — use universal scraper
@@ -140,7 +152,9 @@ export class RealEstateAgent extends BaseAgent {
       try {
         const leads = await findMotivatedSellers(state, city);
         if (leads.length > 0) {
-          return formatLeads(leads, 5);
+          this.lastDeals = leads;
+          this.offset = 0;
+          return formatLeads(this.lastDeals.slice(0, 5), 5);
         }
         return "No live leads found right now. Markets searched: " + location + ". Try again in a few minutes.";
       } catch (e: any) {

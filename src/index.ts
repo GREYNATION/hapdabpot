@@ -23,7 +23,7 @@ try {
     startMorningBriefing(bot.getBot());
     startLeadAlerts(bot.getBot());
     startOutreachCron(bot.getBot());
-    initMarketScans();
+    initMarketScans(bot.getBot());
 } catch (err: any) {
     console.error("[system] CRITICAL: Bot launch failed:", err.message);
 }

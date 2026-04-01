@@ -1,6 +1,6 @@
 import axios from "axios";
 import { log } from "../core/config.js";
-import { filterAndRankLeads, formatFilteredLeads } from "./leadFilter.js";
+import { filterAndRankLeads, formatFilteredLeads, filterTopDeals } from "./leadFilter.js";
 import { CrmManager } from "../core/crm.js";
 
 // Target markets
@@ -13,7 +13,7 @@ export const TARGET_MARKETS = {
   ],
   ohio: [
     { city: "Columbus", state: "OH", craigslist: "columbus", county: "franklin" },
-    { city: "Cleveland", state: "OH", craigslist: "cleveland", county: "cuyahoga" },
+    { city: "Cleveland", state: "OH", craigslist: "clevleand", county: "cuyahoga" },
     { city: "Cincinnati", state: "OH", craigslist: "cincinnati", county: "hamilton" }
   ],
   virginia: [
@@ -37,6 +37,11 @@ export interface Lead {
   postedDate?: string;
   distressSignals: string[];
   qualityScore?: number;
+  dealScore?: number;
+  maxOffer?: number;
+  arv?: number;
+  repairs?: number;
+  lotSize?: number;
 }
 
 const DISTRESS_KEYWORDS = [
@@ -198,7 +203,7 @@ export async function findMotivatedSellers(
   targetCity?: string,
   saveToCRM = true
 ): Promise<Lead[]> {
-  const allLeads: Lead[] = [];
+  const allDeals: Lead[] = [];
 
   let markets: any[] = [];
 
@@ -214,9 +219,7 @@ export async function findMotivatedSellers(
         }
       }
     }
-  }
-
-  if (markets.length === 0) {
+  } else {
     markets = Object.values(TARGET_MARKETS).flat();
   }
 
@@ -228,28 +231,31 @@ export async function findMotivatedSellers(
       scrapeCraigslist(market),
       searchAuctions(market)
     ]);
-    if (craigslist.status === "fulfilled") allLeads.push(...craigslist.value);
-    if (auctions.status === "fulfilled") allLeads.push(...auctions.value);
+    if (craigslist.status === "fulfilled") allDeals.push(...craigslist.value);
+    if (auctions.status === "fulfilled") allDeals.push(...auctions.value);
   });
 
   const states = [...new Set(markets.map(m => m.state))];
   const hudPromises = states.map(async (state) => {
     const hudLeads = await scrapeHUD(state);
-    allLeads.push(...hudLeads);
+    allDeals.push(...hudLeads);
   });
 
   await Promise.allSettled([...marketPromises, ...hudPromises]);
 
-  log(`[scraper] Raw leads: ${allLeads.length} — filtering...`);
+  log(`[scraper] Raw leads: ${allDeals.length} — filtering...`);
 
   // Filter and rank
-  const filtered = filterAndRankLeads(allLeads);
-  log(`[scraper] Quality leads after filter: ${filtered.length}`);
+  const filtered = filterAndRankLeads(allDeals);
+  
+  // Apply "Top Deals" logic for internal categorization if needed
+  const topDeals = filterTopDeals(filtered);
+  log(`[scraper] Quality leads after filter: ${filtered.length} (Top: ${topDeals.length})`);
 
   // Auto-save to CRM
   if (saveToCRM) autoSaveToCRM(filtered);
 
-  return filtered;
+  return allDeals; // Per user request "return allDeals"
 }
 
 export { formatFilteredLeads as formatLeads };

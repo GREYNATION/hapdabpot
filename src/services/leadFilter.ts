@@ -85,9 +85,79 @@ export function scoreListingQuality(lead: Lead): number {
 
 export function filterAndRankLeads(leads: Lead[], minScore = 3): Lead[] {
   return leads
+    .filter(l => !!l.price) // ❌ Price: N/A
     .map(l => ({ ...l, qualityScore: scoreListingQuality(l) }))
     .filter(l => (l.qualityScore || 0) >= minScore)
     .sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0));
+}
+
+export function calculateDealScore(lead: Lead): number {
+  let score = 0;
+
+  // Discount (MOST IMPORTANT)
+  if (lead.arv && lead.price && lead.arv > 0) {
+    const discount = (lead.arv - lead.price) / lead.arv;
+    if (discount > 0.4) score += 4;
+    else if (discount > 0.25) score += 2;
+  }
+
+  // Property condition
+  if (lead.repairs !== undefined && lead.repairs < 30000) score += 2;
+
+  // Motivation
+  if (lead.type.toLowerCase().includes("foreclosure")) score += 2;
+
+  // Price clarity
+  if (lead.price) score += 2;
+
+  return score;
+}
+
+export function tagDeal(deal: Lead): string {
+  const discount = (deal.arv && deal.price && deal.arv > 0) 
+    ? (deal.arv - deal.price) / deal.arv 
+    : 0;
+
+  if (discount > 0.4) return "🔥 STEAL";
+  if (deal.type.toLowerCase().includes("foreclosure")) return "⚡ DISTRESSED";
+  if (deal.lotSize && deal.lotSize > 1) return "🏗 DEVELOPMENT";
+
+  return "📊 STANDARD";
+}
+
+export function formatTopDeal(deal: Lead): string {
+  const score = deal.dealScore || 0;
+  const tag = tagDeal(deal);
+  const profitPotential = (deal.arv || 0) - (deal.price || 0) - (deal.repairs || 0);
+
+  return `
+🏆 TOP DEAL [${tag}]
+
+📍 ${deal.address}
+💰 Price: $${(deal.price || 0).toLocaleString()}
+📈 ARV: $${(deal.arv || 0).toLocaleString()}
+🔧 Repairs: $${(deal.repairs || 0).toLocaleString()}
+
+💵 Max Offer: $${(deal.maxOffer || 0).toLocaleString()}
+🔥 Profit Potential: $${profitPotential.toLocaleString()}
+
+⭐ Score: ${score}/10
+
+🧠 Verdict: ${score >= 8 ? "STRONG DEAL" : "PASS"}
+`;
+}
+
+export function filterTopDeals(leads: Lead[]): Lead[] {
+  return leads
+    .map(l => {
+      const dealScore = calculateDealScore(l);
+      const maxOffer = (l.arv || 0) * 0.7 - (l.repairs || 0);
+      return { ...l, dealScore, maxOffer };
+    })
+    .filter(l => (l.qualityScore || 0) >= 8) // keep high quality only
+    .filter(l => l.arv && l.repairs) // must have numbers
+    .sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0))
+    .slice(0, 5); // 🔥 ONLY TOP 5
 }
 
 export function formatFilteredLeads(leads: Lead[], limit = 5): string {
