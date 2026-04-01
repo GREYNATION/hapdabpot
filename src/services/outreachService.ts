@@ -1,4 +1,4 @@
-﻿import { Telegraf, Context, Markup } from 'telegraf';
+import { Telegraf, Context, Markup } from 'telegraf';
 import twilio from 'twilio';
 import nodemailer from 'nodemailer';
 import { db } from '../core/memory.js';
@@ -85,7 +85,7 @@ function formatTemplate(template: string, deal: any): string {
         .replace(/{address}/g, deal.address);
 }
 
-export async function sendSms(to: string, body: string, dealId: number) {
+export async function sendSms(to: string, body: string, dealId?: number) {
     const sid = process.env.TWILIO_ACCOUNT_SID;
     const token = process.env.TWILIO_AUTH_TOKEN;
     const from = process.env.TWILIO_PHONE_NUMBER;
@@ -100,17 +100,21 @@ export async function sendSms(to: string, body: string, dealId: number) {
         const message = await client.messages.create({ body, from, to });
         log(`[outreach] SMS Sent to ${to}: ${message.sid}`);
         
-        db.prepare(`
-            INSERT INTO outreach_logs (deal_id, type, content, status)
-            VALUES (?, 'sms', ?, 'sent')
-        `).run(dealId, body);
+        if (dealId) {
+            db.prepare(`
+                INSERT INTO outreach_logs (deal_id, type, content, status)
+                VALUES (?, 'sms', ?, 'sent')
+            `).run(dealId, body);
+        }
         
         return message;
     } catch (err: any) {
-        db.prepare(`
-            INSERT INTO outreach_logs (deal_id, type, content, status)
-            VALUES (?, 'sms', ?, 'failed')
-        `).run(dealId, body);
+        if (dealId) {
+            db.prepare(`
+                INSERT INTO outreach_logs (deal_id, type, content, status)
+                VALUES (?, 'sms', ?, 'failed')
+            `).run(dealId, body);
+        }
         throw err;
     }
 }

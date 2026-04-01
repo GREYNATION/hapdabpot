@@ -1,4 +1,4 @@
-﻿import { Anthropic } from '@anthropic-ai/sdk';
+import { Anthropic } from '@anthropic-ai/sdk';
 import { TradovateClient } from '../integrations/TradovateClient.js';
 
 interface PriceLevel {
@@ -158,6 +158,38 @@ Provide:
     } catch (e: any) {
         console.error("Failed Anthropic Request:", e)
         return "Failed to analyze signal";
+    }
+  }
+
+  /**
+   * Handle generic conversational queries from the Orchestrator
+   */
+  async ask(userMessage: string): Promise<{ content: string; }> {
+    this.conversationHistory.push({
+      role: 'user',
+      content: userMessage,
+    });
+
+    try {
+        const response = await this.client.messages.create({
+          model: 'claude-3-opus-20240229',
+          max_tokens: 500,
+          system: this.getSystemPrompt() + '\n\nThe user is chatting with you directly. Respond helpfully.',
+          messages: this.conversationHistory as any,
+        });
+
+        const assistantMessage =
+          response.content[0].type === 'text' ? response.content[0].text : '';
+
+        this.conversationHistory.push({
+          role: 'assistant',
+          content: assistantMessage,
+        });
+
+        return { content: assistantMessage };
+    } catch (e: any) {
+        console.error("Failed Anthropic Request:", e)
+        return { content: "I am having trouble connecting to my trading models right now." };
     }
   }
 

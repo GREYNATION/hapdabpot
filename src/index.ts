@@ -4,6 +4,7 @@ import { startMorningBriefing } from "./cron/morningBriefing.js";
 import { startLeadAlerts } from "./cron/leadAlerts.js";
 import { startOutreachCron, registerOutreachHandlers } from "./services/outreachService.js";
 import { startWebServer } from "./webServer.js";
+import { initMarketScans } from "./cron/marketScans.js";
 
 dotenv.config();
 
@@ -22,13 +23,18 @@ try {
     startMorningBriefing(bot.getBot());
     startLeadAlerts(bot.getBot());
     startOutreachCron(bot.getBot());
+    initMarketScans();
 } catch (err: any) {
     console.error("[system] CRITICAL: Bot launch failed:", err.message);
 }
 
 // Global Error Handling
-process.on("unhandledRejection", (reason, promise) => {
-    console.error("[system] Unhandled Rejection at:", promise, "reason:", reason);
+process.on("unhandledRejection", (err: any) => {
+  if (err?.message?.includes("409")) {
+    console.warn("[bot] Another instance is running — shutting down this one");
+    process.exit(1); // Railway will restart cleanly
+  }
+  console.error("[system] Unhandled Rejection:", err);
 });
 
 process.on("uncaughtException", (err) => {

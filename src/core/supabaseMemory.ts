@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // Supabase Vector Memory
 // Stores and retrieves semantic memories using pgvector + OpenAI embeddings
 //
@@ -40,7 +40,7 @@ import { getRecentMessages } from "./memory.js";
 // â”€â”€ Lazy singletons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let supabase: SupabaseClient | null = null;
 
-function getSupabase(): SupabaseClient {
+export function getSupabase(): SupabaseClient {
     if (!supabase) {
         const url = process.env.SUPABASE_URL;
         const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;

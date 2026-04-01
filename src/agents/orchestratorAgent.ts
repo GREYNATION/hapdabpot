@@ -1,7 +1,7 @@
 import { BaseAgent } from "./baseAgent.js";
 import { log } from "../core/config.js";
 
-// ─── Intent Types ────────────────────────────────────────────────────────────
+// --- Intent Types ---
 
 type Intent = "trading" | "real_estate" | "general";
 
@@ -11,7 +11,7 @@ interface RouteResult {
   response: string;
 }
 
-// ─── Keyword Maps ─────────────────────────────────────────────────────────────
+// --- Keyword Maps ---
 
 const TRADING_KEYWORDS = [
   "trade", "trading", "btc", "bitcoin", "gbp", "forex",
@@ -29,24 +29,25 @@ const REAL_ESTATE_KEYWORDS = [
   "south jersey", "brooklyn", "philadelphia", "philly"
 ];
 
-// ─── OrchestratorAgent ────────────────────────────────────────────────────────
+// --- OrchestratorAgent ---
 
 export class OrchestratorAgent extends BaseAgent {
   private masterTraderAgent: BaseAgent | null = null;
   private realEstateAgent: BaseAgent | null = null;
 
+  private systemPromptString: string;
+
   constructor() {
-    super(
-      "OrchestratorAgent",
-      `You are HapdaBot — an autonomous AI business operator for Hap. 
+    const prompt = `You are HapdaBot — an autonomous AI business operator for Hap. 
 You manage two specialized agents:
 - MasterTraderAgent: handles all crypto/forex trading (BTC/USD, GBP/USD)
 - RealEstateAgent: handles wholesaling leads, deal analysis, and seller outreach
 
 Your job is to understand what Hap wants and route it to the right agent.
 For general conversation, help directly. Be sharp, fast, and results-oriented.
-Never ask for unnecessary clarification — take action and report back.`
-    );
+Never ask for unnecessary clarification — take action and report back.`;
+    super("OrchestratorAgent", prompt);
+    this.systemPromptString = prompt;
   }
 
   getName(): string {
@@ -54,21 +55,21 @@ Never ask for unnecessary clarification — take action and report back.`
   }
 
   getSystemPrompt(): string {
-    return this.systemPrompt;
+    return this.systemPromptString;
   }
 
   // Register sub-agents
-  registerTraderAgent(agent: BaseAgent) {
+  registerTraderAgent(agent: any) {
     this.masterTraderAgent = agent;
     log("[orchestrator] MasterTraderAgent registered");
   }
 
-  registerRealEstateAgent(agent: BaseAgent) {
+  registerRealEstateAgent(agent: any) {
     this.realEstateAgent = agent;
     log("[orchestrator] RealEstateAgent registered");
   }
 
-  // ─── Intent Detection ───────────────────────────────────────────────────────
+  // --- Intent Detection ---
 
   private detectIntent(message: string): { intent: Intent; confidence: "high" | "low" } {
     const lower = message.toLowerCase();
@@ -92,7 +93,7 @@ Never ask for unnecessary clarification — take action and report back.`
     return { intent: "general", confidence: "low" };
   }
 
-  // ─── Main Router ────────────────────────────────────────────────────────────
+  // --- Main Router ---
 
   async route(userMessage: string): Promise<RouteResult> {
     const { intent, confidence } = this.detectIntent(userMessage);
@@ -103,8 +104,8 @@ Never ask for unnecessary clarification — take action and report back.`
       switch (intent) {
         case "trading": {
           if (this.masterTraderAgent) {
-            const response = await this.masterTraderAgent.chat(userMessage);
-            return { intent, confidence, response };
+            const response = await this.masterTraderAgent.ask(userMessage);
+            return { intent, confidence, response: response.content };
           }
           return {
             intent,
@@ -115,8 +116,8 @@ Never ask for unnecessary clarification — take action and report back.`
 
         case "real_estate": {
           if (this.realEstateAgent) {
-            const response = await this.realEstateAgent.chat(userMessage);
-            return { intent, confidence, response };
+            const response = await this.realEstateAgent.ask(userMessage);
+            return { intent, confidence, response: response.content };
           }
           return {
             intent,
@@ -127,8 +128,8 @@ Never ask for unnecessary clarification — take action and report back.`
 
         default: {
           // Handle directly as orchestrator
-          const response = await this.chat(userMessage);
-          return { intent, confidence, response };
+          const response = await this.ask(userMessage);
+          return { intent, confidence, response: response.content };
         }
       }
     } catch (e: any) {
@@ -141,12 +142,12 @@ Never ask for unnecessary clarification — take action and report back.`
     }
   }
 
-  // ─── Status Report ──────────────────────────────────────────────────────────
+  // --- Status Report ---
 
   getStatus(): string {
     const trader = this.masterTraderAgent ? "✅ Connected" : "❌ Not connected";
     const realEstate = this.realEstateAgent ? "✅ Connected" : "❌ Not connected";
-    return \`🤖 HapdaBot Orchestrator Status\\n\\n📈 MasterTraderAgent: \${trader}\\n🏠 RealEstateAgent: \${realEstate}\`;
+    return `🤖 HapdaBot Orchestrator Status\n\n📈 MasterTraderAgent: ${trader}\n🏠 RealEstateAgent: ${realEstate}`;
   }
 }
 

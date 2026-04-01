@@ -11,6 +11,7 @@ import { ResearcherAgent } from "../agents/researcherAgent.js";
 import { MarketerAgent } from "../agents/marketerAgent.js";
 import { MasterTraderAgent } from "../agents/MasterTraderAgent.js";
 import { orchestrator } from "../agents/orchestratorAgent.js";
+import { realEstateAgent } from "../agents/RealEstateAgent.js";
 import { scanMarkets, formatMarketsReport, analyzeWithAI } from "../agents/predictionMarketAgent.js";
 import {
     driveListFiles, driveSearch, readDoc, createDoc,
@@ -57,6 +58,7 @@ export class TelegramBot {
         
         initDb();
         orchestrator.registerTraderAgent(this.masterTrader);
+        orchestrator.registerRealEstateAgent(realEstateAgent);
         this.setupMiddleware();
         this.setupCrmHandlers();
         this.setupSkillHandlers();
@@ -727,6 +729,17 @@ export class TelegramBot {
             });
 
             return ctx.reply(response);
+        });
+
+        // Quick MAO calc — /mao 200000 30000
+        this.bot.command("mao", async (ctx) => {
+            const args = ctx.message.text.split(" ").slice(1).map(Number);
+            if (args.length < 2 || args.some(isNaN)) {
+                return ctx.reply("Usage: /mao <arv> <repairs>\nExample: /mao 200000 30000");
+            }
+            const [arv, repairs] = args;
+            const analysis = realEstateAgent.calculateMAO(arv, repairs);
+            await ctx.reply(realEstateAgent.formatMAOResult(analysis));
         });
     }
 

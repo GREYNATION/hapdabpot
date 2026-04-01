@@ -1,6 +1,8 @@
-﻿import express, { Request, Response } from 'express';
+import express, { Request, Response } from 'express';
 import { handleStripeWebhook } from './bot/invoiceHandlers.js';
 import { log } from './core/config.js';
+import { CrmManager } from './core/crm.js';
+import { SupabaseCrm } from './core/supabaseCrm.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,6 +31,35 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
     log(`[WebServer] Stripe webhook error: ${error.message}`, 'error');
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Twilio SMS Webhook
+app.post('/webhook/twilio', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
+  const fromPhone = req.body.From;
+  const messageBody = req.body.Body?.toLowerCase() || "";
+
+  log(`[Twilio] Received SMS from ${fromPhone}: ${messageBody}`);
+
+  if (messageBody.includes("yes")) {
+    try {
+      // 1. Update SQLite
+      const deal = CrmManager.findLatestDealByPhone(fromPhone);
+      if (deal) {
+        CrmManager.updateDeal(deal.id, { status: "negotiating" });
+        log(`[Twilio] Deal #${deal.id} moved to "negotiating" in local CRM.`);
+      }
+
+      // 2. Update Supabase
+      await SupabaseCrm.updateDealStatusByPhone(fromPhone, "negotiating");
+      
+      log(`[Twilio] Outreach success! Automation moved lead to "negotiating".`);
+    } catch (err: any) {
+      log(`[Twilio] Failed to auto-update deal stage: ${err.message}`, "error");
+    }
+  }
+
+  // Twilio requires a TwiML response
+  res.type('text/xml').send('<Response></Response>');
 });
 
 // Health check endpoint

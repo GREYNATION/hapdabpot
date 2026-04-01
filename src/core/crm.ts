@@ -1,4 +1,4 @@
-﻿import { db } from "./memory.js";
+import { db } from "./memory.js";
 
 export interface Deal {
     id: number;
@@ -89,6 +89,11 @@ export class CrmManager {
     static findDealsByAddress(query: string): Deal[] {
         const stmt = db.prepare("SELECT * FROM deals WHERE address LIKE ? ORDER BY updated_at DESC");
         return stmt.all(`%${query}%`) as Deal[];
+    }
+
+    static findLatestDealByPhone(phone: string): Deal | undefined {
+        const stmt = db.prepare("SELECT * FROM deals WHERE seller_phone = ? ORDER BY updated_at DESC LIMIT 1");
+        return stmt.get(phone) as Deal | undefined;
     }
 
     static listBuyers(): any[] {
