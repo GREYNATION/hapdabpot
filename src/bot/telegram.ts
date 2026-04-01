@@ -595,11 +595,8 @@ export class TelegramBot {
 
                 try {
                     let response: string;
-                    if (isSupabaseEnabled()) {
-                        response = await supabaseChat(userId, text, chatId);
-                    } else {
-                        response = await simpleChat(text);
-                    }
+                    const routeResult = await orchestrator.route(text);
+                    response = routeResult.response;
 
                     if (chatId) saveMessage(chatId, "assistant", response);
 
