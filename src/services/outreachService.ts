@@ -4,6 +4,7 @@ import nodemailer from 'nodemailer';
 import { db } from '../core/memory.js';
 import { config, log } from '../core/config.js';
 import { CrmManager } from '../core/crm.js';
+import { logEvent } from "../core/telemetry.js";
 
 // Outreach Steps config
 const OUTREACH_STEPS = [
@@ -237,3 +238,34 @@ export async function promptOutreachApproval(bot: Telegraf, dealId: number) {
     );
 }
 
+
+/**
+ * Step 12 — Execution Logic for Approved Deals
+ * Normalizes lead data, sends initial SMS, and starts sequence
+ */
+export async function executeContactSeller(lead: any): Promise<void> {
+    const address = lead.address;
+    const phone = lead.sellerPhone || lead.phone || lead.seller_phone;
+    const name = lead.sellerName || lead.ownerName || lead.seller_name || "there";
+
+    if (!phone || phone === "N/A" || phone === "Unknown") {
+        throw new Error(`Cannot contact ${address}: No phone number available.`);
+    }
+
+    // 1. Send Initial SMS
+    const firstStep = OUTREACH_STEPS[0];
+    const content = firstStep.template
+        .replace(/{name}/g, name)
+        .replace(/{address}/g, address);
+    
+    await sendSms(phone, content);
+    log(`[outreach] ✅ AI Contact Initiated for ${address}`);
+
+    // Telemetry: Log the initiation
+    await logEvent({
+        type: "seller_contacted",
+        source: "approval_system",
+        message: `Contact initiated for ${address}`,
+        data: lead
+    });
+}

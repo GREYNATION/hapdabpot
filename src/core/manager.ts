@@ -1,4 +1,4 @@
-﻿import { openai, config, log } from "./config.js";
+import { openai, config, log } from "./config.js";
 import { askAI } from "./ai.js";
 
 /**
@@ -36,7 +36,16 @@ export async function manager(input: string | any[]) {
         };
     }
 
-    // 2. BUILD
+    // 2. WEBSITE FACTORY (PRODUCTION)
+    const isWebsite = lowercase.includes("website") || lowercase.includes("landing page") || lowercase.includes("portfolio");
+    if (isWebsite) {
+        log(`[manager] Routing to WEBSITE FACTORY. Content: ${text.substring(0, 50)}...`);
+        return {
+            tasks: [{ agent: "factory", task: input }]
+        };
+    }
+
+    // 3. BUILD (LEGACY / REGULAR APP)
     const isBuild = lowercase.includes("build") || lowercase.includes("create") || lowercase.includes("api") || lowercase.includes("app");
     if (isBuild) {
         return {

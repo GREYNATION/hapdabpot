@@ -1,7 +1,8 @@
 import axios from "axios";
 import { log } from "../core/config.js";
-import { filterAndRankLeads, formatFilteredLeads, filterTopDeals } from "./leadFilter.js";
+import { filterAndRankLeads, formatFilteredLeads, filterTopDeals, enrichLeadWithAI, calculateDealScore } from "./leadFilter.js";
 import { CrmManager } from "../core/crm.js";
+import { logEvent } from "../core/telemetry.js";
 
 // Target markets
 export const TARGET_MARKETS = {
@@ -42,6 +43,27 @@ export interface Lead {
   arv?: number;
   repairs?: number;
   lotSize?: number;
+  
+  // DQS Components (per user request)
+  equityScore?: number;
+  motivationScore?: number;
+  marketScore?: number;
+  conditionScore?: number;
+  dataScore?: number;
+
+  // AI Refinement (Step 7)
+  aiCondition?: number; // 1-10
+  aiUrgency?: "High" | "Medium" | "Low";
+  aiSummary?: string; // Summary of seller intent
+
+  // Profit Simulator (Step 10)
+  estimated_offer?: number;
+  repair_estimate?: number;
+  closing_costs?: number;
+  assignment_fee?: number;
+  profit?: number;
+  roi?: number;
+  verdict?: "GOOD_DEAL" | "MARGINAL" | "BAD_DEAL";
 }
 
 const DISTRESS_KEYWORDS = [
@@ -49,12 +71,32 @@ const DISTRESS_KEYWORDS = [
   "cash only", "investor special", "fixer", "needs work", "handyman",
   "foreclosure", "bank owned", "reo", "estate sale", "probate",
   "divorce", "relocating", "behind on payments", "pre-foreclosure",
-  "fire damage", "water damage", "distressed", "quick sale", "urgent"
+  "fire damage", "water damage", "distressed", "quick sale", "urgent",
+  "absentee owner", "tax delinquency", "inherited", "vacant", "code violation",
+  "squatter", "eviction", "tired landlord", "non-paying tenant"
 ];
 
 function scoreDistress(text: string): string[] {
   const lower = text.toLowerCase();
   return DISTRESS_KEYWORDS.filter(k => lower.includes(k));
+}
+
+/**
+ * Heuristic: Estimate ARV if missing.
+ * Distressed properties typically list at ~60-70% of market value.
+ */
+function estimateArv(price: number): number {
+  return Math.round(price * 1.45); // Conservative "clean" value estimate
+}
+
+/**
+ * Heuristic: Estimate Repairs if missing.
+ * Defaulting to a range based on property price as a proxy for size/condition.
+ */
+function estimateRepairs(price: number): number {
+  if (price < 100000) return 25000;
+  if (price < 250000) return 45000;
+  return 65000;
 }
 
 // Craigslist RSS
@@ -243,17 +285,62 @@ export async function findMotivatedSellers(
 
   await Promise.allSettled([...marketPromises, ...hudPromises]);
 
-  log(`[scraper] Raw leads: ${allDeals.length} — filtering...`);
+  log(`[scraper] Raw leads: ${allDeals.length} — enriching with heuristics...`);
 
-  // Filter and rank
-  const filtered = filterAndRankLeads(allDeals);
+  // Stage 1: Basic Heuristic Enrichment (ARV/Repairs)
+  const baseEnriched = allDeals.map(deal => {
+    const price = deal.price || 0;
+    const arv = deal.arv || (price > 0 ? estimateArv(price) : 0);
+    const repairs = deal.repairs || (price > 0 ? estimateRepairs(price) : 0);
+    return { ...deal, arv, repairs };
+  });
+
+  // Stage 2: AI Enrichment (Step 7)
+  // To be efficient, we only AI-enrich leads that pass a basic scoring threshold
+  log(`[scraper] Running AI analysis for promising leads...`);
+  const enrichedWithAI: Lead[] = [];
   
-  // Apply "Top Deals" logic for internal categorization if needed
-  const topDeals = filterTopDeals(filtered);
-  log(`[scraper] Quality leads after filter: ${filtered.length} (Top: ${topDeals.length})`);
+  // Concurrency-limited parallel enrichment
+  const CONCURRENCY = 5;
+  for (let i = 0; i < baseEnriched.length; i += CONCURRENCY) {
+    const batch = baseEnriched.slice(i, i + CONCURRENCY);
+    const enrichedBatch = await Promise.all(batch.map(async (lead) => {
+      // Small optimization: Calculate a 'pre-score' to see if it's worth AI-enriching
+      // We skip AI if it's clearly junk (No price, no signals)
+      const preScore = calculateDealScore(lead);
+      if (preScore < 20) return lead; // Don't waste tokens on clearly bad leads
+
+      const aiData = await enrichLeadWithAI(lead);
+      const enriched = { ...lead, ...aiData };
+      
+      // Recalculate score with AI data
+      calculateDealScore(enriched); 
+      return enriched;
+    }));
+    enrichedWithAI.push(...enrichedBatch);
+  }
+
+  // Filter and rank: Only 80+ "Hot List" and 60-79 "Watchlist"
+  const topDeals = filterTopDeals(enrichedWithAI);
+  log(`[scraper] Hot deals found: ${topDeals.filter(d => (d.dealScore || 0) >= 80).length}`);
 
   // Auto-save to CRM
-  if (saveToCRM) autoSaveToCRM(filtered);
+  if (saveToCRM) autoSaveToCRM(topDeals);
+
+  // Telemetry: Log Top Deals
+  for (const deal of topDeals) {
+    const estProfit = (deal.arv || 0) - (deal.price || 0) - (deal.repairs || 0);
+    await logEvent({
+      type: "deal_found",
+      source: "real_estate_agent",
+      message: "High-motivation property found",
+      data: {
+        address: deal.address,
+        score: deal.dealScore || deal.qualityScore || 0,
+        est_profit: estProfit
+      }
+    }).catch(e => log(`[telemetry] Failed to log deal: ${e.message}`, "warn"));
+  }
 
   return allDeals; // Per user request "return allDeals"
 }

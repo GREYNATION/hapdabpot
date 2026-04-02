@@ -1,5 +1,6 @@
 import { BaseAgent } from "./baseAgent.js";
 import { log } from "../core/config.js";
+import { SupabaseCrm } from "../core/supabaseCrm.js";
 
 // Intent Types
 type Intent = "trading" | "real_estate" | "general";
@@ -111,6 +112,19 @@ export class OrchestratorAgent extends BaseAgent {
       log(`[orchestrator] Routing error: ${e.message}`, "error");
       return { intent, confidence, response: `Agent error: ${e.message}` };
     }
+  }
+
+  async getSystemStatus(): Promise<string> {
+    const stats = await SupabaseCrm.getSystemStatus();
+    
+    return [
+      "🟢 HAPDA SYSTEM STATUS",
+      "",
+      `Real Estate Agent: ${stats.realEstateActive ? "ACTIVE" : "OFFLINE"}`,
+      `Deals Found Today: ${stats.dealsFoundToday}`,
+      `High Score Leads: ${stats.highScoreLeads}`,
+      `Trading Agent: ${this.masterTraderAgent ? "MONITORING" : "OFFLINE"}`
+    ].join("\n");
   }
 
   getStatus(): string {

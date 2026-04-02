@@ -1,5 +1,9 @@
 // Lead quality filter — blocks aggregators, scores real seller listings
 import { Lead } from "./universalLeadScraper.js";
+import { askAI } from "../core/ai.js";
+import { config } from "../core/config.js";
+
+// ——— Types ——————————————————————————————————————————————————————————————————————
 
 // Domains that are aggregators, directories, or not actual seller listings
 export const BLOCKED_DOMAINS = [
@@ -92,37 +96,116 @@ export function filterAndRankLeads(leads: Lead[], minScore = 3): Lead[] {
 }
 
 export function calculateDealScore(lead: Lead): number {
-  let score = 0;
-
-  // Discount (MOST IMPORTANT)
+  // 1. Equity Score (0–30 pts)
+  let equityScore = 0;
   if (lead.arv && lead.price && lead.arv > 0) {
-    const discount = (lead.arv - lead.price) / lead.arv;
-    if (discount > 0.4) score += 4;
-    else if (discount > 0.25) score += 2;
+    const margin = (lead.arv - lead.price) / lead.arv;
+    if (margin >= 0.40) equityScore = 30;       // 🔥 Huge Spread
+    else if (margin >= 0.30) equityScore = 20;  // ✅ Good Equity
+    else if (margin >= 0.20) equityScore = 10;  // ⚠️ Tight but okay
   }
 
-  // Property condition
-  if (lead.repairs !== undefined && lead.repairs < 30000) score += 2;
+  // 2. Motivation Score (0–30 pts)
+  let motivationScore = 0;
+  const strongSignals = ["probate", "foreclosure", "tax delinquency", "absentee", "vacant", "pre-foreclosure"];
+  const mediumSignals = ["motivated", "must sell", "price reduced", "estate sale", "quick sale"];
+  
+  lead.distressSignals.forEach(signal => {
+    const s = signal.toLowerCase();
+    if (strongSignals.some(high => s.includes(high))) motivationScore += 10;
+    else if (mediumSignals.some(mid => s.includes(mid))) motivationScore += 5;
+    else motivationScore += 2;
+  });
+  motivationScore = Math.min(30, motivationScore);
 
-  // Motivation
-  if (lead.type.toLowerCase().includes("foreclosure")) score += 2;
+  // 3. Condition Score (0–15 pts)
+  let conditionScore = 0;
+  if (lead.repairs !== undefined && lead.price) {
+    const repairRatio = lead.repairs / lead.price;
+    if (repairRatio < 0.10) conditionScore = 15;      // Cosmetic only
+    else if (repairRatio < 0.25) conditionScore = 10; // Moderate repairs
+    else if (repairRatio < 0.50) conditionScore = 5;  // Heavy lift
+  }
 
-  // Price clarity
-  if (lead.price) score += 2;
+  // 4. Market Score (0–15 pts)
+  let marketScore = 0;
+  const highDemandCities = ["Houston", "Brooklyn", "Columbus", "Cleveland", "Richmond"];
+  if (highDemandCities.some(c => (lead.city || "").includes(c))) marketScore = 15;
+  else marketScore = 10;
 
-  return score;
+  // 5. Data Score (0–10 pts)
+  let dataScore = 0;
+  if (lead.price && lead.price > 0) dataScore += 5;
+  if (lead.description && lead.description.length > 50) dataScore += 5;
+
+  // Attach components to lead for transparency
+  lead.equityScore = equityScore;
+  lead.motivationScore = motivationScore;
+  lead.marketScore = marketScore;
+  lead.conditionScore = conditionScore;
+  lead.dataScore = dataScore;
+
+  const totalScore = equityScore + motivationScore + marketScore + conditionScore + dataScore;
+  
+  // AI-Driven Boosts (Step 7)
+  let aiBoost = 0;
+  if (lead.aiUrgency === "High") aiBoost += 15;
+  if (lead.aiUrgency === "Medium") aiBoost += 5;
+  if (lead.aiCondition !== undefined && lead.aiCondition <= 3) aiBoost += 10; // Heavy distress boost
+  
+  const finalScore = Math.min(100, totalScore + aiBoost);
+  lead.dealScore = finalScore;
+  
+  return finalScore;
+}
+
+/**
+ * AI Property Analysis: Interprets descriptions to extract intent, condition, and urgency.
+ */
+export async function enrichLeadWithAI(lead: Lead): Promise<Partial<Lead>> {
+  if (!lead.description || lead.description.length < 20) return {};
+
+  const systemPrompt = `You are a Real Estate Wholesaling Expert. 
+Analyze the property description and extract structured data.
+Rules:
+- Infer property condition (1-10 scale where 1=gutted/fire damage, 10=pristine).
+- Detect urgency of the seller (High, Medium, Low).
+- Summarize seller intent in one brief sentence.
+- Identify specific repair needs mentioned (e.g., "new roof", "foundation").
+
+Format as JSON:
+{
+  "aiCondition": 5,
+  "aiUrgency": "High",
+  "aiSummary": "Seller needs to close by Friday due to foreclosure",
+  "repairs": ["roof", "mold"]
+}`;
+
+  const prompt = `Property: ${lead.address}\nDescription: ${lead.description}`;
+
+  try {
+    const aiResponse = await askAI(prompt, systemPrompt, { 
+      jsonMode: true, 
+      model: config.openaiModel 
+    });
+    
+    const analysis = JSON.parse(aiResponse.content);
+    return {
+      aiCondition: analysis.aiCondition,
+      aiUrgency: analysis.aiUrgency,
+      aiSummary: analysis.aiSummary
+    };
+  } catch (err: any) {
+    console.error(`[ai-lead] Enrichment failed: ${err.message}`);
+    return {};
+  }
 }
 
 export function tagDeal(deal: Lead): string {
-  const discount = (deal.arv && deal.price && deal.arv > 0) 
-    ? (deal.arv - deal.price) / deal.arv 
-    : 0;
-
-  if (discount > 0.4) return "🔥 STEAL";
-  if (deal.type.toLowerCase().includes("foreclosure")) return "⚡ DISTRESSED";
-  if (deal.lotSize && deal.lotSize > 1) return "🏗 DEVELOPMENT";
-
-  return "📊 STANDARD";
+  const score = deal.dealScore || 0;
+  if (score >= 80) return "🔥 HOT DEAL";
+  if (score >= 60) return "⚠️ WATCHLIST";
+  return "❌ FILTERED";
 }
 
 export function formatTopDeal(deal: Lead): string {
@@ -130,34 +213,71 @@ export function formatTopDeal(deal: Lead): string {
   const tag = tagDeal(deal);
   const profitPotential = (deal.arv || 0) - (deal.price || 0) - (deal.repairs || 0);
 
-  return `
-🏆 TOP DEAL [${tag}]
+  const aiSummary = deal.aiSummary ? `\n🤖 **AI Summary:** ${deal.aiSummary}\n` : "";
+  const signals = deal.distressSignals.length > 0 ? `\n🚨 **Signals:** ${deal.distressSignals.join(", ")}` : "";
 
-📍 ${deal.address}
+  return `
+${tag} (Score: ${score}/100)
+
+📍 **${deal.address}**
 💰 Price: $${(deal.price || 0).toLocaleString()}
 📈 ARV: $${(deal.arv || 0).toLocaleString()}
 🔧 Repairs: $${(deal.repairs || 0).toLocaleString()}
 
-💵 Max Offer: $${(deal.maxOffer || 0).toLocaleString()}
-🔥 Profit Potential: $${profitPotential.toLocaleString()}
+💵 **Max Offer:** $${(deal.maxOffer || 0).toLocaleString()}
+🔥 **Est Profit:** $${profitPotential.toLocaleString()}
+${aiSummary}${signals}
 
-⭐ Score: ${score}/10
-
-🧠 Verdict: ${score >= 8 ? "STRONG DEAL" : "PASS"}
+${score >= 80 ? "✅ **ACTION:** Contact Seller Immediately" : "⏳ **ACTION:** Monitor for price drops"}
+🔗 [View Listing](${deal.url})
 `;
+}
+
+/**
+ * Step 10 — Deal Flipping Calculator (Profit Simulator)
+ * This is the decision engine for actual financial feasibility.
+ */
+export function calculateDeal(deal: Lead): Lead {
+  const arv = deal.arv || 0;
+  // Use estimated_offer or fall back to current price
+  const purchasePrice = deal.estimated_offer || deal.price || 0;
+  const repairs = deal.repair_estimate || deal.repairs || 0;
+  const closingCosts = deal.closing_costs || arv * 0.02;
+  const assignmentFee = deal.assignment_fee || 10000;
+
+  const totalCost = purchasePrice + repairs + closingCosts + assignmentFee;
+  const profit = arv - totalCost;
+
+  const roi = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+
+  let verdict: "GOOD_DEAL" | "MARGINAL" | "BAD_DEAL";
+  if (profit > 15000 && roi > 20) {
+    verdict = "GOOD_DEAL";
+  } else if (profit > 5000) {
+    verdict = "MARGINAL";
+  } else {
+    verdict = "BAD_DEAL";
+  }
+
+  return {
+    ...deal,
+    profit,
+    roi,
+    verdict
+  };
 }
 
 export function filterTopDeals(leads: Lead[]): Lead[] {
   return leads
     .map(l => {
       const dealScore = calculateDealScore(l);
+      // MAO Helper (conservative)
       const maxOffer = (l.arv || 0) * 0.7 - (l.repairs || 0);
       return { ...l, dealScore, maxOffer };
     })
-    .filter(l => (l.qualityScore || 0) >= 8) // keep high quality only
-    .filter(l => l.arv && l.repairs) // must have numbers
-    .sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0))
-    .slice(0, 5); // 🔥 ONLY TOP 5
+    .filter(l => (l.dealScore || 0) >= 60) // Hard Filter: Ignore anything under 60
+    .sort((a, b) => (b.dealScore || 0) - (a.dealScore || 0))
+    .slice(0, 8); // Top 3-8 deals per user request
 }
 
 export function formatFilteredLeads(leads: Lead[], limit = 5): string {

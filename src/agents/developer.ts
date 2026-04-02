@@ -1,104 +1,59 @@
-﻿import { askAI } from "../core/ai.js";
+import { askAI } from "../core/ai.js";
 import { config } from "../core/config.js";
 
 /**
- * Developer agent that returns a structured project as JSON.
+ * Developer agent that acts as a COMPOSER.
+ * It integrates Stitch UI data, Marketer copy, and the SiteBlueprint structural plan.
  */
-export async function developerAgent(task: string) {
+export async function developerAgent(stitchUI: any, marketerCopy: any, siteBlueprint: any) {
   const systemPrompt = `
-You are a senior full-stack engineer.
+You are the Developer Agent. You are a strict COMPOSER.
+Your goal is to integrate visual structure, marketing copy, and a structural blueprint into a complete functional project.
 
-Return a JSON object ONLY.
+CRITICAL RULES:
+1. You MUST NOT "figure out structure". Use the SiteBlueprint provided.
+2. You MUST NOT invent copy. Use the Marketer Copy provided.
+3. You MUST NOT invent the layout. Use the Stitch UI data as your visual guide.
+4. Return a JSON object ONLY.
 
 FORMAT:
 {
   "files": [
     { "path": "package.json", "content": "..." },
-    { "path": "src/index.js", "content": "..." },
+    { "path": "src/App.js", "content": "..." },
     { "path": "README.md", "content": "..." }
   ]
 }
 
+INPUT DATA:
+- SiteBlueprint: ${JSON.stringify(siteBlueprint)}
+- Marketer Copy: ${JSON.stringify(marketerCopy)}
+- Stitch UI Data: ${JSON.stringify(stitchUI)}
+
 RULES:
-- No explanations
-- No markdown
-- Generate a COMPLETE working project
-- All Node.js projects MUST use CommonJS (require/module.exports syntax)
-- Projects MUST follow this structure: root package.json, src/index.js, src/routes/, src/controllers/, src/middleware/
-- Always include a README.md with launch instructions
-- The project MUST include an Express server.
-- The projects main entry point (src/index.js) MUST include this exact code:
-    const express = require("express");
-    const app = express();
-    const PORT = process.env.PORT || 3000;
+- No explanations. No markdown.
+- Generate a COMPLETE working React/Next.js (or specified technology) project.
+- Integrate the Marketer headlines and CTAs into the corresponding components.
+- Follow the Blueprint's component list exactly.
+- Always include a README.md with launch instructions.
+`;
 
-    app.get("/", (req, res) => {
-      res.send("API is running");
-    });
-
-    app.listen(PORT, () => {
-      console.log("Server running on port " + PORT);
-    });
-- The project MUST include a package.json with the 'express' dependency.
-- Use clean folder structure
-        `;
-
-  const response = await askAI(task, systemPrompt, {
-    jsonMode: true,
-    model: config.openaiModel || "google/gemini-2.0-flash-001"
+  const response = await askAI("Compose the website code based on the provided data.", systemPrompt, {
+    jsonMode: true, model: config.openaiModel || "google/gemini-2.0-flash-001"
   });
 
-  // ðŸ”¥ FAIL-SAFE BOILERPLATE: If AI fails to return files, provide a minimal working API
-  if (!response || !response.content) { // Check response.content as the AI returns a string that needs parsing
-    return {
-      files: {
-        "src/index.js": `const express = require("express");
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get("/", (req, res) => {
-  res.send("API is running");
-});
-
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});`,
-        "package.json": JSON.stringify({
-          name: "app",
-          version: "1.0.0",
-          dependencies: { express: "^4.18.2" }
-        }, null, 2)
-      }
-    };
+  if (!response || !response.content) {
+    throw new Error("Developer agent failed to return content.");
   }
 
   try {
     const parsedResponse = JSON.parse(response.content);
-    if (!parsedResponse.files) { // Also check if the parsed object is missing 'files'
-      return {
-        files: {
-          "src/index.js": `const express = require('express');
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get('/', (req, res) => {
-  res.send('API is running');
-});
-
-app.listen(PORT, () => {
-  console.log('Server running');
-});`,
-          "package.json": JSON.stringify({
-            name: "app",
-            version: "1.0.0",
-            dependencies: { express: "^4.18.2" }
-          }, null, 2)
-        }
-      };
+    if (!parsedResponse.files) {
+      throw new Error("Developer agent output missing 'files' field.");
     }
     return parsedResponse;
   } catch (err) {
-    console.error("âŒ JSON PARSE FAILED:", response.content);
+    console.error("❌ COMPOSITION PARSE FAILED:", response.content);
     throw new Error("Developer agent did not return valid JSON");
   }
 }

@@ -1,6 +1,7 @@
 import { BaseAgent } from "./baseAgent.js";
 import { log } from "../core/config.js";
 import { findMotivatedSellers, formatLeads, TARGET_MARKETS, Lead } from "../services/universalLeadScraper.js";
+import { calculateDeal } from "../services/leadFilter.js";
 
 interface DealAnalysis {
   arv: number;
@@ -40,12 +41,12 @@ export class RealEstateAgent extends BaseAgent {
   constructor() {
     super(
       "RealEstateAgent",
-      "You are HapdaBot's Real Estate Wholesaling Agent. " +
-      "You find motivated sellers and off-market deals across Texas, Ohio, Virginia, and New York. " +
-      "You analyze deals using MAO formula (ARV x 70% minus Repairs), " +
-      "draft outreach messages, and manage the wholesaling pipeline. " +
-      "Key rules: MAO is the ceiling, never overpay, deals below $5k spread are not worth pursuing. " +
-      "Be direct and results-oriented."
+      "You are HapdaBot's Real Estate Deal Engine. " +
+      "Instead of just scraping, you are a high-precision Filter + Scorer + Profit Estimator. " +
+      "You use a 0-100 Deal Quality Score (DQS) to rank every property. " +
+      "Thresholds: 80+ is a REAL DEAL (actionable), 60-79 is WATCHLIST. " +
+      "You identify strong distress signals (Probate, Tax, Absentee) and estimate ARV/Repairs " +
+      "to determine the 'Profit Spread'. Your goal is to surface only the top 3-8 deals worth acting on."
     );
   }
 
@@ -68,6 +69,27 @@ export class RealEstateAgent extends BaseAgent {
     else verdict = "Pass";
 
     return { arv, repairs, mao, maxOffer, verdict };
+  }
+
+  formatSimulatorResult(deal: Lead): string {
+    const profit = deal.profit || 0;
+    const roi = deal.roi || 0;
+    const verdict = deal.verdict || "UNKNOWN";
+    
+    const emoji = verdict === "GOOD_DEAL" ? "🔥" : verdict === "MARGINAL" ? "👀" : "❌";
+
+    return (
+      `${emoji} **VERDICT: ${verdict}**\n\n` +
+      `**Profit Simulator Result**\n` +
+      `🏠 ARV: $${(deal.arv || 0).toLocaleString()}\n` +
+      `💰 Purchase: $${(deal.estimated_offer || 0).toLocaleString()}\n` +
+      `🔧 Repairs: $${(deal.repair_estimate || 0).toLocaleString()}\n` +
+      `🏗️ Total Cost: $${((deal.estimated_offer || 0) + (deal.repair_estimate || 0) + (deal.closing_costs || 0) + (deal.assignment_fee || 0)).toLocaleString()}\n` +
+      `-----------------\n` +
+      `💸 **NET PROFIT:** $${profit.toLocaleString()}\n` +
+      `📈 **ROI:** ${roi.toFixed(1)}%\n\n` +
+      `_Formula: ARV - (Purchase + Repairs + Fees + Assignment)_`
+    );
   }
 
   formatMAOResult(analysis: DealAnalysis): string {
@@ -113,9 +135,28 @@ export class RealEstateAgent extends BaseAgent {
     // MAO calculation
     const numbers = userMessage.match(/\d[\d,]*/g)?.map(n => parseInt(n.replace(/,/g, ""))) ?? [];
     if (
+      (lower.includes("calculate") || lower.includes("simulate") || lower.includes("profit")) &&
+      numbers.length >= 3
+    ) {
+      const [arv, purchase, repairs] = numbers;
+      const simulatedDeal = calculateDeal({
+        address: "Simulated Property",
+        city: "Unknown",
+        state: "Unknown",
+        source: "Manual",
+        type: "Simulation",
+        distressSignals: [],
+        arv,
+        estimated_offer: purchase,
+        repair_estimate: repairs
+      });
+      return this.formatSimulatorResult(simulatedDeal);
+    }
+
+    if (
       (lower.includes("mao") || lower.includes("arv") ||
        (lower.includes("calculate") && lower.includes("deal"))) &&
-      numbers.length >= 2
+      numbers.length === 2
     ) {
       const [arv, repairs] = numbers;
       return this.formatMAOResult(this.calculateMAO(arv, repairs));

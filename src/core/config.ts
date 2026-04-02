@@ -39,6 +39,9 @@ export const config = {
         return isNaN(parsed) ? undefined : parsed;
     })(),
 
+    // Stitch Factory Project
+    STITCH_MASTER_PROJECT_ID: "10494731315779539060",
+
 };
 // Set default owner if not explicitly provided
 if (!config.ownerId && config.allowedUserIds.length > 0) {

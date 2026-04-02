@@ -1,18 +1,23 @@
 import { getSupabase } from "./supabaseMemory.js";
-import { log } from "./config.js";
+import { log, config } from "./config.js";
 import { PropertyScraper } from "./scraper.js";
 import { sendSms } from "../services/outreachService.js";
+import { Lead } from "../services/universalLeadScraper.js";
+import { Telegraf } from "telegraf";
 
 export interface SupabaseDeal {
     address: string;
-    seller: string;
-    phone: string;
-    arv: number;
-    repairs: number;
-    max_offer: number;
+    seller?: string;
+    owner_name?: string;
+    phone?: string;
+    arv?: number;
+    repairs?: number;
+    max_offer?: number;
+    motivation_score?: number;
+    est_profit?: number;
     status?: string;
     stage?: string;
-    profit?: number;
+    source?: string;
 }
 
 export class SupabaseCrm {
@@ -27,24 +32,25 @@ export class SupabaseCrm {
     /**
      * Insert a deal into Supabase
      */
-    static async insertDeal(data: {
-        address: string;
-        seller: string;
-        phone: string;
-        arv: number;
-        repairs: number;
-    }): Promise<{ success: boolean; error?: string }> {
+    static async insertDeal(data: SupabaseDeal): Promise<{ success: boolean; error?: string }> {
         try {
-            const maxOffer = this.calculateMaxOffer(data.arv, data.repairs);
+            const arv = data.arv || 0;
+            const repairs = data.repairs || 0;
+            const maxOffer = data.max_offer || this.calculateMaxOffer(arv, repairs);
             const supabase = getSupabase();
 
             const { error } = await supabase.from("deals").insert({
                 address: data.address,
-                seller: data.seller,
+                seller: data.seller || data.owner_name,
+                owner_name: data.owner_name || data.seller,
                 phone: data.phone,
-                arv: data.arv,
-                repairs: data.repairs,
-                max_offer: maxOffer
+                arv: arv,
+                repairs: repairs,
+                max_offer: maxOffer,
+                motivation_score: data.motivation_score,
+                est_profit: data.est_profit,
+                status: data.status || "new",
+                source: data.source || "manual"
             });
 
             if (error) throw error;
@@ -162,6 +168,119 @@ export class SupabaseCrm {
         } catch (err: any) {
             log(`[supabaseCrm] âš ï¸  Failed to fetch stats: ${err.message}`, "error");
             return { leads: 0, underContract: 0, revenue: 0 };
+        }
+    }
+    /**
+     * Get System Status from Supabase Telemetry
+     */
+    static async getSystemStatus(): Promise<{
+        realEstateActive: boolean;
+        dealsFoundToday: number;
+        highScoreLeads: number;
+        tradingActive: boolean;
+    }> {
+        try {
+            const supabase = getSupabase();
+            const today = new Date().toISOString().split('T')[0];
+
+            // 1. Deals Found Today
+            const { count: dealsCount, error: dealsError } = await supabase
+                .from("bot_events")
+                .select("*", { count: 'exact', head: true })
+                .eq("type", "deal_found")
+                .gte("created_at", today);
+
+            if (dealsError) throw dealsError;
+
+            // 2. High Score Leads (Score >= 8)
+            const { data: highScores, error: scoresError } = await supabase
+                .from("bot_events")
+                .select("data")
+                .eq("type", "deal_found")
+                .gte("created_at", today);
+
+            if (scoresError) throw scoresError;
+            
+            const highCount = (highScores || []).filter((e: any) => (e.data?.score || 0) >= 8).length;
+
+            return {
+                realEstateActive: true,
+                dealsFoundToday: dealsCount || 0,
+                highScoreLeads: highCount,
+                tradingActive: true
+            };
+        } catch (err: any) {
+            log(`[supabaseCrm] ⚠️ Failed to fetch status: ${err.message}`, "error");
+            return { realEstateActive: false, dealsFoundToday: 0, highScoreLeads: 0, tradingActive: false };
+        }
+    }
+
+    /**
+     * Step 11 — Request Approval Flow
+     * Inserts into pending_actions and sends Telegram message with /approve command
+     */
+    static async requestApproval(deal: Lead, bot: Telegraf): Promise<void> {
+        try {
+            const supabase = getSupabase();
+            const profit = (deal.arv || 0) - (deal.price || 0) - (deal.repairs || 0);
+            const roi = (deal.price || 0) > 0 ? (profit / (deal.price || 0)) * 100 : 0;
+
+            const { data: record, error } = await supabase.from("pending_actions").insert({
+                deal_id: deal.address,
+                action: "contact_seller",
+                payload: deal,
+                status: "pending"
+            }).select().single();
+
+            if (error) throw error;
+
+            const OWNER_CHAT_ID = Number(config.ownerId);
+            const message = `
+🏠 **DEAL READY**
+
+📍 ${deal.address}
+💰 Profit: $${profit.toLocaleString()}
+📊 ROI: ${roi.toFixed(1)}%
+
+Approve contacting seller?
+
+/approve ${record.id}
+/reject ${record.id}
+            `;
+
+            await bot.telegram.sendMessage(OWNER_CHAT_ID, message, { parse_mode: "Markdown" });
+            log(`[supabaseCrm] 📩 Approval requested for deal: ${deal.address}`);
+        } catch (err: any) {
+            log(`[supabaseCrm] ❌ requestApproval failed: ${err.message}`, "error");
+        }
+    }
+
+    /**
+     * Retrieve a pending action by its ID
+     */
+    static async getPendingAction(id: number): Promise<any> {
+        try {
+            const supabase = getSupabase();
+            const { data, error } = await supabase.from("pending_actions").select("*").eq("id", id).single();
+            if (error) throw error;
+            return data;
+        } catch (err: any) {
+            log(`[supabaseCrm] ❌ getPendingAction failed: ${err.message}`, "error");
+            return null;
+        }
+    }
+
+    /**
+     * Update the status of a pending action
+     */
+    static async updatePendingAction(id: number, status: "approved" | "rejected"): Promise<void> {
+        try {
+            const supabase = getSupabase();
+            const { error } = await supabase.from("pending_actions").update({ status }).eq("id", id);
+            if (error) throw error;
+            log(`[supabaseCrm] ✅ Action ${id} marked as ${status}`);
+        } catch (err: any) {
+            log(`[supabaseCrm] ❌ updatePendingAction failed: ${err.message}`, "error");
         }
     }
 }

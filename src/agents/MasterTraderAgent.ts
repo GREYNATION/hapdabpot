@@ -1,5 +1,6 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import { TradovateClient } from '../integrations/TradovateClient.js';
+import { logEvent } from '../core/telemetry.js';
 
 interface PriceLevel {
   symbol: string;
@@ -154,6 +155,25 @@ Provide:
         });
 
         this.state.lastSignal = assistantMessage;
+
+        // Telemetry: Log Trade Signal
+        const confidenceMatch = assistantMessage.match(/confidence:?\s*(\d+)%/i);
+        const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) / 100 : 0.85; // Default to 0.85 if not explicit
+        const direction = priceData.signal === 'IQ_BUY' ? 'long' : priceData.signal === 'IQ_SELL' ? 'short' : 'neutral';
+
+        await logEvent({
+          type: "trade_signal",
+          source: "trading_agent",
+          message: `${priceData.symbol} signal: ${priceData.signal || 'NONE'} at $${priceData.price}`,
+          data: {
+            direction,
+            confidence,
+            symbol: priceData.symbol,
+            price: priceData.price,
+            session: priceData.session
+          }
+        }).catch(() => {});
+
         return assistantMessage;
     } catch (e: any) {
         console.error("Failed Anthropic Request:", e)

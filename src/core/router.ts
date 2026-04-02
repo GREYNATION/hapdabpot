@@ -1,4 +1,4 @@
-﻿import { openai, config, log } from "./config.js";
+import { openai, config, log } from "./config.js";
 import { askAI } from "./ai.js";
 import { findSkillByIntent } from "./skills.js";
 
@@ -63,13 +63,13 @@ Available Agents (use exact lowercase names):
 Message: "${message}"`;
 
         try {
-            const response = await askAI(
+            const aiResponse = await askAI(
                 message, 
                 systemPrompt, 
                 { jsonMode: true, model: config.openaiModel }
             );
 
-            const plan = JSON.parse(response.content);
+            const plan = JSON.parse(aiResponse.content);
             
             return {
                 goal: plan.goal || "Process request",
