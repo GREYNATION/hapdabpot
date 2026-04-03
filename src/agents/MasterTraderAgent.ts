@@ -108,6 +108,33 @@ Always prioritize capital preservation over aggressive trading.`;
   }
 
   /**
+   * Internal chat method to call Anthropic API
+   */
+  private async chat(userMessage: string, systemPrompt?: string): Promise<string> {
+    try {
+      const response = await this.client.messages.create({
+        model: 'claude-3-opus-20240229',
+        max_tokens: 500,
+        system: systemPrompt || this.getSystemPrompt(),
+        messages: this.conversationHistory as any,
+      });
+
+      const assistantMessage =
+        response.content[0].type === 'text' ? response.content[0].text : '';
+
+      this.conversationHistory.push({
+        role: 'assistant',
+        content: assistantMessage,
+      });
+
+      return assistantMessage;
+    } catch (e: any) {
+      console.error("Failed Anthropic Request:", e);
+      throw e;
+    }
+  }
+
+  /**
    * Analyze price action and generate trading signals
    */
   async analyzePriceAction(priceData: PriceLevel): Promise<string> {
@@ -139,45 +166,31 @@ Provide:
     });
 
     try {
-        const response = await this.client.messages.create({
-          model: 'claude-3-opus-20240229',
-          max_tokens: 500,
-          system: this.getSystemPrompt(),
-          messages: this.conversationHistory as any,
-        });
+      const assistantMessage = await this.chat(userMessage);
+      this.state.lastSignal = assistantMessage;
 
-        const assistantMessage =
-          response.content[0].type === 'text' ? response.content[0].text : '';
+      // Telemetry: Log Trade Signal
+      const confidenceMatch = assistantMessage.match(/confidence:?\s*(\d+)%/i);
+      const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) / 100 : 0.85;
+      const direction = priceData.signal === 'IQ_BUY' ? 'long' : priceData.signal === 'IQ_SELL' ? 'short' : 'neutral';
 
-        this.conversationHistory.push({
-          role: 'assistant',
-          content: assistantMessage,
-        });
+      await logEvent({
+        type: "trade_signal",
+        source: "trading_agent",
+        message: `${priceData.symbol} signal: ${priceData.signal || 'NONE'} at $${priceData.price}`,
+        data: {
+          direction,
+          confidence,
+          symbol: priceData.symbol,
+          price: priceData.price,
+          session: priceData.session
+        }
+      }).catch(() => { });
 
-        this.state.lastSignal = assistantMessage;
-
-        // Telemetry: Log Trade Signal
-        const confidenceMatch = assistantMessage.match(/confidence:?\s*(\d+)%/i);
-        const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) / 100 : 0.85; // Default to 0.85 if not explicit
-        const direction = priceData.signal === 'IQ_BUY' ? 'long' : priceData.signal === 'IQ_SELL' ? 'short' : 'neutral';
-
-        await logEvent({
-          type: "trade_signal",
-          source: "trading_agent",
-          message: `${priceData.symbol} signal: ${priceData.signal || 'NONE'} at $${priceData.price}`,
-          data: {
-            direction,
-            confidence,
-            symbol: priceData.symbol,
-            price: priceData.price,
-            session: priceData.session
-          }
-        }).catch(() => {});
-
-        return assistantMessage;
+      return assistantMessage;
     } catch (e: any) {
-        console.error("Failed Anthropic Request:", e)
-        return "Failed to analyze signal";
+      console.error("Failed Anthropic Request:", e);
+      return "Failed to analyze signal";
     }
   }
 
@@ -191,25 +204,13 @@ Provide:
     });
 
     try {
-        const response = await this.client.messages.create({
-          model: 'claude-3-opus-20240229',
-          max_tokens: 500,
-          system: this.getSystemPrompt() + '\n\nThe user is chatting with you directly. Respond helpfully.',
-          messages: this.conversationHistory as any,
-        });
-
-        const assistantMessage =
-          response.content[0].type === 'text' ? response.content[0].text : '';
-
-        this.conversationHistory.push({
-          role: 'assistant',
-          content: assistantMessage,
-        });
-
-        return { content: assistantMessage };
+      const response = await this.chat(
+        userMessage,
+        this.getSystemPrompt() + '\n\nThe user is chatting with you directly. Respond helpfully.'
+      );
+      return { content: response };
     } catch (e: any) {
-        console.error("Failed Anthropic Request:", e)
-        return { content: "I am having trouble connecting to my trading models right now." };
+      return { content: "I am having trouble connecting to my trading models right now." };
     }
   }
 
@@ -234,21 +235,20 @@ Provide:
     };
 
     try {
-      // ðŸš¨ LIVE EXECUTION HOOK ðŸš¨
+      // LIVE EXECUTION HOOK
       const action = signal === 'IQ_BUY' ? 'Buy' : 'Sell';
-      
+
       // Attempt to place the actual live order via Tradovate REST API
       await this.tradovate.placeMarketOrder(symbol, action, trade.size);
-      
+
       this.state.openTrades.push(trade);
     } catch (error: any) {
-      console.error(`ðŸš¨ TRADOVATE EXECUTION FAILED:`, error.message);
+      console.error(`TRADOVATE EXECUTION FAILED:`, error.message);
       trade.status = 'FAILED' as any;
-      // We still return the trade so the dashboard/webhook sees the failure
     }
 
     // Log trade
-    console.log(`âœ… Trade Opened:
+    console.log(`✅ Trade Opened:
       Symbol: ${symbol}
       Signal: ${signal}
       Entry: $${entryPrice}
@@ -282,7 +282,7 @@ Provide:
     // Update stats
     this.updateTradeStats(trade);
 
-    console.log(`âŒ Trade Closed:
+    console.log(`❌ Trade Closed:
       Symbol: ${trade.symbol}
       Exit: $${exitPrice}
       P&L: $${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)
@@ -334,47 +334,46 @@ Provide:
     const avgWin =
       winners > 0
         ? this.state.closedTrades
-            .filter(t => (t.profitLoss || 0) > 0)
-            .reduce((sum, t) => sum + (t.profitLoss || 0), 0) / winners
+          .filter(t => (t.profitLoss || 0) > 0)
+          .reduce((sum, t) => sum + (t.profitLoss || 0), 0) / winners
         : 0;
     const avgLoss =
       losers > 0
         ? Math.abs(
-            this.state.closedTrades
-              .filter(t => (t.profitLoss || 0) <= 0)
-              .reduce((sum, t) => sum + (t.profitLoss || 0), 0) / losers
-          )
+          this.state.closedTrades
+            .filter(t => (t.profitLoss || 0) <= 0)
+            .reduce((sum, t) => sum + (t.profitLoss || 0), 0) / losers
+        )
         : 0;
 
     return `
-ðŸŽ¯ MASTER TRADER PERFORMANCE
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+🎯 MASTER TRADER PERFORMANCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Total Trades: ${totalTrades}
 Winners: ${winners} (${((winners / totalTrades) * 100).toFixed(1)}%)
 Losers: ${losers} (${((losers / totalTrades) * 100).toFixed(1)}%)
 Consecutive Wins: ${this.state.consecutiveWins}
 
-ðŸ’° P&L METRICS
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+💰 P&L METRICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Total P&L: $${this.state.totalPnL.toFixed(2)}
 Average Win: $${avgWin.toFixed(2)}
 Average Loss: -$${avgLoss.toFixed(2)}
 Win/Loss Ratio: ${(avgWin / avgLoss || 0).toFixed(2)}
 Win Rate: ${(this.state.winRate * 100).toFixed(1)}%
 
-ðŸ“Š OPEN POSITIONS
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+📊 OPEN POSITIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Count: ${this.state.openTrades.length}
-${
-  this.state.openTrades.length > 0
-    ? this.state.openTrades
-        .map(
-          t =>
-            `  ${t.symbol} - ${t.signal} @ $${t.entryPrice} (${t.size} units)`
-        )
-        .join('\n')
-    : '  No open positions'
-}
+${this.state.openTrades.length > 0
+        ? this.state.openTrades
+          .map(
+            t =>
+              `  ${t.symbol} - ${t.signal} @ $${t.entryPrice} (${t.size} units)`
+          )
+          .join('\n')
+        : '  No open positions'
+      }
     `;
   }
 
@@ -407,6 +406,7 @@ ${
   resetConversation(): void {
     this.conversationHistory = [];
   }
+
   /**
    * Get local state + optionally enrich with live Tradovate data
    */
@@ -432,4 +432,3 @@ ${
 }
 
 export { MasterTraderAgent, PriceLevel, Trade, MasterTraderState };
-

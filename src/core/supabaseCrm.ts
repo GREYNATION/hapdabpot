@@ -18,6 +18,7 @@ export interface SupabaseDeal {
     status?: string;
     stage?: string;
     source?: string;
+    investor_id?: string;
 }
 
 export class SupabaseCrm {
@@ -50,7 +51,8 @@ export class SupabaseCrm {
                 motivation_score: data.motivation_score,
                 est_profit: data.est_profit,
                 status: data.status || "new",
-                source: data.source || "manual"
+                source: data.source || "manual",
+                investor_id: data.investor_id
             });
 
             if (error) throw error;

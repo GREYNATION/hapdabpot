@@ -54,4 +54,4 @@ $$;
 
 -- Grant permissions (adjust as needed)
 -- GRANT ALL ON memories TO service_role;
--- GRANT USAGE ON SEQUENCE memories_id_seq TO service_role;
+-- GRANT USAGE ON SEQUENCE memories_id_seq TO service_role;ALTER TABLE artists ADD COLUMN IF NOT EXISTS investor_id uuid REFERENCES auth.users(id);
