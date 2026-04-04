@@ -1,7 +1,7 @@
-import WebSocket from 'ws';
+import * as WebSocketLib from 'ws';
 import { log } from "./config.js";
 
-const { WebSocketServer } = WebSocket;
+const WebSocketServer = WebSocketLib.WebSocketServer;
 let wss: any = null;
 
 
