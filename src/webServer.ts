@@ -66,40 +66,40 @@ app.post('/webhook/twilio', express.urlencoded({ extended: false }), async (req:
 
 app.get("/privacy", (req: Request, res: Response) => {
   res.send("<h1>Privacy Policy</h1><p>hapdabot does not store personal data from TikTok users. Content is posted on behalf of the authorized account owner only.</p>");
-}); app.get("/tiktokIFxgUOYQCixpunRe0oWOpEW0nqhTD32r.txt", (req: Request, res: Response) => {
-  res.send("tiktok-developers-site-verification=IFxgUOYQCixpunRe0oWOpEW0nqhTD32r");
-});
-
-// Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    service: 'Gravity Claw'
-  });
-});
-
-// Stripe test endpoint
-app.get('/test/stripe', (req: Request, res: Response) => {
-  const hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
-  const hasWebhookSecret = !!process.env.STRIPE_WEBHOOK_SECRET;
-
-  res.json({
-    stripeConfigured: hasStripeKey,
-    webhookConfigured: hasWebhookSecret,
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-export function startWebServer() {
-  const server = app.listen(PORT, () => {
-    log(`[WebServer] Started on port ${PORT}`);
-    log(`[WebServer] Stripe webhook endpoint: POST /webhook/stripe`);
-    log(`[WebServer] Health check: GET /health`);
+  app.get("/tiktokIfxgUQYQCixpunReOoWQpEWQnqhTD32r.txt", (req: Request, res: Response) => {
+    res.send("tiktok-developers-site-verification=IFxgUOYQCixpunRe0oWOpEW0nqhTD32r");
   });
 
-  // Also add a basic root for general health
-  app.get('/', (req, res) => res.send('Gravity Claw Specialist Agent is Online.'));
+  // Health check endpoint
+  app.get('/health', (req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'Gravity Claw'
+    });
+  });
 
-  return server;
-}
+  // Stripe test endpoint
+  app.get('/test/stripe', (req: Request, res: Response) => {
+    const hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
+    const hasWebhookSecret = !!process.env.STRIPE_WEBHOOK_SECRET;
+
+    res.json({
+      stripeConfigured: hasStripeKey,
+      webhookConfigured: hasWebhookSecret,
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
+
+  export function startWebServer() {
+    const server = app.listen(PORT, () => {
+      log(`[WebServer] Started on port ${PORT}`);
+      log(`[WebServer] Stripe webhook endpoint: POST /webhook/stripe`);
+      log(`[WebServer] Health check: GET /health`);
+    });
+
+    // Also add a basic root for general health
+    app.get('/', (req, res) => res.send('Gravity Claw Specialist Agent is Online.'));
+
+    return server;
+  }
