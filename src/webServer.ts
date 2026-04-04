@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
   try {
     const signature = req.headers['stripe-signature'] as string;
-    
+
     if (!signature) {
       log('[WebServer] Missing Stripe signature', 'error');
       return res.status(400).json({ error: 'Missing signature' });
@@ -19,7 +19,7 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
 
     const body = req.body.toString();
     const success = await handleStripeWebhook(body, signature);
-    
+
     if (success) {
       log('[WebServer] Stripe webhook processed successfully');
       res.json({ received: true });
@@ -51,7 +51,7 @@ app.post('/webhook/twilio', express.urlencoded({ extended: false }), async (req:
 
       // 2. Update Supabase
       await SupabaseCrm.updateDealStatusByPhone(fromPhone, "negotiating");
-      
+
       log(`[Twilio] Outreach success! Automation moved lead to "negotiating".`);
     } catch (err: any) {
       log(`[Twilio] Failed to auto-update deal stage: ${err.message}`, "error");
@@ -60,12 +60,18 @@ app.post('/webhook/twilio', express.urlencoded({ extended: false }), async (req:
 
   // Twilio requires a TwiML response
   res.type('text/xml').send('<Response></Response>');
+}); app.get("/terms", (req: Request, res: Response) => {
+  res.send("<h1>Terms of Service</h1><p>hapdabot automates real estate content posting. By using this service you agree to TikTok's terms of service.</p>");
+});
+
+app.get("/privacy", (req: Request, res: Response) => {
+  res.send("<h1>Privacy Policy</h1><p>hapdabot does not store personal data from TikTok users. Content is posted on behalf of the authorized account owner only.</p>");
 });
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     service: 'Gravity Claw'
   });
@@ -75,7 +81,7 @@ app.get('/health', (req: Request, res: Response) => {
 app.get('/test/stripe', (req: Request, res: Response) => {
   const hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
   const hasWebhookSecret = !!process.env.STRIPE_WEBHOOK_SECRET;
-  
+
   res.json({
     stripeConfigured: hasStripeKey,
     webhookConfigured: hasWebhookSecret,
@@ -89,9 +95,9 @@ export function startWebServer() {
     log(`[WebServer] Stripe webhook endpoint: POST /webhook/stripe`);
     log(`[WebServer] Health check: GET /health`);
   });
-  
+
   // Also add a basic root for general health
   app.get('/', (req, res) => res.send('Gravity Claw Specialist Agent is Online.'));
-  
+
   return server;
 }
