@@ -163,7 +163,7 @@ async function callOpenRouter(
     messages: OpenAI.ChatCompletionMessageParam[],
     options: AIOptions
 ): Promise<AIResponse> {
-    const model = "google/gemini-2.0-flash-lite:free";
+    const model = "google/gemini-2.0-flash-exp:free";
     const completion = await openRouterClient.chat.completions.create({
         model,
         messages: cleanForGroq(messages),
