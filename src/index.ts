@@ -5,6 +5,7 @@ import { startLeadAlerts } from "./cron/leadAlerts.js";
 import { startOutreachCron, registerOutreachHandlers } from "./services/outreachService.js";
 import { startWebServer } from "./webServer.js";
 import { initMarketScans } from "./cron/marketScans.js";
+import { startContentCron } from "./cron/contentCron.js"; // ← NEW
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ try {
     startLeadAlerts(bot.getBot());
     startOutreachCron(bot.getBot());
     initMarketScans(bot.getBot());
+    startContentCron(bot.getBot()); // ← NEW
 } catch (err: any) {
     console.error("[system] CRITICAL: Bot launch failed:", err.message);
 }
@@ -32,7 +34,7 @@ try {
 process.on("unhandledRejection", (err: any) => {
   if (err?.message?.includes("409")) {
     console.warn("[bot] Another instance is running — shutting down this one");
-    process.exit(1); // Railway will restart cleanly
+    process.exit(1);
   }
   console.error("[system] Unhandled Rejection:", err);
 });
@@ -41,7 +43,6 @@ process.on("uncaughtException", (err) => {
     console.error("[system] Uncaught Exception:", err);
 });
 
-// Enable graceful stop
 process.once("SIGINT", () => {
     console.log("[system] Stopping...");
     bot.stop("SIGINT");
@@ -50,4 +51,3 @@ process.once("SIGTERM", () => {
     console.log("[system] Stopping...");
     bot.stop("SIGTERM");
 });
-

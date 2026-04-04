@@ -4,14 +4,7 @@
 // signal filters: liquidity, volume, time, and edge detection
 // ============================================================
 
-import axios from "axios";
-import OpenAI from "openai";
-import { log } from "../core/config.js";
-
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: process.env.OPENAI_BASE_URL,
-});
+import { groq as openai } from "../core/config.js";
 
 // â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export type Market = {
@@ -51,7 +44,7 @@ async function fetchPolymarkets(limit = 100): Promise<Market[]> {
                 : 999;
 
             const bestYes = parseFloat(m.bestAsk ?? m.outcomePrices?.[0] ?? "50");
-            const bestNo  = parseFloat(m.bestBid  ?? m.outcomePrices?.[1] ?? "50");
+            const bestNo = parseFloat(m.bestBid ?? m.outcomePrices?.[1] ?? "50");
 
             // priceChange: use oneDayPriceChange if available, else 0
             const priceChange = parseFloat(m.oneDayPriceChange ?? "0") * 100;

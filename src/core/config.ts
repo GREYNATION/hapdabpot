@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-
 import Anthropic from "@anthropic-ai/sdk";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -30,7 +29,6 @@ export const config = {
     anthropicApiKey: process.env.ANTHROPIC_API_KEY?.trim(),
     geminiApiKey: process.env.GEMINI_API_KEY?.trim(),
     geminiModel: process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash",
-
     aiProvider: "groq" as "groq" | "gemini" | "anthropic",
     ownerId: (() => {
         const id = process.env.TELEGRAM_OWNER_ID || process.env.OWNER_CHAT_ID;
@@ -38,37 +36,12 @@ export const config = {
         const parsed = parseInt(id);
         return isNaN(parsed) ? undefined : parsed;
     })(),
-
-    // Stitch Factory Project
     STITCH_MASTER_PROJECT_ID: "10494731315779539060",
-
 };
-// Set default owner if not explicitly provided
+
 if (!config.ownerId && config.allowedUserIds.length > 0) {
     config.ownerId = config.allowedUserIds[0];
 }
-
-log(`[system] Config loaded. Provider: ${config.aiProvider}. Owner: ${config.ownerId || 'NOT CONFIGURED'}`);
-if (config.openaiApiKey) {
-    const keyPrefix = config.openaiApiKey.startsWith("gsk_") ? "Groq" : "OpenAI";
-    log(`[system] LLM Auth: Using ${keyPrefix} key (ends in ...${config.openaiApiKey.slice(-4)})`);
-    log(`[ai] Groq key loaded: ${config.openaiApiKey.slice(0, 10)}...`);
-} else {
-    log(`[system] âš ï¸ LLM Auth: No API Key found in environment!`, "error");
-}
-
-export const openai = new OpenAI({
-    apiKey: config.openaiApiKey,
-    baseURL: config.openaiBaseUrl,
-});
-
-export const groq = new OpenAI({
-    apiKey: config.openaiApiKey,
-    baseURL: "https://api.groq.com/openai/v1",
-});
-
-export const gemini = null;
-export const anthropic = config.anthropicApiKey ? new Anthropic({ apiKey: config.anthropicApiKey }) : null;
 
 export function log(msg: string, level: "info" | "warn" | "error" = "info") {
     const timestamp = new Date().toISOString();
@@ -81,3 +54,26 @@ export function log(msg: string, level: "info" | "warn" | "error" = "info") {
     }
 }
 
+log(`[system] Config loaded. Provider: ${config.aiProvider}. Owner: ${config.ownerId || 'NOT CONFIGURED'}`);
+if (config.openaiApiKey) {
+    const keyPrefix = config.openaiApiKey.startsWith("gsk_") ? "Groq" : "OpenAI";
+    log(`[system] LLM Auth: Using ${keyPrefix} key (ends in ...${config.openaiApiKey.slice(-4)})`);
+    log(`[ai] Groq key loaded: ${config.openaiApiKey.slice(0, 10)}...`);
+} else {
+    log(`[system] WARNING: LLM Auth: No API Key found in environment!`, "error");
+}
+
+export const openai = new OpenAI({
+    apiKey: config.openaiApiKey || "placeholder",
+    baseURL: config.openaiBaseUrl,
+});
+
+export const groq = new OpenAI({
+    apiKey: config.openaiApiKey || "placeholder",
+    baseURL: "https://api.groq.com/openai/v1",
+});
+
+export const gemini = null;
+export const anthropic = config.anthropicApiKey
+    ? new Anthropic({ apiKey: config.anthropicApiKey })
+    : null;
