@@ -58,9 +58,9 @@ async function pollLTX(requestId: string): Promise<string> {
 
 async function generateCaption(topic: string, platform: "tiktok" | "instagram" | "youtube"): Promise<string> {
   const rules = {
-    tiktok:    { tone: "casual, energetic, Gen-Z", tags: 5,  cta: "Follow for daily real estate tips 🏠" },
+    tiktok: { tone: "casual, energetic, Gen-Z", tags: 5, cta: "Follow for daily real estate tips 🏠" },
     instagram: { tone: "aspirational, professional", tags: 15, cta: "Save this post 💾 | Link in bio" },
-    youtube:   { tone: "educational, SEO-optimized", tags: 3,  cta: "Subscribe for more wholesale deals 🔔" },
+    youtube: { tone: "educational, SEO-optimized", tags: 3, cta: "Subscribe for more wholesale deals 🔔" },
   };
 
   const r = rules[platform];
@@ -96,7 +96,7 @@ async function postToTikTok(videoBuffer: Buffer, caption: string): Promise<{ suc
     await fetch(init.data.upload_url, {
       method: "PUT",
       headers: { "Content-Type": "video/mp4", "Content-Range": `bytes 0-${videoBuffer.length - 1}/${videoBuffer.length}` },
-      body: videoBuffer,
+      body: videoBuffer as any,
     });
 
     return { success: true };
