@@ -1,7 +1,7 @@
 import { Telegraf, Context, Markup } from "telegraf";
 import { CrmManager } from "../core/crm.js";
 import { ai, manager } from "../core/manager.js";
-import { simpleChat } from "../core/ai.js";
+import { askAI } from "../core/ai.js";
 import { executeTask } from "../core/executor.js";
 import { initDb, saveMessage } from "../core/memory.js";
 import { storeMemory, getMemories, chat as supabaseChat, isSupabaseEnabled } from "../core/supabaseMemory.js";
@@ -111,10 +111,10 @@ export class TelegramBot {
     private renderProgressBar(status: DashboardStatus): string {
         switch (status) {
             case "complete": return "[â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆ] DONE";
-            case "running":  return "[â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–‘â–‘â–‘â–‘] RUNNING";
-            case "failed":   return "[â–ˆâ–ˆâ–ˆâ–ˆâ–‘â–‘â–‘â–‘â–‘â–‘] FAILED";
-            case "pending":  
-            default:         return "[â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘] WAITING";
+            case "running": return "[â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–‘â–‘â–‘â–‘] RUNNING";
+            case "failed": return "[â–ˆâ–ˆâ–ˆâ–ˆâ–‘â–‘â–‘â–‘â–‘â–‘] FAILED";
+            case "pending":
+            default: return "[â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘] WAITING";
         }
     }
 
@@ -301,7 +301,7 @@ ${state.logs.slice(-3).join("\n")}
                     return this.safeReply(ctx, "Ã°Å¸ÂÂ¢ Real Estate Wholesale CRM\n\nUsage:\n/deal add [addr] | [seller] | [phone] | [arv] | [repairs]\n/deal list\n/deal view [id]\n/deal update [id] [field]=[value]");
             }
         });
-        
+
         // [COMMAND] /contact [id] - Generate and log outreach for a specific deal
         this.bot.command("contact", async (ctx) => {
             if (!this.checkOwner(ctx)) return;
@@ -344,7 +344,7 @@ ${state.logs.slice(-3).join("\n")}
         this.bot.command("deals", async (ctx) => {
             if (!this.checkOwner(ctx)) return;
             await ctx.sendChatAction("typing");
-            
+
             try {
                 const supabase = (await import("../core/supabaseMemory.js")).getSupabase();
                 const { data: events, error } = await supabase
@@ -355,7 +355,7 @@ ${state.logs.slice(-3).join("\n")}
                     .limit(10);
 
                 if (error) throw error;
-                
+
                 const response = this.formatDealsTelemetry(events || []);
                 return this.safeReply(ctx, response, true);
             } catch (err: any) {
@@ -829,7 +829,7 @@ ${state.logs.slice(-3).join("\n")}
         this.bot.command("status", async (ctx) => {
             if (!this.checkOwner(ctx)) return;
             log(`[bot] Status check requested by ${ctx.from?.id}`);
-            
+
             await ctx.sendChatAction("typing");
             const response = await orchestrator.getSystemStatus();
 
@@ -1005,7 +1005,7 @@ ${state.logs.slice(-3).join("\n")}
 
     private async runBuild(prompt: string | any, reply: any, ctx: Context) {
         log(`[bot] 1. /build triggered. Prompt: ${typeof prompt === 'string' ? prompt.slice(0, 50) : 'Multimodal'}`);
-        
+
         if (this.isBusy) {
             return reply("⏳ System busy. Please wait...");
         }
@@ -1034,7 +1034,7 @@ ${state.logs.slice(-3).join("\n")}
                     dashboardState.stages[patch.stage].message = patch.message;
                     dashboardState.logs.push(`[${patch.stage.toUpperCase()}] ${patch.message}`);
                 }
-                
+
                 if (patch.overallStatus) {
                     dashboardState.status = patch.overallStatus === "complete" ? "complete" : "failed";
                     if (patch.overallStatus === "complete") {
@@ -1045,9 +1045,9 @@ ${state.logs.slice(-3).join("\n")}
                 dashboardState.logs.push(patch);
             }
             dashboardState.timestamps.updatedAt = Date.now();
-            
+
             const dashboardText = this.renderDashboard(dashboardState);
-            
+
             let extra: any = undefined;
             if (dashboardState.status === "complete" || dashboardState.status === "failed") {
                 extra = Markup.inlineKeyboard([
@@ -1068,7 +1068,7 @@ ${state.logs.slice(-3).join("\n")}
                 }
             } catch (e: any) {
                 if (e.description?.includes("message is not modified")) return;
-                
+
                 editFailsCount++;
                 log(`[bot] Dashboard edit failed (${editFailsCount}/3): ${e.message}`, "warn");
 
@@ -1088,7 +1088,7 @@ ${state.logs.slice(-3).join("\n")}
         try {
             // STEP 2: CREATE DASHBOARD MESSAGE
             const initialMsg = await ctx.reply(this.renderDashboard(dashboardState), { parse_mode: 'HTML' });
-            
+
             // STEP 3: STORE MESSAGE ID
             dashboardState.telegramMessageId = initialMsg.message_id;
             log(`[bot] 2-3. Dashboard message created, ID stored: ${dashboardState.telegramMessageId}`);
@@ -1311,7 +1311,7 @@ Default: DEMO mode (no real money).
 
     private formatDealsTelemetry(events: any[]): string {
         if (!events || events.length === 0) return "📁 No recent deals found in telemetry.";
-        
+
         let msg = "🎯 **RECENT HIGH-MOTIVATION DEALS**\n\n";
         events.forEach((event, i) => {
             const data = event.data || {};
@@ -1321,9 +1321,9 @@ Default: DEMO mode (no real money).
             const date = new Date(event.created_at).toLocaleDateString();
 
             msg += `${i + 1}\\. *${address}*\n` +
-                   `💰 Profit: $${profit}\n` +
-                   `⭐ Score: ${score}/10\n` +
-                   `📅 Found: ${date}\n\n`;
+                `💰 Profit: $${profit}\n` +
+                `⭐ Score: ${score}/10\n` +
+                `📅 Found: ${date}\n\n`;
         });
         return msg;
     }

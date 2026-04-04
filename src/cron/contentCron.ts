@@ -13,18 +13,24 @@ export function startContentCron(bot: Telegraf) {
     // Daily content post — 10 AM
     cron.schedule("0 10 * * *", async () => {
         console.log("[cron] 🎬 Starting daily content generation...");
-        if (ownerId) bot.telegram.sendMessage(ownerId, "🎬 Generating today's video content...");
+        cron.schedule("0 10 * * *", async () => {
+            try {
+                const result = await contentCreator.createVideo("daily real estate wholesaling tip", true);
+                if (ownerId) bot.telegram.sendMessage(ownerId, result, { parse_mode: "Markdown" });
+            } catch (err) {
+                console.error("[contentCron] Failed:", err);
+                if (ownerId) bot.telegram.sendMessage(ownerId, `❌ Daily content failed: ${err}`);
+            }
+        });
 
-        try {
-            const result = await contentCreator.dailyContent();
-            if (ownerId) bot.telegram.sendMessage(ownerId, result, { parse_mode: "Markdown" });
-            const msg = `📱 *Daily Content Done*\n${statusLines}\n\n🎥 ${result.video.url}`;
-            if (ownerId) bot.telegram.sendMessage(ownerId, msg, { parse_mode: "Markdown" });
-        } catch (err) {
-            console.error("[contentCron] Failed:", err);
-            if (ownerId) bot.telegram.sendMessage(ownerId, `❌ Daily content failed: ${err}`);
-        }
-    });
 
-    console.log("[cron] 🎬 Content cron scheduled for 10 AM daily.");
+        const result = await contentCreator.createVideo("daily real estate wholesaling tip", true);
+        if (ownerId) bot.telegram.sendMessage(ownerId, result, { parse_mode: "Markdown" });
+    } catch (err) {
+        console.error("[contentCron] Failed:", err);
+        if (ownerId) bot.telegram.sendMessage(ownerId, `❌ Daily content failed: ${err}`);
+    }
+});
+
+console.log("[cron] 🎬 Content cron scheduled for 10 AM daily.");
 }
