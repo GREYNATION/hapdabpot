@@ -98,6 +98,7 @@ async function callGroq(
     const model = options.model || config.openaiModel || "llama-3.3-70b-versatile";
     const cleaned = cleanForGroq(messages);
 
+  try {
     // Streaming (no tools when streaming)
     if (options.stream && options.onChunk) {
         const stream = await groqClient.chat.completions.create({
@@ -158,6 +159,13 @@ async function callGroq(
         tokens: completion.usage?.total_tokens,
         model,
     };
+  } catch (e: any) {
+    if (e.status === 429) {
+      log(`[ai] Groq rate limit hit (429). Sleeping 2s before fallback...`, "warn");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    throw e;
+  }
 }
 
 // ── OpenRouter fallback ───────────────────────────────────────────────────────
@@ -166,7 +174,7 @@ async function callOpenRouter(
     messages: OpenAI.ChatCompletionMessageParam[],
     options: AIOptions
 ): Promise<AIResponse> {
-    const model = "google/gemini-2.0-flash-exp:free";
+    const model = "meta-llama/llama-3.3-70b-instruct:free";
     const completion = await openRouterClient.chat.completions.create({
         model,
         messages: cleanForGroq(messages),

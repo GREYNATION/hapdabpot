@@ -72,6 +72,10 @@ app.get("/tiktokIfxgUQYQCixpunReOoWQpEWQnqhTD32r.txt", (req: Request, res: Respo
   res.send("tiktok-developers-site-verification=IFxgUOYQCixpunRe0oWOpEW0nqhTD32r");
 });
 
+app.get("/terms/tiktokoM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK.txt", (req: Request, res: Response) => {
+  res.type("text/plain").send("tiktok-developers-site-verification=oM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK");
+});
+
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
   res.json({

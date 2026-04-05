@@ -297,7 +297,12 @@ export async function findMotivatedSellers(
 
   // Stage 2: AI Enrichment (Step 7)
   // To be efficient, we only AI-enrich leads that pass a basic scoring threshold
-  log(`[scraper] Running AI analysis for promising leads...`);
+  if (!baseEnriched || baseEnriched.length === 0) {
+    log(`[scraper] No leads found to analyze. Skipping AI enrichment.`);
+    return [];
+  }
+
+  log(`[scraper] Running AI analysis for ${baseEnriched.length} leads...`);
   const enrichedWithAI: Lead[] = [];
   
   // Concurrency-limited parallel enrichment
