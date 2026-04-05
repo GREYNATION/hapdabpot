@@ -13,6 +13,11 @@ app.get('/terms/tiktokoM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK.txt', (req: Request, res:
   res.send('tiktok-developers-site-verification=oM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK');
 });
 
+app.get('/privacy/tiktokoM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK.txt', (req: Request, res: Response) => {
+  res.type('text/plain');
+  res.send('tiktok-developers-site-verification=oM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK');
+});
+
 // Stripe webhook endpoint needs raw body
 app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
   try {
