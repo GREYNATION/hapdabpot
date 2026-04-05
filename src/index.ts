@@ -32,11 +32,11 @@ try {
 
 // Global Error Handling
 process.on("unhandledRejection", (err: any) => {
-  if (err?.message?.includes("409")) {
-    console.warn("[bot] Another instance is running — shutting down this one");
-    process.exit(1);
-  }
-  console.error("[system] Unhandled Rejection:", err);
+    if (err?.message?.includes("409")) {
+        console.warn("[bot] Another instance is running — shutting down this one");
+        process.exit(1);
+    }
+    console.error("[system] Unhandled Rejection:", err);
 });
 
 process.on("uncaughtException", (err) => {

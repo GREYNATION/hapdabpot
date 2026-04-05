@@ -175,20 +175,40 @@ async function callOpenRouter(
     options: AIOptions
 ): Promise<AIResponse> {
     const model = "meta-llama/llama-3.3-70b-instruct:free";
+    const cleaned = cleanForGroq(messages);
+
     const completion = await openRouterClient.chat.completions.create({
         model,
-        messages: cleanForGroq(messages),
+        messages: cleaned,
         temperature: options.temperature ?? 0.7,
         max_tokens: options.maxTokens || 1000,
+        ...(options.tools?.length ? {
+            tools: options.tools.map(t => ({
+                type: "function" as const,
+                function: {
+                    name: t.function.name,
+                    description: t.function.description,
+                    parameters: t.function.parameters,
+                },
+            })),
+            tool_choice: options.toolChoice ?? "auto",
+        } : {}),
+        response_format: options.jsonMode ? { type: "json_object" } : undefined,
     });
 
+    const msg = completion.choices[0].message;
     return {
-        content: completion.choices[0].message.content || "",
+        content: msg.content || "",
+        toolCalls: msg.tool_calls?.map((tc) => ({
+            id: tc.id,
+            function: { name: tc.function.name, arguments: tc.function.arguments },
+        })),
         provider: "openrouter",
         tokens: completion.usage?.total_tokens,
         model,
     };
 }
+
 
 // ── Anthropic ─────────────────────────────────────────────────────────────────
 
