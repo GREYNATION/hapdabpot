@@ -98,74 +98,74 @@ async function callGroq(
     const model = options.model || config.openaiModel || "llama-3.3-70b-versatile";
     const cleaned = cleanForGroq(messages);
 
-  try {
-    // Streaming (no tools when streaming)
-    if (options.stream && options.onChunk) {
-        const stream = await groqClient.chat.completions.create({
-            model,
-            messages: cleaned,
-            temperature: options.temperature ?? 0.7,
-            max_tokens: options.maxTokens || 1000,
-            stream: true,
-        });
+    try {
+        // Streaming (no tools when streaming)
+        if (options.stream && options.onChunk) {
+            const stream = await groqClient.chat.completions.create({
+                model,
+                messages: cleaned,
+                temperature: options.temperature ?? 0.7,
+                max_tokens: options.maxTokens || 1000,
+                stream: true,
+            });
 
-        let fullContent = "";
-        for await (const chunk of stream) {
-            const delta = chunk.choices[0]?.delta?.content || "";
-            if (delta) {
-                fullContent += delta;
-                options.onChunk(delta);
+            let fullContent = "";
+            for await (const chunk of stream) {
+                const delta = chunk.choices[0]?.delta?.content || "";
+                if (delta) {
+                    fullContent += delta;
+                    options.onChunk(delta);
+                }
             }
+            return { content: fullContent, provider: "groq", model };
         }
-        return { content: fullContent, provider: "groq", model };
-    }
 
-    // Tool calling
-    if (options.tools?.length) {
+        // Tool calling
+        if (options.tools?.length) {
+            const completion = await groqClient.chat.completions.create({
+                model,
+                messages: cleaned,
+                temperature: options.temperature ?? 0.7,
+                max_tokens: options.maxTokens || 1000,
+                tools: options.tools,
+                tool_choice: options.toolChoice ?? "auto",
+            });
+
+            const msg = completion.choices[0].message;
+            return {
+                content: msg.content || "",
+                toolCalls: msg.tool_calls?.map((tc) => ({
+                    id: tc.id,
+                    function: { name: tc.function.name, arguments: tc.function.arguments },
+                })),
+                provider: "groq",
+                tokens: completion.usage?.total_tokens,
+                model,
+            };
+        }
+
+        // Standard
         const completion = await groqClient.chat.completions.create({
             model,
             messages: cleaned,
             temperature: options.temperature ?? 0.7,
             max_tokens: options.maxTokens || 1000,
-            tools: options.tools,
-            tool_choice: options.toolChoice ?? "auto",
+            response_format: options.jsonMode ? { type: "json_object" } : undefined,
         });
 
-        const msg = completion.choices[0].message;
         return {
-            content: msg.content || "",
-            toolCalls: msg.tool_calls?.map((tc) => ({
-                id: tc.id,
-                function: { name: tc.function.name, arguments: tc.function.arguments },
-            })),
+            content: completion.choices[0].message.content || "",
             provider: "groq",
             tokens: completion.usage?.total_tokens,
             model,
         };
+    } catch (e: any) {
+        if (e.status === 429) {
+            log(`[ai] Groq rate limit hit (429). Sleeping 2s before fallback...`, "warn");
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        throw e;
     }
-
-    // Standard
-    const completion = await groqClient.chat.completions.create({
-        model,
-        messages: cleaned,
-        temperature: options.temperature ?? 0.7,
-        max_tokens: options.maxTokens || 1000,
-        response_format: options.jsonMode ? { type: "json_object" } : undefined,
-    });
-
-    return {
-        content: completion.choices[0].message.content || "",
-        provider: "groq",
-        tokens: completion.usage?.total_tokens,
-        model,
-    };
-  } catch (e: any) {
-    if (e.status === 429) {
-      log(`[ai] Groq rate limit hit (429). Sleeping 2s before fallback...`, "warn");
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-    throw e;
-  }
 }
 
 // ── OpenRouter fallback ───────────────────────────────────────────────────────
