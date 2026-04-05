@@ -7,7 +7,8 @@ import { SupabaseCrm } from './core/supabaseCrm.js';
 
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);
+
 
 // FORCED TIKTOK VERIFICATION ROUTE — must be first, before any middleware
 app.get('/terms/tiktokoM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK.txt', (req: Request, res: Response) => {
@@ -113,8 +114,8 @@ app.get('/test/stripe', (req: Request, res: Response) => {
 });
 
 export function startWebServer() {
-  const server = app.listen(PORT, () => {
-    log(`[WebServer] Started on port ${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    log(`[WebServer] Started on port ${PORT} (0.0.0.0)`);
     log(`[WebServer] Stripe webhook endpoint: POST /webhook/stripe`);
     log(`[WebServer] Health check: GET /health`);
   });
