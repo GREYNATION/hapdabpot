@@ -1,8 +1,11 @@
-/**
+/*
  * core/ai.ts — UPGRADED
  * Unified AI provider interface.
+ * Supports: Groq, AnthropicAI, OpenRouter (auto-fallback).
+ * core/ais — UPGRADED
+ * Unified AI provider interface.
  * Supports: Groq, Anthropic, OpenRouter (auto-fallback)
- * Added: Tool calling, streaming, token tracking, parseToolArgs, buildTool
+ * Added: Tool calling, streaming, token tracking, parseToolArgs()
  */
 
 import OpenAI from "openai";
@@ -45,12 +48,15 @@ export interface AIResponse {
 }
 
 export interface AITool {
-    name: string;
-    description: string;
-    parameters: {
-        type: "object";
-        properties: Record<string, { type: string; description: string; enum?: string[] }>;
-        required?: string[];
+    type: "function";
+    function: {
+        name: string;
+        description: string;
+        parameters: {
+            type: "object";
+            properties: Record<string, { type: string; description: string; enum?: string[] }>;
+            required?: string[];
+        };
     };
 }
 
@@ -120,10 +126,7 @@ async function callGroq(
             messages: cleaned,
             temperature: options.temperature ?? 0.7,
             max_tokens: options.maxTokens || 1000,
-            tools: options.tools.map((t) => ({
-                type: "function" as const,
-                function: { name: t.name, description: t.description, parameters: t.parameters },
-            })),
+            tools: options.tools,
             tool_choice: options.toolChoice ?? "auto",
         });
 
@@ -223,9 +226,9 @@ async function callAnthropic(
             system,
             messages: nonSystem as any,
             tools: options.tools.map((t) => ({
-                name: t.name,
-                description: t.description,
-                input_schema: t.parameters,
+                name: t.function.name,
+                description: t.function.description,
+                input_schema: t.function.parameters,
             })),
         });
 
@@ -344,8 +347,15 @@ export function parseToolArgs<T = Record<string, unknown>>(toolCall: ToolCall): 
 export function buildTool(
     name: string,
     description: string,
-    properties: AITool["parameters"]["properties"],
+    properties: AITool["function"]["parameters"]["properties"],
     required: string[] = []
 ): AITool {
-    return { name, description, parameters: { type: "object", properties, required } };
+    return {
+        type: "function",
+        function: {
+            name,
+            description,
+            parameters: { type: "object", properties, required },
+        },
+    };
 }
