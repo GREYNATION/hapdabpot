@@ -1,4 +1,4 @@
-// webServer.ts — build: 2026-04-05T15:54Z (cache bust)
+// webServer.ts — build: 2026-04-05T16:30Z (force redeploy)
 import express, { Request, Response } from 'express';
 import { handleStripeWebhook } from './bot/invoiceHandlers.js';
 import { log } from './core/config.js';
