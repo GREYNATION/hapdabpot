@@ -18,6 +18,11 @@ app.get('/privacy/tiktokoM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK.txt', (req: Request, re
   res.send('tiktok-developers-site-verification=oM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK');
 });
 
+// Diagnostic: confirms Railway is serving the latest build
+app.get('/test-me', (req: Request, res: Response) => {
+  res.send('The server is updated! Build: ' + new Date().toISOString());
+});
+
 // Stripe webhook endpoint needs raw body
 app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
   try {
