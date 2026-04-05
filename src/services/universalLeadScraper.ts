@@ -4,6 +4,9 @@ import { filterAndRankLeads, formatFilteredLeads, filterTopDeals, enrichLeadWith
 import { CrmManager } from "../core/crm.js";
 import { logEvent } from "../core/telemetry.js";
 
+// Rate-limit helper: 7.5s between AI calls = max 8 req/min
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 // Target markets
 export const TARGET_MARKETS = {
   texas: [
@@ -304,25 +307,33 @@ export async function findMotivatedSellers(
 
   log(`[scraper] Running AI analysis for ${baseEnriched.length} leads...`);
   const enrichedWithAI: Lead[] = [];
-  
-  // Concurrency-limited parallel enrichment
-  const CONCURRENCY = 5;
-  for (let i = 0; i < baseEnriched.length; i += CONCURRENCY) {
-    const batch = baseEnriched.slice(i, i + CONCURRENCY);
-    const enrichedBatch = await Promise.all(batch.map(async (lead) => {
-      // Small optimization: Calculate a 'pre-score' to see if it's worth AI-enriching
-      // We skip AI if it's clearly junk (No price, no signals)
-      const preScore = calculateDealScore(lead);
-      if (preScore < 20) return lead; // Don't waste tokens on clearly bad leads
 
+  // Sequential enrichment with rate-limit delay (7.5s = max 8 req/min)
+  for (let i = 0; i < baseEnriched.length; i++) {
+    const lead = baseEnriched[i];
+
+    // Skip clearly bad leads to save tokens
+    const preScore = calculateDealScore(lead);
+    if (preScore < 20) {
+      enrichedWithAI.push(lead);
+      continue;
+    }
+
+    // Rate-limit: wait 7.5s before each AI call (skip first)
+    if (i > 0) {
+      log(`[scraper] Rate limit delay (7.5s) before lead ${i + 1}/${baseEnriched.length}...`);
+      await delay(7500);
+    }
+
+    try {
       const aiData = await enrichLeadWithAI(lead);
       const enriched = { ...lead, ...aiData };
-      
-      // Recalculate score with AI data
-      calculateDealScore(enriched); 
-      return enriched;
-    }));
-    enrichedWithAI.push(...enrichedBatch);
+      calculateDealScore(enriched);
+      enrichedWithAI.push(enriched);
+    } catch (err: any) {
+      log(`[scraper] AI enrichment failed for lead: ${err.message}`, "warn");
+      enrichedWithAI.push(lead);
+    }
   }
 
   // Filter and rank: Only 80+ "Hot List" and 60-79 "Watchlist"
