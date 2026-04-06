@@ -22,6 +22,12 @@ app.get('/.well-known/tiktok-developers-site-verification=CoXgVUDwGj2vZPuC0jcBXn
   res.send('tiktok-developers-site-verification=CoXgVUDwGj2vZPuC0jcBXnGzEoK6U7S6');
 });
 
+app.get('/.well-known/tiktok-developers-site-verification=6LvBP52Do7yabEUnreGHiI2z0STbzzVg', (req: Request, res: Response) => {
+  res.type('text/plain');
+  res.send('tiktok-developers-site-verification=6LvBP52Do7yabEUnreGHiI2z0STbzzVg');
+});
+
+
 
 app.get('/tiktoktb0A46sOsuyilGqaJlvS0lxVQSxCxUVX.txt', (req: Request, res: Response) => {
   res.type('text/plain').send('tiktok-developers-site-verification=tb0A46sOsuyilGqaJlvS0lxVQSxCxUVX');
