@@ -16,6 +16,13 @@ app.get('/terms/tiktokoM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK.txt', (req: Request, res:
   res.send('tiktok-developers-site-verification=oM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK');
 });
 
+// TikTok Domain Verification — .well-known format
+app.get('/.well-known/tiktok-developers-site-verification=CoXgVUDwGj2vZPuC0jcBXnGzEoK6U7S6', (req: Request, res: Response) => {
+  res.type('text/plain');
+  res.send('tiktok-developers-site-verification=CoXgVUDwGj2vZPuC0jcBXnGzEoK6U7S6');
+});
+
+
 app.get('/tiktoktb0A46sOsuyilGqaJlvS0lxVQSxCxUVX.txt', (req: Request, res: Response) => {
   res.type('text/plain').send('tiktok-developers-site-verification=tb0A46sOsuyilGqaJlvS0lxVQSxCxUVX');
 });
