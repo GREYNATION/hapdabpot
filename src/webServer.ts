@@ -20,6 +20,10 @@ app.get('/tiktoktb0A46sOsuyilGqaJlvS0lxVQSxCxUVX.txt', (req: Request, res: Respo
   res.type('text/plain').send('tiktok-developers-site-verification=tb0A46sOsuyilGqaJlvS0lxVQSxCxUVX');
 });
 
+app.get('/tiktoktb0A46sOsuyilGgaJIvS0lxVQSxCxUVX.txt', (req: Request, res: Response) => {
+  res.type('text/plain').send('tiktok-developers-site-verification=tb0A46sOsuyilGgaJIvS0lxVQSxCxUVX');
+});
+
 
 app.get('/privacy/tiktokoM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK.txt', (req: Request, res: Response) => {
   res.type('text/plain');
