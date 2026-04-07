@@ -133,27 +133,6 @@ app.get("/tiktokIfxgUQYQCixpunReOoWQpEWQnqhTD32r.txt", (req: Request, res: Respo
 });
 
 
-// Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    service: 'Gravity Claw'
-  });
-});
-
-// Stripe test endpoint
-app.get('/test/stripe', (req: Request, res: Response) => {
-  const hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
-  const hasWebhookSecret = !!process.env.STRIPE_WEBHOOK_SECRET;
-
-  res.json({
-    stripeConfigured: hasStripeKey,
-    webhookConfigured: hasWebhookSecret,
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
 export function startWebServer() {
   const server = app.listen(PORT, '0.0.0.0', () => {
     log(`[WebServer] Started on port ${PORT} (0.0.0.0)`);
