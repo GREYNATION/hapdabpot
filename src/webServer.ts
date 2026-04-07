@@ -106,8 +106,22 @@ app.post('/webhook/twilio', express.urlencoded({ extended: false }), async (req:
 
   // Twilio requires a TwiML response
   res.type('text/xml').send('<Response></Response>');
-}); app.get("/terms", (req: Request, res: Response) => {
-  res.send("<h1>Terms of Service</h1><p>hapdabot automates real estate content posting. By using this service you agree to TikTok's terms of service.</p>");
+});
+
+app.get("/terms", (req: Request, res: Response) => {
+
+  res.send(`
+    <html>
+      <head><title>Terms of Service - Stuyza</title></head>
+      <body>
+        <h1>Terms of Service</h1>
+        <p>Last updated: April 2026</p>
+        <p>By using HAPDA_BOT and Stuyza services, you agree to these terms.</p>
+        <p>This service is provided for real estate wholesaling and lead generation purposes.</p>
+        <p>Contact: support@stuyza.com</p>
+      </body>
+    </html>
+  `);
 });
 
 app.get("/privacy", (req: Request, res: Response) => {
