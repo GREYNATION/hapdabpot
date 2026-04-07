@@ -7,7 +7,7 @@ import { SupabaseCrm } from './core/supabaseCrm.js';
 
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = parseInt(process.env.PORT || '8080', 10);
 
 
 // FORCED TIKTOK VERIFICATION ROUTE — must be first, before any middleware
@@ -113,7 +113,7 @@ app.get("/terms", (req: Request, res: Response) => {
 });
 
 app.get("/api/auth/callback/tiktok", (req: Request, res: Response) => {
-  res.send('Login Successful! You can close this window.');
+  res.send('Login Successful! You can now return to the bot.');
 });
 
 app.get("/privacy", (req: Request, res: Response) => {
