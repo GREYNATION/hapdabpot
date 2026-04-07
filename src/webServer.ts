@@ -111,7 +111,7 @@ app.post('/webhook/twilio', express.urlencoded({ extended: false }), async (req:
 });
 
 app.get("/privacy", (req: Request, res: Response) => {
-  res.send("<h1>Privacy Policy</h1><p>hapdabot does not store personal data from TikTok users. Content is posted on behalf of the authorized account owner only.</p>");
+  res.send("<h1>Privacy Policy</h1><p>HAPDA_BOT does not share your data.</p>");
 });
 
 app.get("/tiktokIfxgUQYQCixpunReOoWQpEWQnqhTD32r.txt", (req: Request, res: Response) => {
