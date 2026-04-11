@@ -18,7 +18,7 @@ export const config = {
     telegramToken: env.TELEGRAM_BOT_TOKEN || "",
     openaiApiKey: env.OPENAI_API_KEY || "",
     openaiModel: env.OPENAI_MODEL || "gpt-4o",
-    groqModel: env.GROQ_MODEL || "llama-3.3-70b-versatile",
+    groqModel: env.GROQ_MODEL || "llama3-70b-8192",
     anthropicModel: env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20241022",
     deepseekModel: env.DEEPSEEK_MODEL || "deepseek-chat",
     aiProvider: env.AI_PROVIDER || "groq",
