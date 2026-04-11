@@ -128,26 +128,6 @@ export class SupabaseCrm {
         }
     }
 
-    /**
-     * Update the status of a deal in Supabase based on the seller's phone number
-     */
-    static async updateDealStatusByPhone(phone: string, status: string): Promise<{ success: boolean; error?: string }> {
-        try {
-            const supabase = getSupabase();
-            const { error } = await supabase
-                .from("deals")
-                .update({ status: status })
-                .eq("phone", phone);
-
-            if (error) throw error;
-
-            log(`[supabaseCrm] ðŸ“ˆ Status updated to "${status}" for phone: ${phone}`);
-            return { success: true };
-        } catch (err: any) {
-            log(`[supabaseCrm] âš ï¸  Failed to update Supabase deal status: ${err.message}`, "error");
-            return { success: false, error: err.message };
-        }
-    }
 
     /**
      * Get CRM Statistics from Supabase
@@ -283,6 +263,41 @@ Approve contacting seller?
             log(`[supabaseCrm] ✅ Action ${id} marked as ${status}`);
         } catch (err: any) {
             log(`[supabaseCrm] ❌ updatePendingAction failed: ${err.message}`, "error");
+        }
+    }
+
+    /**
+     * Mirror status/stage updates to Supabase
+     */
+    static async updateDealStage(address: string, stage: string): Promise<boolean> {
+        try {
+            const supabase = getSupabase();
+            const { error } = await supabase
+                .from("deals")
+                .update({ status: stage, updated_at: new Date().toISOString() })
+                .eq("address", address);
+
+            if (error) throw error;
+            log(`[supabaseCrm] ✅ Supabase status updated for ${address}: ${stage}`);
+            return true;
+        } catch (err: any) {
+            log(`[supabaseCrm] ⚠️ Failed to update Supabase stage: ${err.message}`, "error");
+            return false;
+        }
+    }
+
+    static async updateDealStatusByPhone(phone: string, status: string): Promise<void> {
+        try {
+            const supabase = getSupabase();
+            const { error } = await supabase
+                .from("deals")
+                .update({ status: status })
+                .eq("phone", phone);
+
+            if (error) throw error;
+            log(`[supabaseCrm] ✅ Status updated in Supabase for ${phone}: ${status}`);
+        } catch (err: any) {
+            log(`[supabaseCrm] ⚠️ Failed to update Supabase status by phone: ${err.message}`, "error");
         }
     }
 }

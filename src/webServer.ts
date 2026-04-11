@@ -4,7 +4,17 @@ import { handleStripeWebhook } from './bot/invoiceHandlers.js';
 import { log } from './core/config.js';
 import { CrmManager } from './core/crm.js';
 import { SupabaseCrm } from './core/supabaseCrm.js';
+import { sendTelegram, sendSms, generateContract, triggerAICall } from './services/outreachService.js';
+import { classifyLead } from './services/leadFilter.js';
+import { generateVoice, uploadAudioAndGetUrl } from './services/voiceService.js';
+import { db } from './core/memory.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { aiNegotiate } from './core/negotiation/aiCloser.js';
+import { DataIngestionService } from './services/dataIngestionService.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '8080', 10);
@@ -48,9 +58,17 @@ app.get('/privacy/tiktokqN2tmKapR4HunWyltzyn4ylBvJMCUs9y.txt', (req: Request, re
 });
 
 
-// Diagnostic: confirms Railway is serving the latest build
-app.get('/test-me', (req: Request, res: Response) => {
-  res.send('The server is updated! Build: ' + new Date().toISOString());
+// Health Check
+app.get('/health', (req: Request, res: Response) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+// Supabase Config for Frontend
+app.get('/api/config', (req: Request, res: Response) => {
+  res.json({
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseKey: process.env.SUPABASE_ANON_KEY
+  });
 });
 
 // Stripe webhook endpoint needs raw body
@@ -79,29 +97,227 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
   }
 });
 
-// Twilio SMS Webhook
+// Property Data Ingestion Webhook (Apify/Bright Data)
+app.post('/api/webhook/property-data', express.json(), async (req: Request, res: Response) => {
+  const apiKey = req.headers['x-api-key'];
+  
+  if (process.env.SCRAPER_API_KEY && apiKey !== process.env.SCRAPER_API_KEY) {
+    log('[WebServer] Unauthorized scraper ingestion attempt', 'error');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const result = await DataIngestionService.processExternalProperties(req.body);
+    res.json({ 
+      success: true, 
+      processed: result.count, 
+      deals: result.deals 
+    });
+  } catch (error: any) {
+    log(`[WebServer] Ingestion error: ${error.message}`, 'error');
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function to send telegram on voice hook
+const notifyYou = async (msg: string) => {
+  await sendTelegram(msg);
+};
+
+// ElevenLabs Audio Streamer Route
+app.get('/api/voice/audio', async (req: Request, res: Response) => {
+  const text = req.query.text as string;
+  if (!text) return res.status(400).send("Missing text");
+
+  try {
+    const buffer = await generateVoice(text);
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': buffer.length
+    });
+    res.send(buffer);
+  } catch (err: any) {
+    log(`[WebServer] Audio generation failed: ${err.message}`, 'error');
+    res.status(500).send("Voice generation failed");
+  }
+});
+
+// Twilio Active Voice Call Webhook (Initiation)
+app.post('/api/voice/surplus', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
+  const dealId = req.query.dealId || req.body.dealId;
+  const intro = "Hi there, I'm just calling about a property you used to own. It looks like there might be some funds available to you. Are you the owner?";
+  const audioUrl = await uploadAudioAndGetUrl(intro);
+  
+  const twiml = `
+<Response>
+  <Play>${audioUrl}</Play>
+  <Gather input="speech" action="/api/voice/ai?dealId=${dealId}" speechTimeout="auto" />
+</Response>
+`;
+  res.setHeader("Content-Type", "text/xml");
+  res.send(twiml);
+});
+
+// Twilio Status Callback Webhook
+app.post('/api/voice/status', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
+  const { CallStatus } = req.body;
+  const dealId = req.query.dealId;
+  
+  log(`[Twilio Status] Call Status for Deal ${dealId}: ${CallStatus}`);
+
+  if (dealId) {
+    let status = 'Dialed';
+    if (CallStatus === 'in-progress') status = 'Answered';
+    if (CallStatus === 'no-answer') status = 'No Answer';
+    if (CallStatus === 'busy') status = 'Busy';
+    if (CallStatus === 'failed') status = 'Failed';
+    if (CallStatus === 'completed') {
+       // Only update to completed if it wasn't already marked interested/not_interested
+       const deal = CrmManager.getDeal(Number(dealId));
+       if (deal && !['Interested', 'Not interested'].includes(deal.last_call_status || "")) {
+         status = 'Completed';
+       } else {
+         return res.sendStatus(200);
+       }
+    }
+
+    try {
+      db.prepare("UPDATE deals SET last_call_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .run(status, Number(dealId));
+
+      // Mirror Answered status to Supabase Funnel
+      if (status === 'Answered') {
+        const deal = CrmManager.getDeal(Number(dealId));
+        if (deal) await SupabaseCrm.updateDealStage(deal.address, 'Contacted');
+      }
+    } catch (err: any) {
+      log(`[Twilio Status] DB Update Failed: ${err.message}`, "error");
+    }
+  }
+
+  res.sendStatus(200);
+});
+
+// Twilio Conversational Loop Webhook
+app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
+  const speech = (req.body.SpeechResult || "").toLowerCase();
+  log(`[Twilio Voice] Owner said: "${speech}"`);
+
+  const endCall = async (message: string) => {
+    const audioUrl = await uploadAudioAndGetUrl(message);
+    res.setHeader("Content-Type", "text/xml");
+    return res.send(`<Response><Play>${audioUrl}</Play><Hangup/></Response>`);
+  };
+
+  // Detect hangup/empty speech to actively drop out
+  if (!speech || speech.trim() === "") {
+    log(`[Twilio Voice] Empty speech or hangup detection.`);
+    return endCall("Let me know if you need anything else. Goodbye.");
+  }
+
+  const intent = classifyLead(speech);
+  const dealId = req.query.dealId;
+
+  if (intent === "interested" && dealId) {
+    db.prepare("UPDATE deals SET last_call_status = 'Interested', status = 'interested', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      .run(Number(dealId));
+    
+    // Mirror to Supabase Funnel
+    const deal = CrmManager.getDeal(Number(dealId));
+    if (deal) await SupabaseCrm.updateDealStage(deal.address, 'Interested');
+  }
+
+  if (intent === "not_interested") {
+    log(`[Twilio Voice] Opt-out detected: "${speech}"`);
+    if (dealId) {
+      db.prepare("UPDATE deals SET last_call_status = 'Not interested', status = 'not_interested', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .run(Number(dealId));
+      
+      const deal = CrmManager.getDeal(Number(dealId));
+      if (deal) await SupabaseCrm.updateDealStage(deal.address, 'Not interested');
+    }
+    return endCall("No problem, have a great day.");
+  }
+
+  try {
+    const { askAI } = await import('./core/ai.js');
+    const aiResponse = await askAI(`
+  Conversation so far:
+  Owner: ${speech}
+
+  Rules:
+  - Speak naturally as a calm, trustworthy assistant
+  - Keep sentences short (max 10-15 words)
+  - No sales pressure
+  - Sound like a helpful person, not a robot
+  - No emojis, asterisks, or markdown
+  - Respond briefly to what they just said
+  `, "You are Claw, a calm and trustworthy assistant helping homeowners recover funds.");
+
+    const audioUrl = await uploadAudioAndGetUrl(aiResponse.content);
+
+    const twiml = `
+<Response>
+  <Play>${audioUrl}</Play>
+  <Gather input="speech" action="/api/voice/ai" speechTimeout="auto" />
+</Response>
+`;
+
+    res.setHeader("Content-Type", "text/xml");
+    res.send(twiml);
+  } catch (err: any) {
+    log(`[Twilio Voice] AI Generation Error: ${err.message}`, "error");
+    const fallbackMsg = "I'm sorry, I am having trouble hearing you. Let's talk later. Goodbye.";
+    const fallbackUrl = `${process.env.BASE_URL}/api/voice/audio?text=${encodeURIComponent(fallbackMsg)}`;
+    res.setHeader("Content-Type", "text/xml");
+    res.send(`<Response><Play>${fallbackUrl}</Play><Hangup/></Response>`);
+  }
+});
+
+// Twilio SMS Webhook — UPGRADED: AI NEGOTIATOR
 app.post('/webhook/twilio', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
   const fromPhone = req.body.From;
-  const messageBody = req.body.Body?.toLowerCase() || "";
+  const messageBody = req.body.Body || "";
 
-  log(`[Twilio] Received SMS from ${fromPhone}: ${messageBody}`);
+  log(`[Twilio SMS] Received from ${fromPhone}: "${messageBody}"`);
 
-  if (messageBody.includes("yes")) {
-    try {
-      // 1. Update SQLite
-      const deal = CrmManager.findLatestDealByPhone(fromPhone);
-      if (deal) {
-        CrmManager.updateDeal(deal.id, { status: "negotiating" });
-        log(`[Twilio] Deal #${deal.id} moved to "negotiating" in local CRM.`);
-      }
-
-      // 2. Update Supabase
-      await SupabaseCrm.updateDealStatusByPhone(fromPhone, "negotiating");
-
-      log(`[Twilio] Outreach success! Automation moved lead to "negotiating".`);
-    } catch (err: any) {
-      log(`[Twilio] Failed to auto-update deal stage: ${err.message}`, "error");
+  try {
+    const deal = CrmManager.findLatestDealByPhone(fromPhone);
+    if (!deal) {
+      log(`[Twilio SMS] No matching deal for phone ${fromPhone}. Skipping.`);
+      return res.type('text/xml').send('<Response></Response>');
     }
+
+    // 1. Detect terminal opt-outs
+    const leadIntent = classifyLead(messageBody);
+    if (leadIntent === "not_interested") {
+      CrmManager.updateDeal(deal.id, { status: "not_interested" });
+      await SupabaseCrm.updateDealStatusByPhone(fromPhone, "not_interested");
+      log(`[Twilio SMS] Deal #${deal.id} marked as Not Interested.`);
+      return res.type('text/xml').send('<Response></Response>');
+    }
+
+    // 2. Run AI Negotiator
+    const aiResponse = await aiNegotiate(messageBody, deal);
+    
+    // 3. Send AI response back to seller
+    await sendSms(fromPhone, aiResponse);
+    log(`[Twilio SMS] AI Negotiator response sent: "${aiResponse}"`);
+
+    // 4. Update Deal State based on refined intent
+    const finalIntent = classifyLead(aiResponse + " " + messageBody); // Check both for agreement detection
+    if (finalIntent === "interested") {
+      CrmManager.updateDeal(deal.id, { status: "interested" });
+      await SupabaseCrm.updateDealStatusByPhone(fromPhone, "interested");
+      await SupabaseCrm.updateDealStage(deal.address, 'Interested');
+      
+      // Auto-trigger contract if haven't already
+      const contract = generateContract(deal);
+      log(`[Twilio SMS] Firm agreement detected. Contract generated for ${deal.address}`);
+    }
+
+  } catch (err: any) {
+    log(`[Twilio SMS] Error in negotiation flow: ${err.message}`, "error");
   }
 
   // Twilio requires a TwiML response
@@ -122,6 +338,133 @@ app.get("/privacy", (req: Request, res: Response) => {
 
 app.get("/tiktokIfxgUQYQCixpunReOoWQpEWQnqhTD32r.txt", (req: Request, res: Response) => {
   res.send("tiktok-developers-site-verification=IFxgUOYQCixpunRe0oWOpEW0nqhTD32r");
+});
+
+// Configure Static Serving for the Dashboard
+app.use(express.static(path.join(__dirname, 'web')));
+
+// Dashboard Stats API
+app.get('/api/dashboard/stats', (req: Request, res: Response) => {
+  try {
+    const totalLeads = db.prepare("SELECT COUNT(*) as count FROM scraped_leads").get() as any;
+    const surplusDeals = db.prepare("SELECT COUNT(*) as count FROM deals").get() as any;
+    const callsMade = db.prepare("SELECT COUNT(*) as count FROM outreach_logs WHERE type = 'call'").get() as any;
+    const interestedLeads = db.prepare("SELECT COUNT(*) as count FROM deals WHERE status = 'interested'").get() as any;
+    const totalProfit = db.prepare("SELECT SUM(profit) as total FROM deals").get() as any;
+
+    res.json({
+      totalLeads: totalLeads?.count || 0,
+      surplusDeals: surplusDeals?.count || 0,
+      callsMade: callsMade?.count || 0,
+      interestedLeads: interestedLeads?.count || 0,
+      estimatedProfit: totalProfit?.total || 0
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Dashboard Deals API
+app.get('/api/dashboard/deals', (req: Request, res: Response) => {
+  try {
+    const deals = db.prepare("SELECT * FROM deals ORDER BY created_at DESC LIMIT 50").all();
+    res.json(deals);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manual Call Trigger API
+app.post('/api/dashboard/call', async (req: Request, res: Response) => {
+  const { dealId } = req.body;
+  try {
+    const deal = CrmManager.getDeal(dealId);
+    if (!deal) return res.status(404).json({ error: "Deal not found" });
+
+    await triggerAICall(deal);
+    res.json({ success: true, message: "Call triggered successfully" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update Deal Outcome API
+app.post('/api/dashboard/outcome', async (req: Request, res: Response) => {
+  const { dealId, outcome, notes } = req.body;
+  try {
+    await CrmManager.updateDealOutcome(dealId, outcome, notes);
+    res.json({ success: true, message: `Deal marked as ${outcome}` });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch AI Insights API
+app.get('/api/dashboard/insights', async (req: Request, res: Response) => {
+  try {
+    const { InsightsAgent } = await import('./agents/insightsAgent.js');
+    const insights = await InsightsAgent.generateMarketInsights();
+    res.json({ insights });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List All Buyers API
+app.get('/api/dashboard/buyers', (req: Request, res: Response) => {
+  try {
+    const buyers = CrmManager.listBuyers();
+    res.json(buyers);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Match Buyers for Deal API
+app.get('/api/dashboard/match-buyers', (req: Request, res: Response) => {
+  const { dealId } = req.query;
+  try {
+    const deal = CrmManager.getDeal(Number(dealId));
+    if (!deal) return res.status(404).json({ error: "Deal not found" });
+
+    const matches = CrmManager.findMatchingBuyers(deal);
+    res.json(matches);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Alert Matched Buyers API
+app.post('/api/dashboard/alert-buyers', async (req: Request, res: Response) => {
+  const { dealId } = req.body;
+  try {
+    await CrmManager.alertMatchedBuyers(dealId);
+    res.json({ success: true, message: "Buyer alerts dispatched" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Assign Deal to Buyer API
+app.post('/api/dashboard/assign-deal', async (req: Request, res: Response) => {
+  const { dealId, buyerId, salePrice } = req.body;
+  try {
+    await CrmManager.assignToBuyer(dealId, buyerId, Number(salePrice));
+    res.json({ success: true, message: "Deal assigned successfully" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send Contract to Seller API
+app.post('/api/dashboard/send-contract', async (req: Request, res: Response) => {
+  const { dealId } = req.body;
+  try {
+    const contractText = await CrmManager.sendContractAction(dealId);
+    res.json({ success: true, message: "Contract sent via SMS", contract: contractText });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 

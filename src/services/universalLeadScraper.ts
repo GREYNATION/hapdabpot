@@ -1,8 +1,9 @@
 import axios from "axios";
-import { log } from "../core/config.js";
+import { log, config } from "../core/config.js";
 import { filterAndRankLeads, formatFilteredLeads, filterTopDeals, enrichLeadWithAI, calculateDealScore } from "./leadFilter.js";
 import { CrmManager } from "../core/crm.js";
 import { logEvent } from "../core/telemetry.js";
+import { ApifyService } from "./apifyService.js";
 
 // Rate-limit helper: 7.5s between AI calls = max 8 req/min
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -242,6 +243,44 @@ function autoSaveToCRM(leads: Lead[]): number {
   return saved;
 }
 
+// Dedicated Auction Extraction mapping for Surplus Phase
+export async function findAuctionDeals(city: string): Promise<Lead[]> {
+  const targetMarket = Object.values(TARGET_MARKETS).flat().find(m => m.city.toLowerCase() === city.toLowerCase());
+  
+  if (!targetMarket) {
+     return [
+       { address: "Unknown", city, state: "XX", source: "System", type: "Error", distressSignals: [], description: "City not mapped." }
+     ];
+  }
+
+  // Hybrid Cloud/Local Logic
+  const stateKey = targetMarket.state.toUpperCase();
+  const hasCloudScraper = (stateKey === "TX" && config.txActorId) ||
+                         (stateKey === "FL" && config.flActorId) ||
+                         (stateKey === "GA" && config.gaActorId) ||
+                         (stateKey === "NJ" && config.njActorId);
+
+  if (hasCloudScraper) {
+    log(`[scraper] ☁️ Offloading ${city} auction scan to Apify cloud mission...`);
+    await ApifyService.triggerScan(targetMarket.state, targetMarket.city);
+    // Return a placeholder lead indicating cloud scan is in progress
+    return [
+      { 
+        address: `Cloud Scan Triggered: ${city}`, 
+        city, 
+        state: targetMarket.state, 
+        source: "Apify Cloud", 
+        type: "Status", 
+        distressSignals: [], 
+        description: "Your cloud scraper has been triggered. Results will arrive via the ingestion webhook shortly." 
+      }
+    ];
+  }
+  
+  log(`[scraper] 🏠 No cloud actor configured for ${stateKey}. Falling back to local Brave Search...`);
+  return await searchAuctions(targetMarket);
+}
+
 // Main export
 export async function findMotivatedSellers(
   targetState?: string,
@@ -309,8 +348,16 @@ export async function findMotivatedSellers(
   const enrichedWithAI: Lead[] = [];
 
   // Sequential enrichment with rate-limit delay (7.5s = max 8 req/min)
-  for (let i = 0; i < baseEnriched.length; i++) {
-    const lead = baseEnriched[i];
+  // Capping to Top 10 to prevent 90s system timeouts
+  const maxToEnrich = 10;
+  const processBatch = baseEnriched.slice(0, maxToEnrich);
+  
+  if (baseEnriched.length > maxToEnrich) {
+    log(`[scraper] Found ${baseEnriched.length} leads. Capping deep AI enrichment to Top ${maxToEnrich} to stay within execution limits.`);
+  }
+
+  for (let i = 0; i < processBatch.length; i++) {
+    const lead = processBatch[i];
 
     // Skip clearly bad leads to save tokens
     const preScore = calculateDealScore(lead);

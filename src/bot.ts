@@ -1,6 +1,7 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 import { processUserInput } from "./taskOrchestrator.js";
 import { PropertyScraper } from "./services/PropertyScraper.js";
+import { runAutonomousPipeline } from "./core/orchestrator/clawOrchestrator.js";
 
 const COMMAND_PREFIX = "/";
 
@@ -10,6 +11,48 @@ async function handleCommand(input: string, userId: string = "default-user") {
   const [command, ...args] = input.slice(1).split(" ");
 
   switch (command) {
+    case "auto":
+      const userInput = args.join(" ");
+      try {
+        const agentResponse = await runAutonomousPipeline(userInput);
+        return `🤖 Autonomous Pipeline Complete
+
+${agentResponse}`;
+      } catch (err: any) {
+        return `🤖 Autonomous Pipeline failed: ${err.message}`;
+      }
+
+    case "insights":
+      try {
+        const targetCity = args[0] || "Houston";
+        const { tools } = await import("./core/tools/index.js");
+        const { runClawAgent } = await import("./agents/claw/runClaw.js");
+        
+        const deals = await tools.findDeals({ city: targetCity });
+        const insights = await runClawAgent(`
+Analyze past deals for ${targetCity}:
+
+${JSON.stringify(deals)}
+
+Which types convert best?
+`);
+        return `📊 Real Estate Insights (${targetCity})\n\n${insights}`;
+      } catch (err: any) {
+        return `❌ Insights failed: ${err.message}`;
+      }
+
+    case "surplus":
+      try {
+        const targetCity = args[0] || "Houston";
+        const { runSurplusAgent } = await import("./core/surplus/runSurplusAgent.js");
+        const opportunities = await runSurplusAgent(targetCity);
+        
+        return `🏛️ Surveillance Complete
+Found ${opportunities.length} high-margin >$10k surplus overages in ${targetCity}. Check your direct DMs for the Alerts!`;
+      } catch (err: any) {
+        return `❌ Surplus run failed: ${err.message}`;
+      }
+
     case "build":
       const result = await processUserInput(args.join(" "), userId);
       return result.response;
@@ -17,29 +60,30 @@ async function handleCommand(input: string, userId: string = "default-user") {
     case "scrape":
       const url = args[0];
       if (!url) {
-        return "âŒ Please provide a URL to scrape. Usage: /scrape [url]";
+        return "❌ Please provide a URL to scrape. Usage: /scrape [url]";
       }
       const data = await PropertyScraper.scrapeListings(url);
       if (data.length === 0) {
-        return "âŒ No listings found. Check the URL or CSS selectors.";
+        return "❌ No listings found. Check the URL or CSS selectors.";
       }
-      return data.map((p, i) => `${i + 1}. ${p.title}\n   ðŸ’° ${p.price}\n   ðŸ“ ${p.address}\n   ðŸ”— ${p.link}`).join("\n\n");
+      return data.map((p, i) => `${i + 1}. ${p.title}\n   💰 ${p.price}\n   📍 ${p.address}\n   🔗 ${p.link}`).join("\n\n");
 
     case "agents":
       return listAgents();
 
     default:
-      return "âŒ Unknown command. Available: /build, /scrape, /agents";
+      return "❌ Unknown command. Available: /auto, /build, /scrape, /agents";
   }
 }
 
 function listAgents() {
   return [
-    "ðŸ“ DeveloperAgent - Software development",
-    "ðŸ“Š TraderAgent - Market trading",
-    "ðŸ  RealEstateAgent - Property analysis",
-    "ðŸ“± MarketerAgent - Content & outreach",
-    "ðŸ” ResearcherAgent - Web research & scraping"
+    "📍 DeveloperAgent - Software development",
+    "📊 TraderAgent - Market trading",
+    "🏠 RealEstateAgent - Property analysis",
+    "📱 MarketerAgent - Content & outreach",
+    "🔍 ResearcherAgent - Web research & scraping",
+    "🤖 ClawAgent - Autonomous command execution (/auto)"
   ].join("\n");
 }
 
@@ -47,7 +91,7 @@ function listAgents() {
 async function main() {
   const args = process.argv.slice(2);
   if (args.length === 0) {
-    console.log("ðŸ¤– Gravity Claw CLI Bot");
+    console.log("🤖 Gravity Claw CLI Bot");
     console.log("Usage:");
     console.log("  npm run bot -- /scrape [url]");
     console.log("  npm run bot -- /build [task]");

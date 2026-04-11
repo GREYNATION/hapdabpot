@@ -2,6 +2,8 @@ import { BaseAgent } from "./baseAgent.js";
 import { log } from "../core/config.js";
 import { findMotivatedSellers, formatLeads, TARGET_MARKETS, Lead } from "../services/universalLeadScraper.js";
 import { calculateDeal } from "../services/leadFilter.js";
+import { runAutomatedSurplusScan } from "../services/surplusPipeline.js";
+import { logEvent } from "../core/telemetry.js";
 
 interface DealAnalysis {
   arv: number;
@@ -131,6 +133,28 @@ export class RealEstateAgent extends BaseAgent {
 
   async handle(userMessage: string): Promise<string> {
     const lower = userMessage.toLowerCase();
+
+    // --------------------------------------------------------------------------
+    // 1. SURPLUS AUTOMATION COMMAND
+    // --------------------------------------------------------------------------
+    if (lower.includes("auto scan") && (lower.includes("surplus") || lower.includes("county"))) {
+      const stateMatch = lower.match(/(?:in\s+)([a-z\s]+)(?=\s+and|$)/);
+      const state = stateMatch ? stateMatch[1].trim() : "Texas";
+
+      log(`[realEstate] 🚀 Initiating Automated Surplus Scan for ${state}...`);
+      
+      // Fire and forget the background pipeline
+      runAutomatedSurplusScan().catch(err => {
+        log(`[realEstate] ❌ Background Surplus Scan Error: ${err.message}`, "error");
+      });
+
+      return `🚀 **Surplus Overage Scan Initiated (Apify Mode)**\n\n` +
+             `I have triggered your external **Apify** scraper fleet to scan ${state} county records.\n\n` +
+             `✅ **Cloud Scraping**: Active\n` +
+             `✅ **SkipTracing**: On\n` +
+             `✅ **AI Voice Outreach**: On\n\n` +
+             `This scan is running in the cloud to protect your server resources. I will alert you via Telegram as soon as a high-margin deal hits our ingestion webhook.`;
+    }
 
     // MAO calculation
     const numbers = userMessage.match(/\d[\d,]*/g)?.map(n => parseInt(n.replace(/,/g, ""))) ?? [];

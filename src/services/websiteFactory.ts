@@ -47,7 +47,7 @@ export class WebsiteFactory {
                 if (overallStatus === "complete") dashboard.timestamps.finishedAt = Date.now();
             }
 
-            if (onProgress) onProgress({ stage, status, message, overallStatus });
+            if (onProgress) onProgress(dashboard as any); // Pass full state
         };
 
         let blueprint: SiteBlueprint;

@@ -1,4 +1,4 @@
-﻿import { Telegraf } from "telegraf";
+import { Telegraf } from "telegraf";
 import { CrmManager } from "../core/crm.js";
 import { log, config } from "../core/config.js";
 
@@ -45,36 +45,35 @@ async function sendMorningBriefing(bot: Telegraf) {
         day: "numeric"
     });
 
-    let message = `â˜€ï¸ **Good morning, Hap!**\nðŸ“… ${today}\n\n`;
+    let message = `☀️ **Good morning, Hap!**\n📅 ${today}\n\n`;
 
-    message += `ðŸ—ï¸ **Pipeline Snapshot**\n`;
-    message += `ðŸ”µ Leads: ${stats.leads}\n`;
-    message += `ðŸ“ž Contacted: ${stats.contacted}\n`;
-    message += `âœï¸ Under Contract: ${stats.contract}\n\n`;
+    message += `🏗️ **Pipeline Snapshot**\n`;
+    message += `🔵 Leads: ${stats.leads}\n`;
+    message += `📞 Contacted: ${stats.contacted}\n`;
+    message += `✍️ Under Contract: ${stats.contracts || 0}\n\n`;
 
-    message += `â° **Follow-Ups Due TODAY: ${followUps.length}**\n`;
+    message += `⏰ **Follow-Ups Due TODAY: ${followUps.length}**\n`;
     followUps.forEach(f => {
-        message += `- ${f.address} (${f.seller_name || 'Prospect'}) â€” 3d+ silent\n`;
+        message += `- ${f.address} (${f.seller_name || 'Prospect'}) — 3d+ silent\n`;
     });
     message += `\n`;
 
     if (hottest) {
-        message += `ðŸ”¥ **Hottest Deal**\n`;
-        message += `ðŸ“ ${hottest.address} â€” $${hottest.profit.toLocaleString()} profit\n\n`;
+        message += `🔥 **Hottest Deal**\n`;
+        message += `📍 ${hottest.address} — $${(hottest.profit || 0).toLocaleString()} profit\n\n`;
     }
 
-    message += `ðŸ’µ **Revenue**\n`;
-    message += `Month: $${revenue.month.toLocaleString()}\n`;
-    message += `All Time: $${revenue.allTime.toLocaleString()}\n\n`;
+    message += `💰 **Revenue**\n`;
+    message += `Month: $${(revenue.month || 0).toLocaleString()}\n`;
+    message += `All Time: $${(revenue.allTime || 0).toLocaleString()}\n\n`;
 
     if (followUps.length > 0) {
-        message += `ðŸŽ¯ **Today's Priority**\n`;
+        message += `🎯 **Today's Priority**\n`;
         const p = followUps[0];
         message += `Call ${p.seller_name || 'Prospect'} at ${p.seller_phone || 'No phone'}\n`;
     } else {
-        message += `ðŸŽ¯ **Today's Priority**\nNo urgent follow-ups. Focus on finding new leads!\n`;
+        message += `🎯 **Today's Priority**\nNo urgent follow-ups. Focus on finding new leads!\n`;
     }
 
     await bot.telegram.sendMessage(ownerId, message, { parse_mode: "Markdown" });
 }
-

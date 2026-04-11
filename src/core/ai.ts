@@ -10,26 +10,44 @@
 
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
+import Groq from "groq-sdk";
 import { config, log } from "./config.js";
+import { withTimeout, getErrorMessage } from "./timeout.js";
 
-// ── Clients ───────────────────────────────────────────────────────────────────
+// ── Clients (Re-initialized via initializeClients) ───────────────────────────
+import * as cfg from "./config.js";
 
-const groqClient = new OpenAI({
-    apiKey: process.env.GROQ_API_KEY,
-    baseURL: "https://api.groq.com/openai/v1",
-});
+export let openai = cfg.openai;
+let groqClient = cfg.groq;
+let openRouterClient: OpenAI;
+let anthropicClient = cfg.anthropic;
+let deepseekClient: OpenAI;
 
-const openRouterClient = new OpenAI({
-    apiKey: process.env.OPENROUTER_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
-    defaultHeaders: { "HTTP-Referer": "https://hapdabot.railway.app" },
-});
+export function initializeClients() {
+    log(`[ai] Re-initializing clients with fresh config...`);
+    
+    openai = cfg.openai;
+    groqClient = cfg.groq;
+    anthropicClient = cfg.anthropic;
 
-const anthropicClient = process.env.ANTHROPIC_API_KEY
-    ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-    : null;
+    openRouterClient = new OpenAI({
+        apiKey: process.env.OPENROUTER_API_KEY || "placeholder",
+        baseURL: "https://openrouter.ai/api/v1",
+        defaultHeaders: { "HTTP-Referer": "https://hapdabot.railway.app" },
+    });
+
+    deepseekClient = new OpenAI({
+        apiKey: process.env.DEEPSEEK_API_KEY || "placeholder",
+        baseURL: "https://api.deepseek.com",
+    });
+}
+
+// Initial call (with placeholders if env not yet loaded)
+initializeClients();
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+export type AIMessage = OpenAI.ChatCompletionMessageParam;
 
 export interface ToolCall {
     id: string;
@@ -42,7 +60,7 @@ export interface ToolCall {
 export interface AIResponse {
     content: string;
     toolCalls?: ToolCall[];
-    provider: "groq" | "openrouter" | "anthropic";
+    provider: "groq" | "openrouter" | "anthropic" | "deepseek";
     tokens?: number;
     model: string;
 }
@@ -85,6 +103,7 @@ function cleanForGroq(
                 const { tool_calls, ...rest } = m as any;
                 return rest;
             }
+            // Ensure content arrays (multimodal) are preserved
             return m;
         });
 }
@@ -103,7 +122,7 @@ async function callGroq(
         if (options.stream && options.onChunk) {
             const stream = await groqClient.chat.completions.create({
                 model,
-                messages: cleaned,
+                messages: cleaned as any,
                 temperature: options.temperature ?? 0.7,
                 max_tokens: options.maxTokens || 1000,
                 stream: true,
@@ -124,11 +143,11 @@ async function callGroq(
         if (options.tools?.length) {
             const completion = await groqClient.chat.completions.create({
                 model,
-                messages: cleaned,
+                messages: cleaned as any,
                 temperature: options.temperature ?? 0.7,
                 max_tokens: options.maxTokens || 1000,
-                tools: options.tools,
-                tool_choice: options.toolChoice ?? "auto",
+                tools: options.tools as any,
+                tool_choice: (options.toolChoice ?? "auto") as any,
             });
 
             const msg = completion.choices[0].message;
@@ -147,7 +166,7 @@ async function callGroq(
         // Standard
         const completion = await groqClient.chat.completions.create({
             model,
-            messages: cleaned,
+            messages: cleaned as any,
             temperature: options.temperature ?? 0.7,
             max_tokens: options.maxTokens || 1000,
             response_format: options.jsonMode ? { type: "json_object" } : undefined,
@@ -174,7 +193,12 @@ async function callOpenRouter(
     messages: OpenAI.ChatCompletionMessageParam[],
     options: AIOptions
 ): Promise<AIResponse> {
-    const model = "meta-llama/llama-3.3-70b-instruct:free";
+    // Check if the payload is multimodal (contains attachments) and upgrade to gpt-4o if so
+    const isMultimodal = messages.some(m => Array.isArray(m.content));
+    const model = isMultimodal 
+        ? "openai/gpt-4o" 
+        : (options.model || "meta-llama/llama-3.3-70b-instruct:free");
+
     const cleaned = cleanForGroq(messages);
 
     const completion = await openRouterClient.chat.completions.create({
@@ -293,6 +317,66 @@ async function callAnthropic(
     };
 }
 
+// ── DeepSeek ──────────────────────────────────────────────────────────────────
+
+async function callDeepSeek(
+    messages: OpenAI.ChatCompletionMessageParam[],
+    options: AIOptions
+): Promise<AIResponse> {
+    const model = options.model || config.deepseekModel || "deepseek-chat";
+
+    // Streaming
+    if (options.stream && options.onChunk) {
+        const stream = await deepseekClient.chat.completions.create({
+            model,
+            messages,
+            temperature: options.temperature ?? 0.7,
+            max_tokens: options.maxTokens || 2048,
+            stream: true,
+        });
+
+        let fullContent = "";
+        for await (const chunk of stream) {
+            const delta = chunk.choices[0]?.delta?.content || "";
+            if (delta) {
+                fullContent += delta;
+                options.onChunk(delta);
+            }
+        }
+        return { content: fullContent, provider: "deepseek", model };
+    }
+
+    // Standard / Tool calling
+    const completion = await deepseekClient.chat.completions.create({
+        model,
+        messages,
+        temperature: options.temperature ?? 0.7,
+        max_tokens: options.maxTokens || 2048,
+        tools: options.tools?.length ? options.tools.map(t => ({
+            type: "function" as const,
+            function: {
+                name: t.function.name,
+                description: t.function.description,
+                parameters: t.function.parameters,
+            },
+        })) : undefined,
+        tool_choice: options.tools?.length ? (options.toolChoice ?? "auto") : undefined,
+        response_format: options.jsonMode ? { type: "json_object" } : undefined,
+    });
+
+    const msg = completion.choices[0].message;
+    return {
+        content: msg.content || "",
+        toolCalls: msg.tool_calls?.map((tc) => ({
+            id: tc.id,
+            function: { name: tc.function.name, arguments: tc.function.arguments },
+        })),
+        provider: "deepseek",
+        tokens: completion.usage?.total_tokens,
+        model,
+    };
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
@@ -332,14 +416,22 @@ export async function askAI(
     );
 
     try {
-        if (provider === "anthropic") return await callAnthropic(messages, options);
-        return await callGroq(messages, options);
+        const timeoutMs = options.tools?.length ? 120_000 : 60_000; // longer for tool use
+        const label = `askAI:${provider}`;
+
+        if (provider === "anthropic") {
+            return await withTimeout(callAnthropic(messages, options), timeoutMs, label);
+        }
+        if (provider === "deepseek") {
+            return await withTimeout(callDeepSeek(messages, options), timeoutMs, label);
+        }
+        return await withTimeout(callGroq(messages, options), timeoutMs, label);
     } catch (err) {
-        log(`[ai] ${provider} failed → OpenRouter fallback. Error: ${err}`);
+        log(`[ai] ${provider} failed → OpenRouter fallback. Error: ${getErrorMessage(err)}`);
         try {
-            return await callOpenRouter(messages, options);
+            return await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
         } catch (fallbackErr) {
-            throw new Error(`All AI providers failed. Last error: ${fallbackErr}`);
+            throw new Error(`All AI providers failed. Last error: ${getErrorMessage(fallbackErr)}`);
         }
     }
 }
@@ -386,4 +478,37 @@ export function buildTool(
             parameters: { type: "object", properties, required },
         },
     };
+}
+
+// ── Agent Utility Exports ─────────────────────────────────────────────────────
+
+/**
+ * High-level AI call for agents using structured message objects.
+ */
+export async function callAI(
+    messages: AIMessage[],
+    domain = "general", // for logging/telemetry context if needed
+    tools?: AITool[],
+    options: Partial<AIOptions> = {}
+): Promise<AIResponse> {
+    return await askAI("", "You are a helpful assistant.", {
+        ...options,
+        messages,
+        tools,
+    });
+}
+
+/**
+ * Message construction helpers
+ */
+export function systemMsg(content: string): AIMessage {
+    return { role: "system", content };
+}
+
+export function userMsg(content: string): AIMessage {
+    return { role: "user", content };
+}
+
+export function assistantMsg(content: string): AIMessage {
+    return { role: "assistant", content };
 }

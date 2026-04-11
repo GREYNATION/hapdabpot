@@ -1,0 +1,6 @@
+[providers]
+node = true
+rust = true
+
+[phases.setup]
+nixPkgs = ["...", "cargo", "rustc"]

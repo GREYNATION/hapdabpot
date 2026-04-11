@@ -1,9 +1,9 @@
-import * as WebSocketLib from 'ws';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { WebSocketServer } = require('ws');
 import { log } from "./config.js";
 
-const WebSocketServer = WebSocketLib.WebSocketServer;
 let wss: any = null;
-
 
 export function initWebSocket(server: any) {
   wss = new WebSocketServer({ server });
@@ -30,7 +30,8 @@ export function broadcastToClients(data: unknown) {
   if (!wss) return;
   const payload = JSON.stringify(data);
   wss.clients.forEach((client: any) => {
-    if (client.readyState === WebSocket.OPEN) {
+    // 1 is WebSocket.OPEN
+    if (client.readyState === 1) {
       client.send(payload);
     }
   });

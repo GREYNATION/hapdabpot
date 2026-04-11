@@ -27,6 +27,7 @@ Available agents:
 - TraderAgent (trading, forex, stocks, crypto)
 - RealEstateAgent (properties, houses, deals)
 - ContentAgent (TikTok, social media, content creation)
+- DramaAgent (TikTok 3D mini-drama scripts, character direction, scene blocking)
 
 Respond ONLY with the agent name.
 `

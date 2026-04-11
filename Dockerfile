@@ -1,10 +1,24 @@
 # Use official Node 20 slim image (Debian-based — has python3/gcc/make for node-gyp)
 FROM node:20-slim
 
-# Install build tools needed by better-sqlite3 (node-gyp)
+# Install system dependencies
 RUN apt-get update && \
-    apt-get install -y python3 make g++ && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    ffmpeg \
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpangocairo-1.0-0 \
+    libxshmfence1 \
+    libx11-xcb1 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

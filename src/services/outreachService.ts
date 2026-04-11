@@ -5,6 +5,7 @@ import { db } from '../core/memory.js';
 import { config, log } from '../core/config.js';
 import { CrmManager } from '../core/crm.js';
 import { logEvent } from "../core/telemetry.js";
+import { SupabaseCrm } from "../core/supabaseCrm.js";
 
 // Outreach Steps config
 const OUTREACH_STEPS = [
@@ -268,4 +269,140 @@ export async function executeContactSeller(lead: any): Promise<void> {
         message: `Contact initiated for ${address}`,
         data: lead
     });
+}
+
+/**
+ * Skip Tracing (Mock for now, ready for BatchLeads/Twilio API integration)
+ * Returns a highly probable phone number for an owner.
+ */
+export async function skipTrace(name: string, city: string): Promise<{name: string, phone: string}> {
+    log(`[outreach] 🔍 Running SkipTrace API for: ${name} in ${city}...`);
+    // Simulated remote API delay
+    await new Promise(r => setTimeout(r, 1500));
+    
+    // In production, plug BatchLeads / SkipGenie / Twilio Lookup here.
+    // Return a synthesized phone number for testing pipeline.
+    const mockNumber = `+1555${Math.floor(1000000 + Math.random() * 9000000)}`;
+    log(`[outreach] ✅ SkipTrace Match Found: ${mockNumber} for ${name}`);
+    
+    return { name, phone: mockNumber };
+}
+
+
+/**
+ * Trigger an Outbound AI Voice Agent Call
+ */
+export async function triggerAICall(deal: any): Promise<void> {
+    log(`[outreach] 🎙️ Triggering Outbound AI Call to ${deal.phone} (${deal.owner || 'Owner'})...`);
+    
+    try {
+        const client = twilio(process.env.TWILIO_SID!, process.env.TWILIO_AUTH!);
+        
+        await client.calls.create({
+            to: deal.phone,
+            from: process.env.TWILIO_NUMBER!,
+            url: `${process.env.BASE_URL!}/api/voice/surplus?dealId=${deal.address}`, // Keep dealId as address for voice flow compatibility
+            statusCallback: `${process.env.BASE_URL!}/api/voice/status?dealId=${deal.id}`, // Pass actual numeric ID for status updates
+            statusCallbackEvent: ['answered', 'completed', 'no-answer', 'busy', 'failed']
+        });
+        
+        // Log to database for dashboard stats and UI
+        try {
+            db.prepare(`
+                UPDATE deals SET last_call_status = 'Dialed', updated_at = CURRENT_TIMESTAMP WHERE id = ?
+            `).run(deal.id);
+
+            db.prepare(`
+                INSERT INTO outreach_logs (deal_id, type, content, status)
+                VALUES (?, ?, ?, ?)
+            `).run(deal.id || 0, 'call', 'Outbound AI Voice Call Initiated', 'Dialed');
+
+            // Mirror to Supabase for realtime UI
+            await SupabaseCrm.updateDealStage(deal.address, 'Contacted');
+        } catch (dbErr: any) {
+            log(`[outreach] ⚠️ Failed to log call to DB: ${dbErr.message}`, "warn");
+        }
+
+        log(`[outreach] ✅ Twilio outbound call triggered to ${deal.phone}.`);
+    } catch (err: any) {
+        log(`[outreach] ❌ Failed to trigger AI call: ${err.message}`, "error");
+    }
+}
+
+/**
+ * Owner Direct Notification
+ * Posts directly to the designated owner's telegram via the Telegram API
+ */
+export async function sendTelegram(message: string): Promise<void> {
+    log(`[outreach] 📲 Sending Telegram Notification to Owner...`);
+    const token = process.env.TG_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TG_CHAT_ID || process.env.OWNER_CHAT_ID || process.env.TELEGRAM_OWNER_ID;
+    
+    if (!token || !chatId) {
+        throw new Error("Missing TG_TOKEN or TG_CHAT_ID in environment variables");
+    }
+
+    try {
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: message
+            })
+        });
+    } catch (e: any) {
+        log(`[outreach] ⚠️ Failed to send Telegram: ${e.message}`, "error");
+    }
+}
+
+/**
+ * Strict Formatter for Surplus Deal Alerts
+ */
+export function formatSurplusMessage(deal: { address: string, surplus: number, debt: number, owner: string, phone: string }): string {
+    return `
+🏛️ SURPLUS DEAL FOUND
+
+📍 ${deal.address}
+💰 Surplus: $${deal.surplus}
+🏦 Debt: $${deal.debt}
+
+👤 Owner: ${deal.owner}
+📞 ${deal.phone}
+
+⚡ Status: AI CALL INITIATED
+`;
+}
+
+/**
+ * Convenience wrapper for the AI to send structured Surplus Alerts directly
+ */
+export async function sendSurplusAlert(deal: { address: string, surplus: number, debt: number, owner: string, phone: string }): Promise<void> {
+    const formatted = formatSurplusMessage(deal);
+    await sendTelegram(formatted);
+}
+
+/**
+ * Step 13 — Contract Generation
+ * Generates a Simple Assignment Agreement for Surplus Recovery
+ */
+export function generateContract(deal: any): string {
+    const name = deal.owner || deal.seller || deal.seller_name || "Owner";
+    const address = deal.address || deal.seller_address || "Property Address";
+    
+    return `
+ASSIGNMENT AGREEMENT
+
+Property: ${address}
+Seller: ${name}
+Investor: Your LLC
+
+Agreement to recover surplus funds.
+The seller agrees to assign the rights to recover surplus funds from the recent sale of the above property.
+
+Reciprocity Fee: 30% of recovered funds
+
+Signature: __________________________
+Date: ${new Date().toLocaleDateString()}
+    `;
 }

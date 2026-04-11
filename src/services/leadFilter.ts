@@ -3,7 +3,7 @@ import { Lead } from "./universalLeadScraper.js";
 import { askAI } from "../core/ai.js";
 import { config } from "../core/config.js";
 
-// ——— Types ——————————————————————————————————————————————————————————————————————
+// --- Types ----------------------------------------------------------------------
 
 // Domains that are aggregators, directories, or not actual seller listings
 export const BLOCKED_DOMAINS = [
@@ -303,4 +303,14 @@ export function formatFilteredLeads(leads: Lead[], limit = 5): string {
   }
 
   return report;
+}
+
+/**
+ * Simple Rule-Based NLP for Lead Intent Classification
+ */
+export function classifyLead(text: string): "interested" | "not_interested" | "unknown" {
+  const t = text.toLowerCase();
+  if (t.includes("yes")) return "interested";
+  if (t.includes("not")) return "not_interested";
+  return "unknown";
 }

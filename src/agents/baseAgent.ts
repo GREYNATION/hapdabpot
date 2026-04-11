@@ -258,6 +258,8 @@ export abstract class BaseAgent {
                                 config.openaiModel?.includes("gpt-4");
             
             let finalContent = userText;
+
+            // Handle Multimodal Fallback
             if (Array.isArray(userText) && !isMultimodal) {
                 log(`[agent] ${name} detected visual context but model ${config.openaiModel} is text-only. Converting to text fallback.`, "warn");
                 finalContent = userText
