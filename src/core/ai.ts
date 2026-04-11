@@ -133,7 +133,7 @@ async function callGroq(
     messages: OpenAI.ChatCompletionMessageParam[],
     options: AIOptions
 ): Promise<AIResponse> {
-    const model = options.model || config.groqModel || "llama-3.3-70b-versatile";
+    const model = options.model || config.groqModel || "llama3-70b-8192";
     const cleaned = cleanForGroq(messages);
 
     try {
