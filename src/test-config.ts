@@ -1,15 +1,33 @@
-﻿import { config } from "./core/config.js";
+import { config, initializeConfig, log } from "./core/config.js";
+import { getSupabase } from "./core/memory.js";
 
-console.log("--- CONFIG DIAGNOSTIC ---");
-console.log("TELEGRAM_BOT_TOKEN:", config.telegramToken ? "EXISTS" : "MISSING");
-console.log("OPENAI_API_KEY:", config.openaiApiKey ? "EXISTS" : "MISSING");
-console.log("GITHUB_TOKEN:", config.githubToken ? "EXISTS" : "MISSING");
-console.log("BRAVE_API_KEY:", config.braveApiKey ? "EXISTS" : "MISSING");
-console.log("--------------------------");
+async function testConfig() {
+    log("--- START CONFIG DIAGNOSTIC ---");
+    
+    // 1. Initial state (local .env)
+    console.log("Local Config State:");
+    console.log("- Telegram Token:", config.telegramToken ? "YES" : "NO");
+    console.log("- OpenAI Key:", config.openaiApiKey ? "YES" : "NO");
+    console.log("- Brave Key:", config.braveApiKey ? "YES" : "NO");
+    console.log("- GitHub Token:", config.githubToken ? "YES" : "NO");
 
-if (config.braveApiKey) {
-    console.log("BRAVE_API_KEY value (first 4 chars):", config.braveApiKey.substring(0, 4));
-} else {
-    console.log("BRAVE_API_KEY is null/undefined in the config object.");
+    // 2. Test Supabase connectivity
+    const client = getSupabase();
+    console.log("\nSupabase Connection:", client ? "CONNECTED" : "FAILED");
+
+    // 3. Trigger dynamic loading
+    await initializeConfig();
+
+    // 4. Post-dynamic state
+    console.log("\nDynamic Config State (After Supabase):");
+    console.log("- Telegram Token:", config.telegramToken ? "YES" : "NO");
+    console.log("- OpenAI Key:", config.openaiApiKey ? "YES" : "NO");
+    console.log("- Brave Key:", config.braveApiKey ? "YES" : "NO");
+    console.log("- GitHub Token:", config.githubToken ? "YES" : "NO");
+    
+    log("--- END CONFIG DIAGNOSTIC ---");
 }
 
+testConfig().catch(err => {
+    console.error("Test failed:", err);
+});

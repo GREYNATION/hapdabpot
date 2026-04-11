@@ -35,7 +35,7 @@ interface MasterTraderState {
   lastSignal?: string;
 }
 
-class MasterTraderAgent {
+export class MasterTraderAgent {
   private client: Anthropic;
   private state: MasterTraderState;
   private conversationHistory: Array<{ role: string; content: string }> = [];
@@ -45,7 +45,6 @@ class MasterTraderAgent {
     this.client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY
     });
-    // Safely default to DEMO unless explicitly set to true
     const useLive = process.env.TRADOVATE_USE_LIVE === 'true';
     this.tradovate = new TradovateClient(useLive);
     this.state = {
@@ -57,10 +56,7 @@ class MasterTraderAgent {
     };
   }
 
-  /**
-   * System prompt for the MasterTrader AI
-   */
-  private getSystemPrompt(): string {
+  getSystemPrompt(): string {
     return `You are MasterTrader, an advanced AI trading agent specializing in:
 
 1. **IQ Buy & Sell Signals**: You understand and act on institutional order flow signals
@@ -107,9 +103,6 @@ When analyzing price data, provide:
 Always prioritize capital preservation over aggressive trading.`;
   }
 
-  /**
-   * Internal chat method to call Anthropic API
-   */
   private async chat(userMessage: string, systemPrompt?: string): Promise<string> {
     try {
       const response = await this.client.messages.create({
@@ -134,9 +127,6 @@ Always prioritize capital preservation over aggressive trading.`;
     }
   }
 
-  /**
-   * Analyze price action and generate trading signals
-   */
   async analyzePriceAction(priceData: PriceLevel): Promise<string> {
     const userMessage = `
 Analyze this price action for trading signal:
@@ -169,7 +159,6 @@ Provide:
       const assistantMessage = await this.chat(userMessage);
       this.state.lastSignal = assistantMessage;
 
-      // Telemetry: Log Trade Signal
       const confidenceMatch = assistantMessage.match(/confidence:?\s*(\d+)%/i);
       const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) / 100 : 0.85;
       const direction = priceData.signal === 'IQ_BUY' ? 'long' : priceData.signal === 'IQ_SELL' ? 'short' : 'neutral';
@@ -194,9 +183,6 @@ Provide:
     }
   }
 
-  /**
-   * Handle generic conversational queries from the Orchestrator
-   */
   async ask(userMessage: string): Promise<{ content: string; }> {
     this.conversationHistory.push({
       role: 'user',
@@ -214,9 +200,6 @@ Provide:
     }
   }
 
-  /**
-   * Execute a trade based on signal
-   */
   async executeTrade(
     symbol: string,
     signal: 'IQ_BUY' | 'IQ_SELL',
@@ -235,19 +218,14 @@ Provide:
     };
 
     try {
-      // LIVE EXECUTION HOOK
       const action = signal === 'IQ_BUY' ? 'Buy' : 'Sell';
-
-      // Attempt to place the actual live order via Tradovate REST API
       await this.tradovate.placeMarketOrder(symbol, action, trade.size);
-
       this.state.openTrades.push(trade);
     } catch (error: any) {
       console.error(`TRADOVATE EXECUTION FAILED:`, error.message);
       trade.status = 'FAILED' as any;
     }
 
-    // Log trade
     console.log(`✅ Trade Opened:
       Symbol: ${symbol}
       Signal: ${signal}
@@ -259,9 +237,6 @@ Provide:
     return trade;
   }
 
-  /**
-   * Close a trade and record P&L
-   */
   closeTrade(tradeId: string, exitPrice: number, exitReason: string): Trade | null {
     const tradeIndex = this.state.openTrades.findIndex(t => t.id === tradeId);
     if (tradeIndex === -1) return null;
@@ -278,8 +253,6 @@ Provide:
 
     this.state.openTrades.splice(tradeIndex, 1);
     this.state.closedTrades.push(trade);
-
-    // Update stats
     this.updateTradeStats(trade);
 
     console.log(`❌ Trade Closed:
@@ -291,32 +264,20 @@ Provide:
     return trade;
   }
 
-  /**
-   * Calculate position size based on risk
-   */
   private calculatePositionSize(entryPrice: number, stopPrice: number): number {
-    const riskAmount = 0.02; // 2% account risk
-    const accountSize = 10000; // Base account size
+    const riskAmount = 0.02;
+    const accountSize = 10000;
     const riskDistance = Math.abs(entryPrice - stopPrice);
-
     if (riskDistance === 0) return 1;
-
     const positionSize = (accountSize * riskAmount) / riskDistance;
     return Math.round(positionSize * 100) / 100;
   }
 
-  /**
-   * Update trading statistics
-   */
   private updateTradeStats(closedTrade: Trade): void {
     const pnl = closedTrade.profitLoss || 0;
     this.state.totalPnL += pnl;
-
-    // Update win rate
     const winners = this.state.closedTrades.filter(t => (t.profitLoss || 0) > 0).length;
     this.state.winRate = winners / this.state.closedTrades.length;
-
-    // Update consecutive wins
     if ((closedTrade.profitLoss || 0) > 0) {
       this.state.consecutiveWins++;
     } else {
@@ -324,9 +285,6 @@ Provide:
     }
   }
 
-  /**
-   * Get performance summary
-   */
   getPerformanceSummary(): string {
     const totalTrades = this.state.closedTrades.length;
     const winners = this.state.closedTrades.filter(t => (t.profitLoss || 0) > 0).length;
@@ -367,53 +325,35 @@ Win Rate: ${(this.state.winRate * 100).toFixed(1)}%
 Count: ${this.state.openTrades.length}
 ${this.state.openTrades.length > 0
         ? this.state.openTrades
-          .map(
-            t =>
-              `  ${t.symbol} - ${t.signal} @ $${t.entryPrice} (${t.size} units)`
-          )
+          .map(t => `  ${t.symbol} - ${t.signal} @ $${t.entryPrice} (${t.size} units)`)
           .join('\n')
         : '  No open positions'
       }
     `;
   }
 
-  /**
-   * Identify trading sessions
-   */
   identifySession(): string {
     const now = new Date();
     const hours = now.getUTCHours();
-
     if (hours >= 0 && hours < 9) return 'London Overlap/Tokyo';
     if (hours >= 8 && hours < 13) return 'London/Tokyo Overlap';
     if (hours >= 13 && hours < 17) return 'New York Open/London Close';
     if (hours >= 17 && hours < 21) return 'New York Prime Time';
     if (hours >= 21 && hours < 24) return 'Sydney/Tokyo Overlap';
-
     return 'Off-market hours';
   }
 
-  /**
-   * Get current state
-   */
   getState(): MasterTraderState {
     return this.state;
   }
 
-  /**
-   * Reset conversation history for fresh analysis
-   */
   resetConversation(): void {
     this.conversationHistory = [];
   }
 
-  /**
-   * Get local state + optionally enrich with live Tradovate data
-   */
   async getLiveAccountState(): Promise<{ state: MasterTraderState; liveBalance: any | null }> {
     let liveBalance = null;
     try {
-      // Authenticate only if we have credentials
       if (process.env.TRADOVATE_USERNAME && process.env.TRADOVATE_CID) {
         const authed = await this.tradovate.authenticate();
         if (authed) {
@@ -428,7 +368,6 @@ ${this.state.openTrades.length > 0
     }
     return { state: this.state, liveBalance };
   }
-
 }
 
-export { MasterTraderAgent, PriceLevel, Trade, MasterTraderState };
+export { PriceLevel, Trade, MasterTraderState };

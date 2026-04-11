@@ -1,4 +1,4 @@
-import { getSupabase } from "./supabaseMemory.js";
+import { getSupabase } from "./memory.js";
 import { log, config } from "./config.js";
 import { PropertyScraper } from "./scraper.js";
 import { sendSms } from "../services/outreachService.js";
@@ -24,7 +24,7 @@ export interface SupabaseDeal {
 export class SupabaseCrm {
     /**
      * Calculate Maximum Allowed Offer (MAO)
-     * Formula: (ARV Ã— 70%) - Repairs
+     * Formula: (ARV × 70%) - Repairs
      */
     static calculateMaxOffer(arv: number, repairs: number): number {
         return (arv * 0.7) - repairs;
@@ -39,6 +39,7 @@ export class SupabaseCrm {
             const repairs = data.repairs || 0;
             const maxOffer = data.max_offer || this.calculateMaxOffer(arv, repairs);
             const supabase = getSupabase();
+            if (!supabase) return { success: false, error: "Supabase not connected" };
 
             const { error } = await supabase.from("deals").insert({
                 address: data.address,
@@ -57,10 +58,10 @@ export class SupabaseCrm {
 
             if (error) throw error;
 
-            log(`[supabaseCrm] âœ… Deal saved to Supabase: ${data.address}`);
+            log(`[supabaseCrm] ✅ Deal saved to Supabase: ${data.address}`);
             return { success: true };
         } catch (err: any) {
-            log(`[supabaseCrm] âš ï¸  Failed to insert deal into Supabase: ${err.message}`, "error");
+            log(`[supabaseCrm] ⚠️ Failed to insert deal into Supabase: ${err.message}`, "error");
             return { success: false, error: err.message };
         }
     }
@@ -69,7 +70,7 @@ export class SupabaseCrm {
      * Finds deals in a city using the AI scraper
      */
     static async findDeals(city: string): Promise<any[]> {
-        log(`[supabaseCrm] ðŸ”  Finding deals in ${city}...`);
+        log(`[supabaseCrm] 🔍 Finding deals in ${city}...`);
         return await PropertyScraper.fetchLatestDeeds(city, 5);
     }
 
@@ -77,13 +78,12 @@ export class SupabaseCrm {
      * Scans a market, calculates MAO, and saves deals to Supabase
      */
     static async scanMarket(city: string): Promise<number> {
-        log(`[supabaseCrm] ðŸ¤– Starting market scan for ${city}...`);
+        log(`[supabaseCrm] 🤖 Starting market scan for ${city}...`);
         const leads = await this.findDeals(city);
         let count = 0;
 
         for (const lead of leads) {
-            // Estimate ARV and Repairs if not provided (placeholder logic for automated scans)
-            const arv = 150000; // Default placeholder for Camden/Dallas wholesale
+            const arv = 150000; 
             const repairs = 30000;
             
             const result = await this.insertDeal({
@@ -96,15 +96,14 @@ export class SupabaseCrm {
 
             if (result.success) {
                 count++;
-                // 3. Trigger Automated Outreach
                 await this.contactSeller({
                     address: lead.address,
-                    phone: "N/A" // Placeholder until skip trace is integrated
+                    phone: "N/A" 
                 });
             }
         }
 
-        log(`[supabaseCrm] âœ… Scan complete for ${city}. Saved ${count} deals.`);
+        log(`[supabaseCrm] ✅ Scan complete for ${city}. Saved ${count} deals.`);
         return count;
     }
 
@@ -113,21 +112,20 @@ export class SupabaseCrm {
      */
     static async contactSeller(deal: { address: string; phone: string }): Promise<void> {
         if (!deal.phone || deal.phone === "N/A" || deal.phone === "Unknown") {
-            log(`[supabaseCrm] âš ï¸  Skipping outreach for ${deal.address}: No valid phone number.`, "warn");
+            log(`[supabaseCrm] ⚠️ Skipping outreach for ${deal.address}: No valid phone number.`, "warn");
             return;
         }
 
         const message = `Hey, I saw your property at ${deal.address}. Are you open to selling?`;
         
         try {
-            log(`[supabaseCrm] ðŸ“± Initiating outreach for ${deal.address}...`);
+            log(`[supabaseCrm] 📱 Initiating outreach for ${deal.address}...`);
             await sendSms(deal.phone, message);
-            log(`[supabaseCrm] âœ… Outreach SMS sent for ${deal.address}.`);
+            log(`[supabaseCrm] ✅ Outreach SMS sent for ${deal.address}.`);
         } catch (err: any) {
-            log(`[supabaseCrm] âš ï¸  Outreach failed for ${deal.address}: ${err.message}`, "error");
+            log(`[supabaseCrm] ⚠️ Outreach failed for ${deal.address}: ${err.message}`, "error");
         }
     }
-
 
     /**
      * Get CRM Statistics from Supabase
@@ -135,23 +133,26 @@ export class SupabaseCrm {
     static async getStats(): Promise<{ leads: number; underContract: number; revenue: number }> {
         try {
             const supabase = getSupabase();
+            if (!supabase) return { leads: 0, underContract: 0, revenue: 0 };
+
             const { data: deals, error } = await supabase.from("deals").select("*");
 
             if (error) throw error;
             if (!deals) return { leads: 0, underContract: 0, revenue: 0 };
 
-            const leads = deals.length;
+            const leadsCount = deals.length;
             const underContract = deals.filter((d: any) => d.stage === "under_contract").length;
             const revenue = deals
                 .filter((d: any) => d.stage === "closed")
                 .reduce((sum: number, d: any) => sum + (d.profit || 0), 0);
 
-            return { leads, underContract, revenue };
+            return { leads: leadsCount, underContract, revenue };
         } catch (err: any) {
-            log(`[supabaseCrm] âš ï¸  Failed to fetch stats: ${err.message}`, "error");
+            log(`[supabaseCrm] ⚠️ Failed to fetch stats: ${err.message}`, "error");
             return { leads: 0, underContract: 0, revenue: 0 };
         }
     }
+
     /**
      * Get System Status from Supabase Telemetry
      */
@@ -163,9 +164,10 @@ export class SupabaseCrm {
     }> {
         try {
             const supabase = getSupabase();
+            if (!supabase) return { realEstateActive: false, dealsFoundToday: 0, highScoreLeads: 0, tradingActive: false };
+
             const today = new Date().toISOString().split('T')[0];
 
-            // 1. Deals Found Today
             const { count: dealsCount, error: dealsError } = await supabase
                 .from("bot_events")
                 .select("*", { count: 'exact', head: true })
@@ -174,7 +176,6 @@ export class SupabaseCrm {
 
             if (dealsError) throw dealsError;
 
-            // 2. High Score Leads (Score >= 8)
             const { data: highScores, error: scoresError } = await supabase
                 .from("bot_events")
                 .select("data")
@@ -198,12 +199,13 @@ export class SupabaseCrm {
     }
 
     /**
-     * Step 11 — Request Approval Flow
-     * Inserts into pending_actions and sends Telegram message with /approve command
+     * Request Approval Flow
      */
     static async requestApproval(deal: Lead, bot: Telegraf): Promise<void> {
         try {
             const supabase = getSupabase();
+            if (!supabase) return;
+
             const profit = (deal.arv || 0) - (deal.price || 0) - (deal.repairs || 0);
             const roi = (deal.price || 0) > 0 ? (profit / (deal.price || 0)) * 100 : 0;
 
@@ -243,6 +245,8 @@ Approve contacting seller?
     static async getPendingAction(id: number): Promise<any> {
         try {
             const supabase = getSupabase();
+            if (!supabase) return null;
+
             const { data, error } = await supabase.from("pending_actions").select("*").eq("id", id).single();
             if (error) throw error;
             return data;
@@ -258,6 +262,8 @@ Approve contacting seller?
     static async updatePendingAction(id: number, status: "approved" | "rejected"): Promise<void> {
         try {
             const supabase = getSupabase();
+            if (!supabase) return;
+
             const { error } = await supabase.from("pending_actions").update({ status }).eq("id", id);
             if (error) throw error;
             log(`[supabaseCrm] ✅ Action ${id} marked as ${status}`);
@@ -272,6 +278,8 @@ Approve contacting seller?
     static async updateDealStage(address: string, stage: string): Promise<boolean> {
         try {
             const supabase = getSupabase();
+            if (!supabase) return false;
+
             const { error } = await supabase
                 .from("deals")
                 .update({ status: stage, updated_at: new Date().toISOString() })
@@ -289,6 +297,8 @@ Approve contacting seller?
     static async updateDealStatusByPhone(phone: string, status: string): Promise<void> {
         try {
             const supabase = getSupabase();
+            if (!supabase) return;
+
             const { error } = await supabase
                 .from("deals")
                 .update({ status: status })

@@ -77,7 +77,7 @@ export class RealEstateAgent extends BaseAgent {
     const profit = deal.profit || 0;
     const roi = deal.roi || 0;
     const verdict = deal.verdict || "UNKNOWN";
-    
+
     const emoji = verdict === "GOOD_DEAL" ? "🔥" : verdict === "MARGINAL" ? "👀" : "❌";
 
     return (
@@ -142,18 +142,18 @@ export class RealEstateAgent extends BaseAgent {
       const state = stateMatch ? stateMatch[1].trim() : "Texas";
 
       log(`[realEstate] 🚀 Initiating Automated Surplus Scan for ${state}...`);
-      
+
       // Fire and forget the background pipeline
       runAutomatedSurplusScan().catch(err => {
         log(`[realEstate] ❌ Background Surplus Scan Error: ${err.message}`, "error");
       });
 
       return `🚀 **Surplus Overage Scan Initiated (Apify Mode)**\n\n` +
-             `I have triggered your external **Apify** scraper fleet to scan ${state} county records.\n\n` +
-             `✅ **Cloud Scraping**: Active\n` +
-             `✅ **SkipTracing**: On\n` +
-             `✅ **AI Voice Outreach**: On\n\n` +
-             `This scan is running in the cloud to protect your server resources. I will alert you via Telegram as soon as a high-margin deal hits our ingestion webhook.`;
+        `I have triggered your external **Apify** scraper fleet to scan ${state} county records.\n\n` +
+        `✅ **Cloud Scraping**: Active\n` +
+        `✅ **SkipTracing**: On\n` +
+        `✅ **AI Voice Outreach**: On\n\n` +
+        `This scan is running in the cloud to protect your server resources. I will alert you via Telegram as soon as a high-margin deal hits our ingestion webhook.`;
     }
 
     // MAO calculation
@@ -179,7 +179,7 @@ export class RealEstateAgent extends BaseAgent {
 
     if (
       (lower.includes("mao") || lower.includes("arv") ||
-       (lower.includes("calculate") && lower.includes("deal"))) &&
+        (lower.includes("calculate") && lower.includes("deal"))) &&
       numbers.length === 2
     ) {
       const [arv, repairs] = numbers;
@@ -230,7 +230,7 @@ export class RealEstateAgent extends BaseAgent {
 
     // Outreach drafting
     if (lower.includes("outreach") || lower.includes("draft") ||
-        lower.includes("sms") || lower.includes("message") && lower.includes("seller")) {
+      lower.includes("sms") || lower.includes("message") && lower.includes("seller")) {
       return await this.draftOutreach(
         { address: userMessage },
         lower.includes("email") ? "email" : "sms"

@@ -50,25 +50,23 @@ async function runTask({ input, tools: jsTools, autonomous }: { input: string, t
         }, ["dealId"])
     ];
 
-    let messages: any[] = [
-        { role: "system", content: "You are Claw, an autonomous real estate AI agent. You have access to internal tools. Please utilize them optimally to complete the user's intent." },
-        { role: "user", content: input }
-    ];
+    let messages: any[] = [{ role: "user", content: input }];
 
     const maxLoops = autonomous ? 7 : 1;
     
     for (let i = 0; i < maxLoops; i++) {
         console.log(`[runTask] Iteration ${i+1}/${maxLoops}`);
-        const response = await askAI("", "You are the Claw Autonomous Agent.", {
+        const response = await askAI("", "You are Claw, the Autonomous Real Estate Agent. Use your tools to fulfill the user's intent.", {
             messages,
             tools: aiTools,
             toolChoice: "auto"
         });
 
-        if (response.toolCalls && response.toolCalls.length > 0) {
-            messages.push({ role: "assistant", content: response.content || `Running ${response.toolCalls.length} tools...` });
+        const calls = response.tool_calls || response.toolCalls;
+        if (calls && calls.length > 0) {
+            messages.push({ role: "assistant", content: response.content || `Running ${calls.length} tools...`, tool_calls: calls });
 
-            for (const call of response.toolCalls) {
+            for (const call of calls) {
                 const funcName = call.function.name;
                 const args = JSON.parse(call.function.arguments);
                 console.log(`[Claw Agent Exec] 🛠️ ${funcName}(...)`);
@@ -85,10 +83,10 @@ async function runTask({ input, tools: jsTools, autonomous }: { input: string, t
                    resStr = "Function not found in schema";
                 }
 
-                // Appending as user role for broad compatibility cross-providers (Groq stripping avoidance)
                 messages.push({
-                   role: "user",
-                   content: `[Tool Result: ${funcName}]\n${resStr}\nObserve these results and decide carefully what step to take next.`
+                   role: "tool",
+                   tool_call_id: call.id,
+                   content: resStr
                 });
             }
         } else {
@@ -102,7 +100,7 @@ async function runTask({ input, tools: jsTools, autonomous }: { input: string, t
 export async function runClawAgent(goal: string) {
   return await runTask({
     input: goal,
-    tools: tools, // 🔥 THIS IS THE MAGIC
+    tools: tools,
     autonomous: true
   });
 }

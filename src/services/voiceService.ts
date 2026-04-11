@@ -1,6 +1,6 @@
 import { config, log } from "../core/config.js";
 import fetch from "node-fetch";
-import { getSupabase } from "../core/supabaseMemory.js";
+import { getSupabase } from "../core/memory.js";
 import crypto from "crypto";
 
 /**
@@ -58,17 +58,21 @@ export async function uploadAudioAndGetUrl(text: string): Promise<string> {
     const fileName = `${hash}.mp3`;
     const bucketName = "voice-cache";
 
-    const supabase = getSupabase();
+    const supabaseInstance = getSupabase();
+    if (!supabaseInstance) {
+        log("[voice] ❌ Supabase not connected. Using fallback URL.", "warn");
+        return `${process.env.BASE_URL}/api/voice/audio?text=${encodeURIComponent(text)}`;
+    }
 
     try {
         // 1. Check if file already exists in Supabase
-        const { data: existingFile } = await supabase.storage.from(bucketName).list("", {
+        const { data: existingFile } = await supabaseInstance.storage.from(bucketName).list("", {
             search: fileName
         });
 
         if (existingFile && existingFile.length > 0) {
             log(`[voice] 🚀 Cache hit! Found existing audio for hash ${hash}`);
-            const { data } = supabase.storage.from(bucketName).getPublicUrl(fileName);
+            const { data } = supabaseInstance.storage.from(bucketName).getPublicUrl(fileName);
             return data.publicUrl;
         }
 
@@ -77,7 +81,7 @@ export async function uploadAudioAndGetUrl(text: string): Promise<string> {
 
         // 3. Upload to Supabase Storage
         log(`[voice] 📤 Uploading new audio to Supabase: ${fileName}`);
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabaseInstance.storage
             .from(bucketName)
             .upload(fileName, buffer, {
                 contentType: "audio/mpeg",
@@ -88,7 +92,7 @@ export async function uploadAudioAndGetUrl(text: string): Promise<string> {
         if (uploadError) throw uploadError;
 
         // 4. Get and return Public URL
-        const { data } = supabase.storage.from(bucketName).getPublicUrl(fileName);
+        const { data } = supabaseInstance.storage.from(bucketName).getPublicUrl(fileName);
         return data.publicUrl;
     } catch (err: any) {
         log(`[voice] ❌ Upload/GetUrl failed: ${err.message}`, "error");

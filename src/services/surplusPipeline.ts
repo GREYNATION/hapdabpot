@@ -67,3 +67,7 @@ export async function runAutomatedSurplusScan(preHarvestedProperties: Property[]
         return 0;
     }
 }
+
+export async function runHarrisCountyScan(): Promise<number> {
+    return await runAutomatedSurplusScan();
+}

@@ -51,11 +51,10 @@ export class OrchestratorAgent extends BaseAgent {
   getSystemPrompt(): string {
     return "You are HapdaBot, an autonomous AI business operator for Hap. " +
       "You manage three specialized agents: " +
-      "MasterTraderAgent for crypto/forex trading (BTC/USD, GBP/USD), " +
-      "RealEstateAgent for wholesaling leads, deal analysis, and seller outreach, " +
-      "and DramaAgent for TikTok 3D mini-drama production and scriptwriting. " +
-      "Route requests to the right agent. For general conversation, respond directly. " +
-      "Be sharp, fast, and results-oriented. Never ask for unnecessary clarification.";
+      "MasterTraderAgent for crypto/forex trading, " +
+      "RealEstateAgent for wholesaling leads, " +
+      "and DramaAgent for TikTok mini-drama production. " +
+      "Route requests to the right agent. For general conversation, respond directly.";
   }
 
   registerTraderAgent(agent: any) {
@@ -92,8 +91,6 @@ export class OrchestratorAgent extends BaseAgent {
 
     const best = scores.reduce((prev, current) => (current.score > prev.score) ? current : prev);
 
-    if (best.score === 0) return { intent: "general", confidence: "low" };
-
     return { 
       intent: best.intent, 
       confidence: best.score >= 2 ? "high" : "low" 
@@ -105,39 +102,31 @@ export class OrchestratorAgent extends BaseAgent {
 
     log(`[orchestrator] Intent: ${intent} (${confidence}) — "${userMessage.slice(0, 60)}"`);
 
-    const multimodalPayload = attachments.length > 0 ? [
-      { type: "text", text: userMessage },
-      ...attachments
-    ] : userMessage;
-
     try {
       switch (intent) {
         case "trading": {
           if (this.masterTraderAgent) {
-            const res = await this.masterTraderAgent.ask(multimodalPayload);
+            const res = await this.masterTraderAgent.ask(userMessage);
             return { intent, confidence, response: res.content };
           }
-          return { intent, confidence, response: "MasterTraderAgent not connected yet." };
+          return { intent, confidence, response: "MasterTraderAgent not connected." };
         }
-
         case "real_estate": {
           if (this.realEstateAgent) {
-            const response = await this.realEstateAgent.handle(multimodalPayload);
+            const response = await this.realEstateAgent.handle(userMessage);
             return { intent, confidence, response };
           }
-          return { intent, confidence, response: "RealEstateAgent not connected yet." };
+          return { intent, confidence, response: "RealEstateAgent not connected." };
         }
-
         case "drama": {
           if (this.dramaAgent) {
-            const response = await this.dramaAgent.handle(multimodalPayload, "user");
+            const response = await this.dramaAgent.handle(userMessage, "user");
             return { intent, confidence, response };
           }
-          return { intent, confidence, response: "DramaAgent not connected yet." };
+          return { intent, confidence, response: "DramaAgent not connected." };
         }
-
         default: {
-          const res = await this.ask(multimodalPayload);
+          const res = await this.ask(userMessage);
           return { intent, confidence, response: res.content };
         }
       }
@@ -150,17 +139,6 @@ export class OrchestratorAgent extends BaseAgent {
 
 export const orchestrator = new OrchestratorAgent();
 
-/**
- * Telegraf Helper: orchestrate
- */
-export async function orchestrate(message: string, userId: number): Promise<string> {
-    const result = await orchestrator.route(message);
-    return result.response;
-}
-
-/**
- * Telegraf Helper: generateMorningBriefing
- */
 export async function generateMorningBriefing(): Promise<string> {
     const stats = await SupabaseCrm.getSystemStatus();
     const hotDeal = CrmManager.getHottestDeal();
@@ -172,16 +150,15 @@ export async function generateMorningBriefing(): Promise<string> {
         "",
         "🏠 *REAL ESTATE*",
         `Deals Found Today: ${stats.dealsFoundToday}`,
-        `Hot Deal: ${hotDeal ? hotDeal.address : "None"} ($${hotDeal?.profit ? hotDeal.profit.toLocaleString() : 0} potential)`,
+        `Hot Deal: ${hotDeal ? hotDeal.address : "None"}`,
         `Monthly Revenue: $${revenue.month.toLocaleString()}`,
         "",
         "📈 *TRADING*",
         "BTC/USD: Monitoring",
-        "Last Signal: See /signals",
         "",
         "🎬 *DRAMA*",
         "TikTok Production: ACTIVE",
         "",
-        `_Hapdabot Brain v1.0.0 Online_`
+        `_Hapdabot Brain Online_`
     ].join("\n");
 }

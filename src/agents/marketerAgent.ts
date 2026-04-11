@@ -50,5 +50,5 @@ Goal context:
 
 Return your response in a clear, structured JSON format.`;
     }
-}
 
+}

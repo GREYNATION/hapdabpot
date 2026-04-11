@@ -1,3 +1,7 @@
+/**
+ * Utility to wrap any promise with a timeout.
+ * If the promise doesn't resolve in time, it rejects with TimeoutError.
+ */
 export class TimeoutError extends Error {
   constructor(label: string, ms: number) {
     super(`[Timeout] "${label}" exceeded ${ms}ms`);
@@ -7,7 +11,6 @@ export class TimeoutError extends Error {
 
 /**
  * Wraps any promise with a timeout.
- * If the promise doesn't resolve in time, it rejects with TimeoutError.
  *
  * Usage:
  *   const result = await withTimeout(runAutonomousPipeline(...), 30_000, "marketScan");
@@ -30,24 +33,16 @@ export async function withTimeout<T>(
     clearTimeout(timer!);
     return result;
   } catch (err) {
-    if (timer!) clearTimeout(timer);
+    clearTimeout(timer!);
     throw err;
   }
 }
 
 /**
- * Safe error message extractor — fixes ts(1343).
- * Use this everywhere you have a catch block.
- *
- * Instead of: (err instanceof Error ? err.message : String(err))
- * Just use:   getErrorMessage(err)
+ * Helper to get a clean error message from any caught error.
  */
-export function getErrorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  if (typeof err === "string") return err;
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return String(err);
-  }
+export function getErrorMessage(error: any): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "Unknown error occurred";
 }
