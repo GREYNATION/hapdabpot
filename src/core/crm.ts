@@ -1,4 +1,4 @@
-import { db } from "./memory.js";
+import { getDb } from "./memory.js";
 import { log } from "./config.js";
 
 export interface Deal {
@@ -49,7 +49,7 @@ export class CrmManager {
         const repairs = deal.repair_estimate || 0;
         const maxOffer = this.calculateMaxOffer(arv, repairs);
 
-        const stmt = db.prepare(`
+        const stmt = getDb().prepare(`
             INSERT INTO deals (address, seller_name, seller_phone, arv, repair_estimate, max_offer, status, assigned_buyer, profit, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
@@ -86,7 +86,7 @@ export class CrmManager {
             .map(f => (updates as any)[f])
             .concat([maxOffer]);
 
-        const stmt = db.prepare(`UPDATE deals SET ${fields.join(", ")} WHERE id = ?`);
+        const stmt = getDb().prepare(`UPDATE deals SET ${fields.join(", ")} WHERE id = ?`);
         const result = stmt.run(...values, id);
         
         // After any update, check if we need to trigger logic (like invoice prompt)
@@ -98,27 +98,27 @@ export class CrmManager {
     }
 
     static getDeal(id: number): Deal | undefined {
-        const stmt = db.prepare("SELECT * FROM deals WHERE id = ?");
+        const stmt = getDb().prepare("SELECT * FROM deals WHERE id = ?");
         return stmt.get(id) as Deal | undefined;
     }
 
     static listDeals(limit = 20): Deal[] {
-        const stmt = db.prepare("SELECT * FROM deals ORDER BY updated_at DESC LIMIT ?");
+        const stmt = getDb().prepare("SELECT * FROM deals ORDER BY updated_at DESC LIMIT ?");
         return stmt.all(limit) as Deal[];
     }
 
     static findDealsByAddress(query: string): Deal[] {
-        const stmt = db.prepare("SELECT * FROM deals WHERE address LIKE ? ORDER BY updated_at DESC");
+        const stmt = getDb().prepare("SELECT * FROM deals WHERE address LIKE ? ORDER BY updated_at DESC");
         return stmt.all(`%${query}%`) as Deal[];
     }
 
     static findLatestDealByPhone(phone: string): Deal | undefined {
-        const stmt = db.prepare("SELECT * FROM deals WHERE seller_phone = ? ORDER BY updated_at DESC LIMIT 1");
+        const stmt = getDb().prepare("SELECT * FROM deals WHERE seller_phone = ? ORDER BY updated_at DESC LIMIT 1");
         return stmt.get(phone) as Deal | undefined;
     }
 
     static async updateDealOutcome(id: number, outcome: "closed" | "no_response", notes?: string) {
-        const stmt = db.prepare("UPDATE deals SET outcome = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+        const stmt = getDb().prepare("UPDATE deals SET outcome = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
         const result = stmt.run(outcome, notes || null, id);
 
         // Mirror to Supabase if we have a way to track the phone for lookup
@@ -132,7 +132,7 @@ export class CrmManager {
     }
 
     static listBuyers(): any[] {
-        return db.prepare("SELECT * FROM buyers ORDER BY name ASC").all();
+        return getDb().prepare("SELECT * FROM buyers ORDER BY name ASC").all();
     }
 
     static findMatchingBuyers(deal: Deal): any[] {
@@ -186,12 +186,12 @@ Reply FAST if interested. This will move quickly.
         const deal = this.getDeal(dealId);
         if (!deal) throw new Error("Deal not found");
 
-        const buyer = db.prepare("SELECT * FROM buyers WHERE id = ?").get(buyerId) as any;
+        const buyer = getDb().prepare("SELECT * FROM buyers WHERE id = ?").get(buyerId) as any;
         if (!buyer) throw new Error("Buyer not found");
 
         const assignmentFee = salePrice - (deal.max_offer || 0);
         
-        db.prepare(`
+        getDb().prepare(`
             UPDATE deals 
             SET status = 'assigned', 
                 assigned_buyer = ?, 
@@ -226,7 +226,7 @@ Reply FAST if interested. This will move quickly.
         await sendSms(phone, `Claw here. Based on our discussion, here is the recovery agreement for ${deal.address}:\n\n${contractText}`);
         
         // Update Status
-        db.prepare("UPDATE deals SET status = 'contract', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(dealId);
+        getDb().prepare("UPDATE deals SET status = 'contract', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(dealId);
         
         // Mirror to Supabase
         try {
@@ -239,7 +239,7 @@ Reply FAST if interested. This will move quickly.
     }
 
     static getStats() {
-        const counts = db.prepare(`
+        const counts = getDb().prepare(`
             SELECT status, COUNT(*) as count 
             FROM deals 
             GROUP BY status
@@ -269,7 +269,7 @@ Reply FAST if interested. This will move quickly.
      * Get leads that haven't been touched in 3 days
      */
     static getColdLeads(days = 3): Deal[] {
-        const stmt = db.prepare(`
+        const stmt = getDb().prepare(`
             SELECT * FROM deals 
             WHERE status IN ('lead', 'contacted')
             AND updated_at < date('now', ?)
@@ -279,12 +279,12 @@ Reply FAST if interested. This will move quickly.
     }
 
     static getHottestDeal(): Deal | undefined {
-        return db.prepare("SELECT * FROM deals WHERE status != 'closed' ORDER BY profit DESC LIMIT 1").get() as Deal | undefined;
+        return getDb().prepare("SELECT * FROM deals WHERE status != 'closed' ORDER BY profit DESC LIMIT 1").get() as Deal | undefined;
     }
 
     static getTotalRevenue() {
-        const month = db.prepare("SELECT SUM(profit) as total FROM deals WHERE status = 'closed' AND updated_at > date('now', '-30 days')").get() as any;
-        const allTime = db.prepare("SELECT SUM(profit) as total FROM deals WHERE status = 'closed'").get() as any;
+        const month = getDb().prepare("SELECT SUM(profit) as total FROM deals WHERE status = 'closed' AND updated_at > date('now', '-30 days')").get() as any;
+        const allTime = getDb().prepare("SELECT SUM(profit) as total FROM deals WHERE status = 'closed'").get() as any;
         return {
             month: month?.total || 0,
             allTime: allTime?.total || 0

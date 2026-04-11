@@ -7,7 +7,7 @@ import { SupabaseCrm } from './core/supabaseCrm.js';
 import { sendTelegram, sendSms, generateContract, triggerAICall } from './services/outreachService.js';
 import { classifyLead } from './services/leadFilter.js';
 import { generateVoice, uploadAudioAndGetUrl } from './services/voiceService.js';
-import { db } from './core/memory.js';
+import { getDb } from './core/memory.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { aiNegotiate } from './core/negotiation/aiCloser.js';
@@ -182,7 +182,7 @@ app.post('/api/voice/status', express.urlencoded({ extended: false }), async (re
     }
 
     try {
-      db.prepare("UPDATE deals SET last_call_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      getDb().prepare("UPDATE deals SET last_call_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
         .run(status, Number(dealId));
 
       // Mirror Answered status to Supabase Funnel
@@ -191,7 +191,7 @@ app.post('/api/voice/status', express.urlencoded({ extended: false }), async (re
         if (deal) await SupabaseCrm.updateDealStage(deal.address, 'Contacted');
       }
     } catch (err: any) {
-      log(`[Twilio Status] DB Update Failed: ${err.message}`, "error");
+      log(`[Twilio Status] getDb() Update Failed: ${err.message}`, "error");
     }
   }
 
@@ -219,7 +219,7 @@ app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: R
   const dealId = req.query.dealId;
 
   if (intent === "interested" && dealId) {
-    db.prepare("UPDATE deals SET last_call_status = 'Interested', status = 'interested', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+    getDb().prepare("UPDATE deals SET last_call_status = 'Interested', status = 'interested', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
       .run(Number(dealId));
     
     // Mirror to Supabase Funnel
@@ -230,7 +230,7 @@ app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: R
   if (intent === "not_interested") {
     log(`[Twilio Voice] Opt-out detected: "${speech}"`);
     if (dealId) {
-      db.prepare("UPDATE deals SET last_call_status = 'Not interested', status = 'not_interested', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      getDb().prepare("UPDATE deals SET last_call_status = 'Not interested', status = 'not_interested', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
         .run(Number(dealId));
       
       const deal = CrmManager.getDeal(Number(dealId));
@@ -346,11 +346,11 @@ app.use(express.static(path.join(__dirname, 'web')));
 // Dashboard Stats API
 app.get('/api/dashboard/stats', (req: Request, res: Response) => {
   try {
-    const totalLeads = db.prepare("SELECT COUNT(*) as count FROM scraped_leads").get() as any;
-    const surplusDeals = db.prepare("SELECT COUNT(*) as count FROM deals").get() as any;
-    const callsMade = db.prepare("SELECT COUNT(*) as count FROM outreach_logs WHERE type = 'call'").get() as any;
-    const interestedLeads = db.prepare("SELECT COUNT(*) as count FROM deals WHERE status = 'interested'").get() as any;
-    const totalProfit = db.prepare("SELECT SUM(profit) as total FROM deals").get() as any;
+    const totalLeads = getDb().prepare("SELECT COUNT(*) as count FROM scraped_leads").get() as any;
+    const surplusDeals = getDb().prepare("SELECT COUNT(*) as count FROM deals").get() as any;
+    const callsMade = getDb().prepare("SELECT COUNT(*) as count FROM outreach_logs WHERE type = 'call'").get() as any;
+    const interestedLeads = getDb().prepare("SELECT COUNT(*) as count FROM deals WHERE status = 'interested'").get() as any;
+    const totalProfit = getDb().prepare("SELECT SUM(profit) as total FROM deals").get() as any;
 
     res.json({
       totalLeads: totalLeads?.count || 0,
@@ -367,7 +367,7 @@ app.get('/api/dashboard/stats', (req: Request, res: Response) => {
 // Dashboard Deals API
 app.get('/api/dashboard/deals', (req: Request, res: Response) => {
   try {
-    const deals = db.prepare("SELECT * FROM deals ORDER BY created_at DESC LIMIT 50").all();
+    const deals = getDb().prepare("SELECT * FROM deals ORDER BY created_at DESC LIMIT 50").all();
     res.json(deals);
   } catch (err: any) {
     res.status(500).json({ error: err.message });

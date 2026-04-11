@@ -1,6 +1,6 @@
 import { Telegraf } from "telegraf";
 import { CrmManager } from "../core/crm.js";
-import { db } from "../core/memory.js";
+import { getDb } from "../core/memory.js";
 import { promptOutreachApproval } from "../services/outreachService.js";
 import { findMotivatedSellers, Lead } from "../services/universalLeadScraper.js";
 import { formatTopDeal, tagDeal } from "../services/leadFilter.js";
@@ -35,7 +35,7 @@ export function startLeadAlerts(bot: Telegraf) {
 async function runLeadScan(bot: Telegraf, chatId: number, isStartup: boolean) {
     log("[leads] Starting unified lead scan...");
 
-    const criteria = db.prepare(
+    const criteria = getDb().prepare(
         "SELECT * FROM lead_search_criteria WHERE active = 1"
     ).all() as any[];
 
@@ -70,13 +70,13 @@ async function runLeadScan(bot: Telegraf, chatId: number, isStartup: boolean) {
 
     // Save high-quality deals to scraped_leads index for Telegram /-commands
     for (const lead of validDeals) {
-        const alreadyExists = db.prepare(
+        const alreadyExists = getDb().prepare(
             "SELECT id FROM scraped_leads WHERE address = ? AND created_at > date('now', '-7 days')"
         ).get(lead.address);
 
         if (alreadyExists) continue;
 
-        db.prepare(`
+        getDb().prepare(`
             INSERT INTO scraped_leads 
             (address, source, price, estimated_arv, estimated_repairs, mao, potential_profit, days_on_market, motivation_signals, url, alerted)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
@@ -132,7 +132,7 @@ export function registerLeadAlertHandlers(bot: Telegraf) {
 
     bot.command("criteria", async (ctx) => {
         if (ctx.chat.id !== OWNER_CHAT_ID) return;
-        const criteria = db.prepare("SELECT * FROM lead_search_criteria WHERE active = 1").all() as any[];
+        const criteria = getDb().prepare("SELECT * FROM lead_search_criteria WHERE active = 1").all() as any[];
 
         let msg = `🔍 *Active Search Criteria*\n\n`;
         criteria.forEach((c, i) => {
@@ -149,7 +149,7 @@ export function registerLeadAlertHandlers(bot: Telegraf) {
         const parts = ctx.message.text.split(" ").slice(1);
         const idx = parseInt(parts[0]) - 1;
 
-        const recentLeads = db.prepare(
+        const recentLeads = getDb().prepare(
             "SELECT * FROM scraped_leads WHERE alerted = 1 ORDER BY created_at DESC LIMIT 15"
         ).all() as any[];
 

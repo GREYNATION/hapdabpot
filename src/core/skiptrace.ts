@@ -1,6 +1,6 @@
-﻿import { BaseAgent } from "../agents/baseAgent.js";
+import { BaseAgent } from "../agents/baseAgent.js";
 import { ResearcherAgent } from "../agents/researcherAgent.js";
-import { db } from "./memory.js";
+import { getDb } from "./memory.js";
 import { log } from "./config.js";
 
 export class SkipTracer {
@@ -56,7 +56,7 @@ export class SkipTracer {
         if (!contact.phone && !contact.email) return;
 
         try {
-            const stmt = db.prepare(`
+            const stmt = getDb().prepare(`
                 UPDATE deals 
                 SET seller_phone = ?, seller_name = coalesce(seller_name, ?)
                 WHERE id = ?

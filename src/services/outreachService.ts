@@ -1,7 +1,7 @@
 import { Telegraf, Context, Markup } from 'telegraf';
 import twilio from 'twilio';
 import nodemailer from 'nodemailer';
-import { db } from '../core/memory.js';
+import { getDb } from '../core/memory.js';
 import { config, log } from '../core/config.js';
 import { CrmManager } from '../core/crm.js';
 import { logEvent } from "../core/telemetry.js";
@@ -31,7 +31,7 @@ export function startOutreachCron(bot: Telegraf) {
 }
 
 async function processOutreachSteps(bot: Telegraf) {
-    const dueSequences = db.prepare(`
+    const dueSequences = getDb().prepare(`
         SELECT * FROM outreach_sequences 
         WHERE status = 'active' 
         AND next_run_at <= CURRENT_TIMESTAMP
@@ -46,7 +46,7 @@ async function processOutreachSteps(bot: Telegraf) {
 
         const nextStepIdx = seq.current_step + 1;
         if (nextStepIdx >= OUTREACH_STEPS.length) {
-            db.prepare("UPDATE outreach_sequences SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(seq.id);
+            getDb().prepare("UPDATE outreach_sequences SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(seq.id);
             continue;
         }
 
@@ -64,7 +64,7 @@ async function processOutreachSteps(bot: Telegraf) {
                 new Date(Date.now() + (nextStepInPlan.day - step.day) * 24 * 60 * 60 * 1000).toISOString() : 
                 null;
 
-            db.prepare(`
+            getDb().prepare(`
                 UPDATE outreach_sequences 
                 SET current_step = ?, next_run_at = ?, updated_at = CURRENT_TIMESTAMP 
                 WHERE id = ?
@@ -78,7 +78,7 @@ async function processOutreachSteps(bot: Telegraf) {
 }
 
 function stopSequence(id: number) {
-    db.prepare("UPDATE outreach_sequences SET status = 'stopped', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(id);
+    getDb().prepare("UPDATE outreach_sequences SET status = 'stopped', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(id);
 }
 
 function formatTemplate(template: string, deal: any): string {
@@ -103,7 +103,7 @@ export async function sendSms(to: string, body: string, dealId?: number) {
         log(`[outreach] SMS Sent to ${to}: ${message.sid}`);
         
         if (dealId) {
-            db.prepare(`
+            getDb().prepare(`
                 INSERT INTO outreach_logs (deal_id, type, content, status)
                 VALUES (?, 'sms', ?, 'sent')
             `).run(dealId, body);
@@ -112,7 +112,7 @@ export async function sendSms(to: string, body: string, dealId?: number) {
         return message;
     } catch (err: any) {
         if (dealId) {
-            db.prepare(`
+            getDb().prepare(`
                 INSERT INTO outreach_logs (deal_id, type, content, status)
                 VALUES (?, 'sms', ?, 'failed')
             `).run(dealId, body);
@@ -140,14 +140,14 @@ export async function sendEmail(to: string, subject: string, body: string, dealI
             text: body
         });
         
-        db.prepare(`
+        getDb().prepare(`
             INSERT INTO outreach_logs (deal_id, type, content, status)
             VALUES (?, 'email', ?, 'sent')
         `).run(dealId, body);
         
         log(`[outreach] Email sent to ${to}`);
     } catch (err: any) {
-        db.prepare(`
+        getDb().prepare(`
             INSERT INTO outreach_logs (deal_id, type, content, status)
             VALUES (?, 'email', ?, 'failed')
         `).run(dealId, body);
@@ -177,7 +177,7 @@ export function registerOutreachHandlers(bot: Telegraf) {
             const nextStep = OUTREACH_STEPS[1];
             const nextRun = new Date(Date.now() + nextStep.day * 24 * 60 * 60 * 1000).toISOString();
             
-            db.prepare(`
+            getDb().prepare(`
                 INSERT INTO outreach_sequences (deal_id, status, current_step, next_run_at)
                 VALUES (?, 'active', 0, ?)
             `).run(dealId, nextRun);
@@ -200,7 +200,7 @@ export function registerOutreachHandlers(bot: Telegraf) {
     bot.command('outreach_status', async (ctx) => {
         if (ctx.from.id !== ownerId) return;
         
-        const active = db.prepare("SELECT * FROM outreach_sequences WHERE status = 'active'").all() as any[];
+        const active = getDb().prepare("SELECT * FROM outreach_sequences WHERE status = 'active'").all() as any[];
         if (active.length === 0) return ctx.reply("No active outreach sequences.");
 
         let msg = "ðŸ“ **Active Outreach Sequences**\n\n";
@@ -308,11 +308,11 @@ export async function triggerAICall(deal: any): Promise<void> {
         
         // Log to database for dashboard stats and UI
         try {
-            db.prepare(`
+            getDb().prepare(`
                 UPDATE deals SET last_call_status = 'Dialed', updated_at = CURRENT_TIMESTAMP WHERE id = ?
             `).run(deal.id);
 
-            db.prepare(`
+            getDb().prepare(`
                 INSERT INTO outreach_logs (deal_id, type, content, status)
                 VALUES (?, ?, ?, ?)
             `).run(deal.id || 0, 'call', 'Outbound AI Voice Call Initiated', 'Dialed');

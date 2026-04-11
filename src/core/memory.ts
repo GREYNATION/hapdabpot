@@ -5,10 +5,10 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { config, log } from "./config.js";
 
 // Database is initialized using the redirected path from config.ts
-export const db = new Database(config.dbPath);
+export const getDb = () => new Database(config.dbPath);
 
 // Enable WAL for better performance
-db.pragma("journal_mode = WAL");
+
 
 // ─── Supabase Client (Master Brain) ───────────────────────────────────────────
 
@@ -48,7 +48,7 @@ export interface AgentSignal {
 export function initDb() {
     log("[db] Initializing local database at: " + config.dbPath);
 
-    db.exec(`
+    getDb().exec(`
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id INTEGER NOT NULL,
@@ -58,7 +58,7 @@ export function initDb() {
         );
     `);
 
-    db.exec(`
+    getDb().exec(`
         CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
             content,
             content='messages',
@@ -66,7 +66,7 @@ export function initDb() {
         );
     `);
 
-    db.exec(`
+    getDb().exec(`
         CREATE TABLE IF NOT EXISTS background_queue (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id INTEGER NOT NULL,
@@ -84,12 +84,12 @@ export function initDb() {
 // ─── Operational Functions (SQLite) ───────────────────────────────────────────
 
 export function saveMessage(chatId: number, role: "user" | "assistant", content: string) {
-    const stmt = db.prepare("INSERT INTO messages (chat_id, role, content) VALUES (?, ?, ?)");
+    const stmt = getDb().prepare("INSERT INTO messages (chat_id, role, content) VALUES (?, ?, ?)");
     return stmt.run(chatId, role, content);
 }
 
 export function getRecentMessages(chatId: number, limit = 10) {
-    const stmt = db.prepare(`
+    const stmt = getDb().prepare(`
         SELECT role, content FROM (
             SELECT role, content, id FROM messages 
             WHERE chat_id = ? 
