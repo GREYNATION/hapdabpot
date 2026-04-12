@@ -2,9 +2,10 @@ import { BaseAgent } from "../baseAgent.js";
 import { log } from "../../core/config.js";
 import { SupabaseCrm } from "../../core/supabaseCrm.js";
 import { CrmManager } from "../../core/crm.js";
+import { AdsAgent } from "../ads/AdsAgent.js";
 
 // Intent Types
-type Intent = "trading" | "real_estate" | "drama" | "general";
+type Intent = "trading" | "real_estate" | "drama" | "ads" | "general";
 
 interface RouteResult {
   intent: Intent;
@@ -30,15 +31,24 @@ const REAL_ESTATE_KEYWORDS = [
 ];
 
 const DRAMA_KEYWORDS = [
-  "script", "tiktok", "drama", "episode", "scene", "hook",
+  "script", "drama", "episode", "scene",
   "bible", "character", "dialogue", "storyboard", "3d",
-  "visual prompt", "series", "video", "production", "ghost"
+  "visual prompt", "series", "production", "ghost"
+];
+
+const ADS_KEYWORDS = [
+  "ad copy", "facebook ad", "tiktok ad", "google ad", "youtube ad",
+  "ad strategy", "ad budget", "ad funnel", "ad hook", "ad audience",
+  "advertising", "campaign", "media buy", "landing page", "a/b test",
+  "keyword research", "creative brief", "ad audit", "ad report",
+  "scroll-stopping", "conversion funnel", "ad readiness"
 ];
 
 export class OrchestratorAgent extends BaseAgent {
   private masterTraderAgent: any | null = null;
   private realEstateAgent: any | null = null;
   private dramaAgent: any | null = null;
+  private adsAgentUserId: number = 0;
 
   constructor() {
     super("OrchestratorAgent", "");
@@ -72,21 +82,27 @@ export class OrchestratorAgent extends BaseAgent {
     log("[orchestrator] DramaAgent registered");
   }
 
+  registerAdsAgent(_agent: any) {
+    log("[orchestrator] AdsAgent registered");
+  }
+
   private detectIntent(message: string): { intent: Intent; confidence: "high" | "low" } {
     const lower = message.toLowerCase();
 
     const tradingScore = TRADING_KEYWORDS.filter(k => lower.includes(k)).length;
     const realEstateScore = REAL_ESTATE_KEYWORDS.filter(k => lower.includes(k)).length;
     const dramaScore = DRAMA_KEYWORDS.filter(k => lower.includes(k)).length;
+    const adsScore = ADS_KEYWORDS.filter(k => lower.includes(k)).length;
 
-    if (tradingScore === 0 && realEstateScore === 0 && dramaScore === 0) {
+    if (tradingScore === 0 && realEstateScore === 0 && dramaScore === 0 && adsScore === 0) {
       return { intent: "general", confidence: "low" };
     }
 
     const scores = [
       { intent: "trading" as Intent, score: tradingScore },
       { intent: "real_estate" as Intent, score: realEstateScore },
-      { intent: "drama" as Intent, score: dramaScore }
+      { intent: "drama" as Intent, score: dramaScore },
+      { intent: "ads" as Intent, score: adsScore }
     ];
 
     const best = scores.reduce((prev, current) => (current.score > prev.score) ? current : prev);
@@ -124,6 +140,10 @@ export class OrchestratorAgent extends BaseAgent {
             return { intent, confidence, response };
           }
           return { intent, confidence, response: "DramaAgent not connected." };
+        }
+        case "ads": {
+          const response = await AdsAgent.handle(userMessage, this.adsAgentUserId);
+          return { intent, confidence, response };
         }
         default: {
           const res = await this.ask(userMessage);

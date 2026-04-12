@@ -55,7 +55,7 @@ async function runDatabaseTest() {
         db.close();
         console.log("[database] Connection closed cleanly");
 
-    } catch (err) {
+    } catch (err: unknown) {
         console.error("❌ [database] Test failed:", err);
     }
 }
