@@ -64,7 +64,7 @@ export class OrchestratorAgent extends BaseAgent {
       "MasterTraderAgent for crypto/forex trading, " +
       "RealEstateAgent for wholesaling leads, " +
       "and DramaAgent for TikTok mini-drama production. " +
-      "Route requests to the right agent. For general conversation, respond directly.";
+      "Route requests to the right agent. For general conversation, respond directly. NEVER show function calls, tool syntax, or XML tags in your responses. Execute tools silently and only show results.";
   }
 
   registerTraderAgent(agent: any) {

@@ -122,5 +122,17 @@ export function setupRouter(bot: Telegraf) {
         ctx.reply(res.response);
     });
 
+
+    // Handle photos, videos, documents — prevent crashes
+    bot.on('photo', async (ctx) => {
+        await ctx.reply('?? I can see your image! For property photos, describe the address and I will analyze the deal. For drama content, use /scene to write a script around it.');
+    });
+    bot.on('video', async (ctx) => {
+        await ctx.reply('?? Video received! Use /ads video to generate ad scripts, or /scene for drama content.');
+    });
+    bot.on('document', async (ctx) => {
+        await ctx.reply('?? Document received! Share the key details in text and I will analyze it.');
+    });
     log("[router] Routes configured.");
 }
+
