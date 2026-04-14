@@ -19,6 +19,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.set('trust proxy', 1);  // trust first proxy (Railway/Render)
+app.use(express.json());     // parse JSON request bodies
+app.use(express.urlencoded({ extended: true }));  // parse form data
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
 
