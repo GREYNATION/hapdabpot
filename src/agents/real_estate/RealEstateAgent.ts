@@ -5,6 +5,31 @@ import { runAutomatedSurplusScan } from "../../services/surplusPipeline.js";
 
 export class RealEstateAgent extends BaseAgent {
   private lastDeals: Lead[] = [];
+  
+  calculateMAO(arv: number, repairs: number) {
+    const mao = arv * 0.7 - repairs;
+    const maxOffer = Math.max(0, mao);
+    const spread = arv - repairs - maxOffer;
+
+    let verdict: string;
+    if (spread >= arv * 0.25) verdict = "🔥 Strong Deal";
+    else if (spread >= arv * 0.1) verdict = "👀 Marginal";
+    else verdict = "❌ Pass";
+
+    return { arv, repairs, mao, maxOffer, verdict };
+  }
+
+  formatMAOResult(analysis: any): string {
+    return (
+      `${analysis.verdict}\n\n` +
+      `**MAO Deal Analysis**\n` +
+      `🏠 ARV:      $${analysis.arv.toLocaleString()}\n` +
+      `🔧 Repairs:  $${analysis.repairs.toLocaleString()}\n` +
+      `-----------------\n` +
+      `💰 **MAO:**      $${analysis.maxOffer.toLocaleString()}\n\n` +
+      `_Formula: ARV × 70% − Repairs_`
+    );
+  }
 
   constructor() {
     super(
@@ -31,7 +56,19 @@ Prioritize: distressed properties, pre-foreclosure, probate, tax liens.`;
       return `🚀 **Surplus Overage Scan Initiated**\nAnalyzing county records for tax overages. I will alert you as soon as a high-margin deal hits the CRM.`;
     }
 
-    // 2. Find Leads
+    // 2. MAO Calculation
+    const numbers = userMessage.match(/\d[\d,]*/g)?.map(n => parseInt(n.replace(/,/g, ""))) ?? [];
+    if (lower.includes("mao") || lower.includes("arv")) {
+      if (numbers.length >= 2) {
+        const [arv, repairs] = numbers;
+        return this.formatMAOResult(this.calculateMAO(arv, repairs));
+      }
+      if (lower.trim() === "mao" || lower.trim() === "/mao") {
+         return "📊 **Usage:** `/mao <ARV> <Repairs>`\nExample: `/mao 250000 40000`";
+      }
+    }
+
+    // 3. Find Leads
     if (lower.includes("find") || lower.includes("search") || lower.includes("motivated") || lower.includes("scrape")) {
       try {
         const leads = await findMotivatedSellers();

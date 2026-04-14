@@ -22,6 +22,7 @@ export function setupRouter(bot: Telegraf) {
         "HapdaBot Online.\n\n" +
         "/scrape - find motivated seller leads\n" +
         "/surplus - run surplus overage scan\n" +
+        "/mao <arv> <repairs> - calculate max allowed offer\n" +
         "/trade - trading account status\n" +
         "/ads <skill> - ad strategy (hooks, copy, funnel, budget, audit, strategy)\n" +
         "/hooks <topic> - 20 scroll-stopping hooks\n" +
@@ -40,6 +41,12 @@ export function setupRouter(bot: Telegraf) {
     bot.command('surplus', async (ctx) => {
         await ctx.reply("Initiating Surplus Overage Scan...");
         const res = await realEstateAgent.handle("auto scan surplus");
+        ctx.reply(String(res));
+    });
+
+    bot.command('mao', async (ctx) => {
+        const text = ctx.message.text.replace('/mao', '').trim();
+        const res = await realEstateAgent.handle(text ? `mao ${text}` : "mao");
         ctx.reply(String(res));
     });
 
