@@ -3,119 +3,433 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gravity Claw | Command Center</title>
+    <title>STUYZA AGENCY | AI Revenue Systems for Modern Business</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Deploy autonomous AI voice agents, chatbots, and revenue-focused automation in 14 days. STUYZA AGENCY builds the systems that print revenue for your business.">
+    <meta name="keywords" content="AI Agency, AI Voice Agents, Business Automation, Revenue Systems, STUYZA">
+    <meta name="author" content="STUYZA AGENCY">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="STUYZA AGENCY | AI Revenue Systems">
+    <meta property="og:description" content="Build high-performance AI systems designed to scale your revenue.">
+    <meta property="og:type" content="website">
+    
+    <!-- Styling -->
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Orbitron:wght@700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div class="app-container">
-        <header>
-            <div class="logo">
-                <span class="claw-icon">🦅</span>
-                <h1>GRAVITY<span>CLAW</span></h1>
-            </div>
-            <div class="actions">
-                <button class="insights-btn" onclick="openInsights()">🔍 AI INSIGHTS</button>
-                <div class="status-badge">
-                    <span class="pulse"></span> System Online
-                </div>
-            </div>
-        </header>
 
-        <main>
-            <section id="overview" class="dashboard-section">
-                <h2>📊 OVERVIEW</h2>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <label>Total Leads</label>
-                        <div id="totalLeads" class="value">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <label>Surplus Deals</label>
-                        <div id="surplusDeals" class="value highlight">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <label>Calls Made</label>
-                        <div id="callsMade" class="value">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <label>Interested</label>
-                        <div id="interestedLeads" class="value success">0</div>
-                    </div>
-                    <div class="stat-card wide">
-                        <label>Estimated Profit</label>
-                        <div id="estimatedProfit" class="value money">$0</div>
-                    </div>
-                </div>
-            </section>
+    <!-- Custom Cursor -->
+    <div class="cursor-dot" id="cursor-dot"></div>
+    <div class="cursor-outline" id="cursor-outline"></div>
 
-            <section id="priority-deals-section" class="dashboard-section hidden">
-                <h2>💎 PRIORITY QUEUE (High Value Leads)</h2>
-                <div id="priorityDealsList" class="deals-grid">
-                    <!-- High-value leads filter injected here -->
-                </div>
-            </section>
-
-            <section id="hot-deals-section" class="dashboard-section hidden">
-                <h2>🔥 HOT DEALS (Ranked by Profit)</h2>
-                <div id="hotDealsList" class="deals-grid">
-                    <!-- High-priority interested leads here -->
-                </div>
-            </section>
-
-            <section id="surplus-deals" class="dashboard-section">
-                <h2>🏛️ ALL SURPLUS DEALS</h2>
-                <div id="dealsList" class="deals-grid">
-                    <!-- Cards injected via JS -->
-                    <div class="loading">Fetching live market data...</div>
-                </div>
-            </section>
-        </main>
-    </div>
-    <!-- AI Insights Modal -->
-    <div id="insightsModal" class="modal hidden">
-        <div class="modal-content">
+    <!-- ═══ BOOKING MODAL ═══ -->
+    <div class="modal-overlay" id="bookingModal">
+        <div class="modal-box glass">
             <div class="modal-header">
-                <h2>🔍 AI Pattern Analysis</h2>
-                <button class="close-btn" onclick="closeInsights()">&times;</button>
-            </div>
-            <div id="insightsBody" class="modal-body">
-                <div class="loading">Analyzing deal history for patterns...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Assignment Modal -->
-    <div id="assignmentModal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>🤝 Assign Deal (Disposition)</h2>
-                <button class="close-btn" onclick="closeAssignment()">&times;</button>
+                <h3>BOOK YOUR FREE AUDIT</h3>
+                <button class="modal-close" id="closeModal">✕</button>
             </div>
             <div class="modal-body">
-                <div id="matchResults">
-                    <div class="loading">Finding matching buyers...</div>
-                </div>
-                <hr class="modal-divider">
-                <div class="assignment-form">
-                    <h3>Finalize Assignment</h3>
+                <form class="booking-form" id="bookingForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>First Name</label>
+                            <input type="text" id="fname" placeholder="John" required />
+                        </div>
+                        <div class="form-group">
+                            <label>Last Name</label>
+                            <input type="text" id="lname" placeholder="Smith" required />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Business Email</label>
+                            <input type="email" id="email" placeholder="john@company.com" required />
+                        </div>
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="tel" id="phone" placeholder="+1 (555) 000-0000" required />
+                        </div>
+                    </div>
                     <div class="form-group">
-                        <label>Select Buyer</label>
-                        <select id="buyerSelect">
-                            <option value="">-- Choose Investor --</option>
+                        <label>Business Type</label>
+                        <select id="btype" required>
+                            <option value="" disabled selected>Select your industry</option>
+                            <option>Real Estate</option>
+                            <option>Medical / Dental / Med Spa</option>
+                            <option>Legal / Law Firm</option>
+                            <option>HVAC / Plumbing / Trades</option>
+                            <option>E-Commerce</option>
+                            <option>Insurance / Finance</option>
+                            <option>Fitness / Wellness</option>
+                            <option>Agency / Marketing</option>
+                            <option>Restaurant / Hospitality</option>
+                            <option>Other</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Sale Price ($)</label>
-                        <input type="number" id="salePriceInput" placeholder="Enter final sale price">
+                        <label>Select Your System(s)</label>
+                        <div class="service-selector-grid" id="serviceSelector">
+                            <div class="service-tile" data-value="AI Voice Agent">
+                                <div class="tile-icon">◎</div>
+                                <span>Voice Agent</span>
+                            </div>
+                            <div class="service-tile" data-value="AI Chatbot">
+                                <div class="tile-icon">◫</div>
+                                <span>AI Chatbot</span>
+                            </div>
+                            <div class="service-tile" data-value="Automation Workflow">
+                                <div class="tile-icon">⬡</div>
+                                <span>Workflow</span>
+                            </div>
+                            <div class="service-tile" data-value="AI-Powered CRM">
+                                <div class="tile-icon">◈</div>
+                                <span>AI CRM</span>
+                            </div>
+                        </div>
+                        <input type="hidden" id="service_interest" name="service_interest" value="" required>
                     </div>
-                    <button class="full-btn" onclick="submitAssignment()">CONFIRM ASSIGNMENT</button>
+                    <div class="form-group">
+                        <label>Anything else we should know?</label>
+                        <textarea id="notes" placeholder="Tell us about your current challenges, revenue goals, or tools you're already using..."></textarea>
+                    </div>
+                    <div class="form-submit-row">
+                        <span class="form-note">✓ Free 30-min call &nbsp;·&nbsp; No pitch, no pressure</span>
+                        <button type="submit" class="btn btn-primary" id="submitForm">Book My Audit →</button>
+                    </div>
+                </form>
+                
+                <!-- SUCCESS STATE -->
+                <div class="form-success" id="formSuccess">
+                    <div class="success-icon">✓</div>
+                    <h4>YOU'RE BOOKED</h4>
+                    <p>We'll email you a confirmation with the call link within 15 minutes. Check your spam just in case.</p>
+                    <button class="btn btn-secondary" id="closeSuccess" style="margin-top:8px;">Close</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Navigation -->
+    <nav>
+        <a href="#" class="logo">STUYZA<span>AGENCY</span></a>
+        <ul class="nav-links">
+            <li><a href="#services">Services</a></li>
+            <li><a href="#process">Process</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#faq">FAQ</a></li>
+        </ul>
+        <button class="btn btn-primary nav-cta" style="padding: 10px 24px;" onclick="document.getElementById('bookingModal').classList.add('open')">Book Audit</button>
+    </nav>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero" id="home">
+            <div class="hero-background">
+                <div class="hero-grid"></div>
+                <div class="hero-glow"></div>
+            </div>
+            
+            <div class="container">
+                <div class="hero-badge reveal">
+                    <span class="dot"></span>
+                    Accepting Luxury Clients — Q2 2025
+                </div>
+                
+                <h1 class="reveal">
+                    WE BUILD AI <span class="outline">SYSTEMS</span><br>
+                    THAT <span class="accent">PRINT REVENUE</span>
+                </h1>
+                
+                <p class="reveal">
+                    Voice agents, chatbots, automation workflows & AI CRMs —<br>
+                    <strong>deployed in your business in 14 days or less.</strong>
+                </p>
+                
+                <div class="hero-actions reveal">
+                    <button class="btn btn-primary" onclick="document.getElementById('bookingModal').classList.add('open')">Get Your Free Audit →</button>
+                    <a href="#services" class="btn btn-secondary">See What We Build</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Ticker -->
+        <div class="ticker">
+            <div class="ticker-track">
+                <div class="ticker-item"><b>$2.4M+</b> Revenue Generated</div>
+                <div class="ticker-item"><b>47</b> AI Systems Deployed</div>
+                <div class="ticker-item"><b>14 Days</b> Avg. Build Time</div>
+                <div class="ticker-item"><b>3-10X</b> ROI Guarantees</div>
+                <div class="ticker-item"><b>24/7</b> Autonomous Operation</div>
+                <div class="ticker-item"><b>92%</b> Client Retention Rate</div>
+                <!-- Duplicate for seamless loop -->
+                <div class="ticker-item"><b>$2.4M+</b> Revenue Generated</div>
+                <div class="ticker-item"><b>47</b> AI Systems Deployed</div>
+                <div class="ticker-item"><b>14 Days</b> Avg. Build Time</div>
+                <div class="ticker-item"><b>3-10X</b> ROI Guarantees</div>
+                <div class="ticker-item"><b>24/7</b> Autonomous Operation</div>
+                <div class="ticker-item"><b>92%</b> Client Retention Rate</div>
+            </div>
+        </div>
+
+        <!-- Services Section -->
+        <section id="services" class="container">
+            <span class="section-label">// Capabilities</span>
+            <h2 class="section-title reveal">FOUR SYSTEMS.<br>INFINITE LEVERAGE.</h2>
+            
+            <div class="card-grid">
+                <div class="card reveal">
+                    <span class="service-num font-mono" style="color: var(--text-dim); font-size: 11px; display: block; margin-bottom: 20px;">01 — VOICE</span>
+                    <div class="card-icon">◎</div>
+                    <h3>AI VOICE AGENTS</h3>
+                    <p>An AI that makes and receives phone calls 24/7. Books appointments, qualifies leads, follows up with prospects — sounds human, never sleeps.</p>
+                    <div class="tags">
+                        <span class="tag">Appointment Booking</span> <span class="tag">Lead Qualification</span> <span class="tag">Cold Outreach</span> <span class="tag">Follow-Up</span>
+                    </div>
+                    <div style="margin-top: 25px; color: var(--accent-primary); font-family: var(--font-mono); font-size: 13px;">Starting at $2,500 / build + retainer</div>
+                </div>
+                
+                <div class="card reveal">
+                    <span class="service-num font-mono" style="color: var(--text-dim); font-size: 11px; display: block; margin-bottom: 20px;">02 — CHAT</span>
+                    <div class="card-icon">◫</div>
+                    <h3>AI CHATBOTS</h3>
+                    <p>Intelligent chatbots trained on your business that capture leads, answer questions, and book calls via Web, SMS, or Social DMs.</p>
+                    <div class="tags">
+                        <span class="tag">Lead Capture</span> <span class="tag">Customer Support</span> <span class="tag">SMS / Web / DM</span> <span class="tag">Booking</span>
+                    </div>
+                    <div style="margin-top: 25px; color: var(--accent-primary); font-family: var(--font-mono); font-size: 13px;">Starting at $1,500 / build + retainer</div>
+                </div>
+                
+                <div class="card reveal">
+                    <span class="service-num font-mono" style="color: var(--text-dim); font-size: 11px; display: block; margin-bottom: 20px;">03 — WORKFLOW</span>
+                    <div class="card-icon">⬡</div>
+                    <h3>AUTOMATION WORKFLOWS</h3>
+                    <p>End-to-end business pipelines that eliminate manual tasks — from lead intake to follow-up to reporting. Built with n8n and custom APIs.</p>
+                    <div class="tags">
+                        <span class="tag">Lead Routing</span> <span class="tag">Auto Follow-Up</span> <span class="tag">CRM Sync</span> <span class="tag">Reporting</span>
+                    </div>
+                    <div style="margin-top: 25px; color: var(--accent-primary); font-family: var(--font-mono); font-size: 13px;">Starting at $1,800 / build + retainer</div>
+                </div>
+                
+                <div class="card reveal">
+                    <span class="service-num font-mono" style="color: var(--text-dim); font-size: 11px; display: block; margin-bottom: 20px;">04 — CRM</span>
+                    <div class="card-icon">◈</div>
+                    <h3>AI-POWERED CRM</h3>
+                    <p>A smart CRM that automatically nurtures leads, scores contacts, triggers follow-ups, and surfaces hot opportunities instantly.</p>
+                    <div class="tags">
+                        <span class="tag">Lead Scoring</span> <span class="tag">Auto Nurture</span> <span class="tag">Deal Tracking</span> <span class="tag">Forecasting</span>
+                    </div>
+                    <div style="margin-top: 25px; color: var(--accent-primary); font-family: var(--font-mono); font-size: 13px;">Starting at $2,000 / build + retainer</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Process Section -->
+        <section id="process" class="container glass" style="margin: 80px auto; padding: 100px 60px;">
+            <div style="margin-bottom: 60px;">
+                <span class="section-label">// How It Works</span>
+                <h2 class="section-title reveal">FROM ZERO TO<br>LIVE IN 14 DAYS</h2>
+            </div>
+            <div class="card-grid">
+                <div class="reveal">
+                    <div class="step-num font-heading" style="font-size: 80px; color: var(--border-bright); opacity: 0.3; line-height: 1;">01</div>
+                    <h3 style="font-family: var(--font-heading); font-size: 24px; margin: 20px 0;">DISCOVERY CALL</h3>
+                    <p style="color: var(--text-muted); font-size: 14px;">We audit your operations, identify high-ROI automation opportunities, and map out the fastest systems to move the needle.</p>
+                </div>
+                <div class="reveal">
+                    <div class="step-num font-heading" style="font-size: 80px; color: var(--border-bright); opacity: 0.3; line-height: 1;">02</div>
+                    <h3 style="font-family: var(--font-heading); font-size: 24px; margin: 20px 0;">CUSTOM BUILD</h3>
+                    <p style="color: var(--text-muted); font-size: 14px;">Our team builds your AI from the ground up — trained on your business, integrated with your stack, and tested with real scenarios.</p>
+                </div>
+                <div class="reveal">
+                    <div class="step-num font-heading" style="font-size: 80px; color: var(--border-bright); opacity: 0.3; line-height: 1;">03</div>
+                    <h3 style="font-family: var(--font-heading); font-size: 24px; margin: 20px 0;">DEPLOY & SCALE</h3>
+                    <p style="color: var(--text-muted); font-size: 14px;">We deploy, monitor, and continuously optimize. Monthly reporting shows exactly how much revenue your AI is generating.</p>
+                </div>
+                <div class="reveal">
+                    <div class="step-num font-heading" style="font-size: 80px; color: var(--border-bright); opacity: 0.3; line-height: 1;">04</div>
+                    <h3 style="font-family: var(--font-heading); font-size: 24px; margin: 20px 0;">ONGOING SUPPORT</h3>
+                    <p style="color: var(--text-muted); font-size: 14px;">Every client gets a dedicated Slack channel, monthly strategy calls, and unlimited updates. We're a long-term partner.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section id="results" class="container">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center;">
+                <div>
+                    <span class="section-label">// Results That Matter</span>
+                    <h2 class="section-title reveal">AI THAT<br>PAYS FOR ITSELF</h2>
+                    <p style="color: var(--text-muted); font-size: 18px; margin-bottom: 40px;">
+                        Our clients don't buy technology. They buy outcomes — more leads captured, more deals closed, less time wasted.
+                    </p>
+                    <ul class="results-list" style="list-style: none; display: flex; flex-direction: column; gap: 20px;">
+                        <li style="color: var(--text-muted); display: flex; gap: 15px;">
+                            <span style="color: var(--accent-primary); font-family: var(--font-mono);">→</span>
+                            Real estate team books 3× more showings using our voice agent — same headcount
+                        </li>
+                        <li style="color: var(--text-muted); display: flex; gap: 15px;">
+                            <span style="color: var(--accent-primary); font-family: var(--font-mono);">→</span>
+                            HVAC company recovers $12K/month in missed after-hours calls with AI phone agent
+                        </li>
+                        <li style="color: var(--text-muted); display: flex; gap: 15px;">
+                            <span style="color: var(--accent-primary); font-family: var(--font-mono);">→</span>
+                            Med spa increases consultation bookings by 280% with a 24/7 AI chatbot
+                        </li>
+                        <li style="color: var(--text-muted); display: flex; gap: 15px;">
+                            <span style="color: var(--accent-primary); font-family: var(--font-mono);">→</span>
+                            Law firm cuts admin work by 18 hrs/week with automated intake workflow
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="stats-grid reveal">
+                    <div class="stat-item">
+                        <div class="stat-num">$48K</div>
+                        <div class="stat-title">Avg. Annual Savings</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-num">340%</div>
+                        <div class="stat-title">Response Rate Inc.</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-num">24H</div>
+                        <div class="stat-title">Time to First Result</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-num">9.1X</div>
+                        <div class="stat-title">Avg. Initial ROI</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pricing Section -->
+        <section id="pricing" class="container">
+            <div style="text-align: center; margin-bottom: 80px;">
+                <span class="section-label">// Investment</span>
+                <h2 class="section-title reveal">FLAT PRICING.<br>CLEAR RESULTS.</h2>
+                <p style="color: var(--text-muted); max-width: 500px; margin: 20px auto;">One system or all four — pick the package that fits your business today.</p>
+            </div>
+            
+            <div class="card-grid">
+                <div class="card price-card reveal">
+                    <span class="section-label">Starter</span>
+                    <div class="price-value">$1,500<sub>/mo</sub></div>
+                    <p style="font-family: var(--font-mono); font-size: 13px; color: var(--text-dim); margin-bottom: 25px;">one-time setup: $997</p>
+                    <div style="height: 1px; background: var(--border-subtle); margin-bottom: 25px;"></div>
+                    <ul style="list-style: none; text-align: left; display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; font-size: 14px; color: var(--text-muted);">
+                        <li>✓ 1 AI System of your choice</li>
+                        <li>✓ Custom build & integration</li>
+                        <li>✓ Monthly performance report</li>
+                        <li>✓ Email & chat support</li>
+                        <li>✓ 14-day deployment SLA</li>
+                    </ul>
+                    <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="document.getElementById('bookingModal').classList.add('open')">Get Started</button>
+                </div>
+                
+                <div class="card price-card popular reveal">
+                    <span class="section-label" style="color: var(--bg-dark); background: var(--accent-primary); border-radius: 100px; padding: 4px 12px; font-size: 10px; position: absolute; top: 20px; left: 50%; transform: translateX(-50%);">Most Popular</span>
+                    <span class="section-label" style="display: block; margin-top: 15px;">Growth</span>
+                    <div class="price-value">$3,500<sub>/mo</sub></div>
+                    <p style="font-family: var(--font-mono); font-size: 13px; color: var(--text-dim); margin-bottom: 25px;">one-time setup: $1,997</p>
+                    <div style="height: 1px; background: var(--border-bright); margin-bottom: 25px;"></div>
+                    <ul style="list-style: none; text-align: left; display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; font-size: 14px; color: var(--text-muted);">
+                        <li>✓ 3 AI Systems bundled</li>
+                        <li>✓ Full stack integration</li>
+                        <li>✓ Weekly optimization</li>
+                        <li>✓ Dedicated Slack channel</li>
+                        <li>✓ Monthly strategy call</li>
+                        <li>✓ Unlimited updates</li>
+                    </ul>
+                    <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="document.getElementById('bookingModal').classList.add('open')">Get Started</button>
+                </div>
+                
+                <div class="card price-card reveal">
+                    <span class="section-label">Enterprise</span>
+                    <div class="price-value">Custom</div>
+                    <p style="font-family: var(--font-mono); font-size: 13px; color: var(--text-dim); margin-bottom: 25px;">book a call for pricing</p>
+                    <div style="height: 1px; background: var(--border-subtle); margin-bottom: 25px;"></div>
+                    <ul style="list-style: none; text-align: left; display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; font-size: 14px; color: var(--text-muted);">
+                        <li>✓ All 4 systems + custom builds</li>
+                        <li>✓ White-glove onboarding</li>
+                        <li>✓ Dedicated account manager</li>
+                        <li>✓ SLA guarantees</li>
+                        <li>✓ API & white-label options</li>
+                        <li>✓ Priority 24/7 support</li>
+                    </ul>
+                    <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="document.getElementById('bookingModal').classList.add('open')">Contact Us</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faq" class="container">
+            <div style="margin-bottom: 64px;">
+                <span class="section-label">// FAQ</span>
+                <h2 class="section-title reveal">COMMON QUESTIONS</h2>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px 80px;">
+                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
+                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">Do I need technical knowledge?</h4>
+                    <p style="color: var(--text-muted); font-size: 14px;">None. We handle everything from build to deployment. You just tell us your business goals and we build the system around them.</p>
+                </div>
+                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
+                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">How does the AI learn my business?</h4>
+                    <p style="color: var(--text-muted); font-size: 14px;">We train each system on your FAQs, SOPs, product catalog, and past conversations. The more context you give us, the smarter it gets.</p>
+                </div>
+                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
+                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">What tools do you integrate with?</h4>
+                    <p style="color: var(--text-muted); font-size: 14px;">GoHighLevel, HubSpot, Salesforce, Twilio, Calendly, Stripe, and 200+ more via API and webhook.</p>
+                </div>
+                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
+                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">What if I'm not happy with results?</h4>
+                    <p style="color: var(--text-muted); font-size: 14px;">We offer a 30-day money-back guarantee on all build fees. If the system isn't delivering value, we'll rebuild it or refund you.</p>
+                </div>
+                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
+                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">How quickly will I see ROI?</h4>
+                    <p style="color: var(--text-muted); font-size: 14px;">Most clients see measurable results within 24–48 hours of go-live. Full payback typically happens within 60–90 days.</p>
+                </div>
+                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
+                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">Can I cancel the monthly retainer?</h4>
+                    <p style="color: var(--text-muted); font-size: 14px;">Yes — month-to-month, no contracts. You own the system you paid to build. Cancel anytime and take it with you.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section id="contact" class="container" style="text-align: center;">
+            <div class="glass" style="padding: 100px 40px; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);"></div>
+                <span class="section-label">// Get Started Today</span>
+                <h2 class="section-title reveal">READY TO<br>AUTOMATE?</h2>
+                <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto 50px;">
+                    Book a free 30-minute audit call. We'll map out exactly which AI system will generate the most revenue for your business — no pitch, no pressure.
+                </p>
+                <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-primary reveal" onclick="document.getElementById('bookingModal').classList.add('open')">Book My Free Audit →</button>
+                    <a href="mailto:hello@stuyza.com" class="btn btn-secondary reveal">Email Us Instead</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="container">
+        <a href="#" class="logo">STUYZA<span>AGENCY</span></a>
+        <ul class="footer-links">
+            <li><a href="#services">Services</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#contact">Contact</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+        </ul>
+        <div class="copyright">© 2025 STUYZA AGENCY. ALL RIGHTS RESERVED.</div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

@@ -482,8 +482,8 @@ export function startWebServer(bot: any) {
     log(`[WebServer] Health check: GET /health`);
   });
 
-  // Also add a basic root for general health
-  app.get('/', (req, res) => res.send('Gravity Claw Specialist Agent is Online.'));
+  // Root serves the static landing page from /web
+  // app.get('/', (req, res) => res.send('Gravity Claw Specialist Agent is Online.'));
 
   return server;
 }
