@@ -32,11 +32,24 @@ async function main() {
         // 5. Start Web Server (API for landing page)
         startWebServer(bot);
 
-        // 6. Launch — clear any stale connections first
+        // 6. Launch — retry loop to handle 409 conflicts during redeployment
         await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-        await new Promise(r => setTimeout(r, 2000)); // let old instance fully release
-        bot.launch();
-        log("🚀 BOT LAUNCHED: Gravity Claw v5.0 ready.");
+        
+        const MAX_RETRIES = 10;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                await bot.launch();
+                log("🚀 BOT LAUNCHED: Gravity Claw v5.0 ready.");
+                break;
+            } catch (err: any) {
+                if (err?.response?.error_code === 409 && attempt < MAX_RETRIES) {
+                    log(`⏳ Bot conflict (attempt ${attempt}/${MAX_RETRIES}). Old instance still running. Retrying in 5s...`, "warn");
+                    await new Promise(r => setTimeout(r, 5000));
+                } else {
+                    throw err;
+                }
+            }
+        }
 
         // Graceful Stop
         process.once("SIGINT", () => bot.stop("SIGINT"));
