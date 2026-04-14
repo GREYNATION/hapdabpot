@@ -1,6 +1,6 @@
 import { config, log } from "../core/config.js";
 import fetch from "node-fetch";
-import { getSupabase } from "../core/memory.js";
+import { getSupabase } from "../core/supabase.js";
 import crypto from "crypto";
 
 /**

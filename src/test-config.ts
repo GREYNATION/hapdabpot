@@ -1,5 +1,5 @@
 import { config, initializeConfig, log } from "./core/config.js";
-import { getSupabase } from "./core/memory.js";
+import { getSupabase } from "./core/supabase.js";
 
 async function testConfig() {
     log("--- START CONFIG DIAGNOSTIC ---");

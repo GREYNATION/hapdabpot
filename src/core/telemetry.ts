@@ -1,4 +1,4 @@
-import { getSupabase } from "./memory.js";
+import { getSupabase } from "./supabase.js";
 import { log } from "./config.js";
 
 export async function logEvent(event: any) {

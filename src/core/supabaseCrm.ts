@@ -1,4 +1,4 @@
-import { getSupabase } from "./memory.js";
+import { getSupabase } from "./supabase.js";
 import { log, config } from "./config.js";
 import { PropertyScraper } from "./scraper.js";
 import { sendSms } from "../services/outreachService.js";

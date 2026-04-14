@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import path from "path";
-import { getSupabase } from "./memory.js";
+import { getSupabase } from "./supabase.js";
 
 dotenv.config();
 
