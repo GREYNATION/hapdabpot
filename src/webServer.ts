@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url';
 import { aiNegotiate } from './core/negotiation/aiCloser.js';
 import { DataIngestionService } from './services/dataIngestionService.js';
 import { createLeadsRouter } from './routes/leads.js';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -341,8 +342,25 @@ app.get("/tiktokIfxgUQYQCixpunReOoWQpEWQnqhTD32r.txt", (req: Request, res: Respo
   res.send("tiktok-developers-site-verification=IFxgUOYQCixpunRe0oWOpEW0nqhTD32r");
 });
 
-// Configure Static Serving for the Dashboard
-app.use(express.static(path.join(__dirname, 'web')));
+// Configure Static Serving for the Landing Page / Dashboard
+const possibleStaticPaths = [
+  path.join(__dirname, 'web'),
+  path.join(process.cwd(), 'src', 'web'),
+  path.join(process.cwd(), 'dist', 'web')
+];
+
+let staticPathSet = false;
+for (const p of possibleStaticPaths) {
+  if (fs.existsSync(p)) {
+    app.use(express.static(p));
+    log(`[WebServer] Serving static assets from: ${p}`);
+    staticPathSet = true;
+    break;
+  }
+}
+if (!staticPathSet) {
+  log('[WebServer] WARNING: Static web directory not found!', 'warn');
+}
 
 // Dashboard Stats API
 app.get('/api/dashboard/stats', (req: Request, res: Response) => {

@@ -13,7 +13,7 @@ export function setupRouter(bot: Telegraf) {
     log("[router] Initializing Command Router...");
 
     // 1. Register Agents
-    orchestrator.registerTraderAgent(MasterTraderAgent);
+    orchestrator.registerTraderAgent(new MasterTraderAgent());
     orchestrator.registerRealEstateAgent(realEstateAgent);
     orchestrator.registerDramaAgent(dramaAgent);
 
