@@ -50,37 +50,38 @@ export function createLeadsRouter(db: Database.Database, bot: Telegraf) {
         fname, lname, email, phone, biz_type, service, notes,
         source: 'stuyza_landing'
       });
-      const leadId = result.lastInsertRowid;
 
-      // Fire Telegram alert to your chat
-      const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID || config.ownerChatId;
+      // Fire Telegram alert — non-blocking, won't crash if it fails
+      const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID;
       if (OWNER_CHAT_ID) {
-        const msg = [
-          `🔥 **NEW STUYZA LEAD** — #${leadId}`,
-          ``,
-          `👤 **${fname} ${lname || ''}**`,
-          `📧 ${email}`,
-          `📱 ${phone || 'not provided'}`,
-          `🏢 ${biz_type || 'not specified'}`,
-          `🤖 Interested in: ${service || 'not specified'}`,
-          notes ? `📝 Notes: ${notes}` : '',
-          ``,
-          `⏰ ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`,
-          ``,
-          `Reply /lead_${leadId} to manage this lead`
-        ].filter(Boolean).join('\n');
+        try {
+          const msg = [
+            `🔥 *NEW STUYZA LEAD* — #${result.lastInsertRowid}`,
+            ``,
+            `👤 *${fname} ${lname || ''}*`,
+            `📧 ${email}`,
+            `📱 ${phone || 'not provided'}`,
+            `🏢 ${biz_type || 'not specified'}`,
+            `🤖 Interested in: ${service || 'not specified'}`,
+            notes ? `📝 Notes: ${notes}` : '',
+            ``,
+            `⏰ ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`,
+            ``,
+            `Reply /lead_${result.lastInsertRowid} to manage this lead`
+          ].filter(Boolean).join('\n');
 
-        await bot.telegram.sendMessage(OWNER_CHAT_ID, msg, {
-          parse_mode: 'Markdown'
-        });
+          await bot.telegram.sendMessage(OWNER_CHAT_ID, msg, {
+            parse_mode: 'Markdown'
+          });
+        } catch (telegramErr) {
+          console.error('[TELEGRAM ALERT FAILED]', telegramErr);
+        }
       }
-
-      log(`[LeadsRouter] Lead #${leadId} captured from ${fname}`);
 
       return res.status(200).json({
         success: true,
-        message: 'Lead received. We will be in touch within 15 minutes.',
-        id: leadId
+        message: 'Lead received.',
+        id: result.lastInsertRowid
       });
 
     } catch (err) {
@@ -92,5 +93,4 @@ export function createLeadsRouter(db: Database.Database, bot: Telegraf) {
   return router;
 }
 
-// Fallback for missing config in this scope
-const config = { ownerChatId: process.env.OWNER_CHAT_ID };
+

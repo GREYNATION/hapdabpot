@@ -34,9 +34,9 @@ export interface AgentSignal {
  * Initialize the local database schema (for operational data)
  */
 export function initDb() {
-    log("[db] Initializing local database at: " + config.dbPath);
+  log("[db] Initializing local database at: " + config.dbPath);
 
-    db.exec(`
+  db.exec(`
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id INTEGER NOT NULL,
@@ -46,7 +46,7 @@ export function initDb() {
         );
     `);
 
-    db.exec(`
+  db.exec(`
         CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
             content,
             content='messages',
@@ -54,21 +54,21 @@ export function initDb() {
         );
     `);
 
-    // 6. Stuyza Agency Leads table (Modular)
-    initLeadsTable(db);
+  // 6. Stuyza Agency Leads table (Modular)
+  initLeadsTable(db);
 
-    log("[db] Database initialization complete.");
+  log("[db] Database initialization complete.");
 }
 
 // ─── Operational Functions (SQLite) ───────────────────────────────────────────
 
 export function saveMessage(chatId: number, role: "user" | "assistant", content: string) {
-    const stmt = db.prepare("INSERT INTO messages (chat_id, role, content) VALUES (?, ?, ?)");
-    return stmt.run(chatId, role, content);
+  const stmt = db.prepare("INSERT INTO messages (chat_id, role, content) VALUES (?, ?, ?)");
+  return stmt.run(chatId, role, content);
 }
 
 export function getRecentMessages(chatId: number, limit = 10) {
-    const stmt = db.prepare(`
+  const stmt = db.prepare(`
         SELECT role, content FROM (
             SELECT role, content, id FROM messages 
             WHERE chat_id = ? 
@@ -76,11 +76,11 @@ export function getRecentMessages(chatId: number, limit = 10) {
             LIMIT ?
         ) ORDER BY id ASC
     `);
-    const results = stmt.all(chatId, limit) as { role: string, content: string }[];
-    return results.map(r => ({
-        role: r.role as "user" | "assistant",
-        content: r.content
-    }));
+  const results = stmt.all(chatId, limit) as { role: string, content: string }[];
+  return results.map(r => ({
+    role: r.role as "user" | "assistant",
+    content: r.content
+  }));
 }
 
 // ─── Agent Intelligence (Supabase Master Brain) ───────────────────────────────
@@ -140,42 +140,42 @@ export async function writeAgentMemory(domain: AgentDomain, key: string, value: 
 }
 
 export async function writeKnowledge(domain: AgentDomain, key: string, value: string, source: string): Promise<void> {
-    const client = getSupabase();
-    if (!client) return;
-    await client.from("hapda_knowledge").upsert({
-        domain,
-        key,
-        content: value,
-        source,
-        updated_at: new Date().toISOString()
-    });
+  const client = getSupabase();
+  if (!client) return;
+  await client.from("hapda_knowledge").upsert({
+    domain,
+    key,
+    content: value,
+    source,
+    updated_at: new Date().toISOString()
+  });
 }
 
 export async function getDomainContext(domain: AgentDomain): Promise<string> {
-    const client = getSupabase();
-    if (!client) return "";
+  const client = getSupabase();
+  if (!client) return "";
 
-    const { data: memory } = await client.from("hapda_memory").select("key, value").eq("domain", domain);
-    const { data: knowledge } = await client.from("hapda_knowledge").select("key, content").eq("domain", domain);
+  const { data: memory } = await client.from("hapda_memory").select("key, value").eq("domain", domain);
+  const { data: knowledge } = await client.from("hapda_knowledge").select("key, content").eq("domain", domain);
 
-    let context = `[Domain Memory: ${domain}]\n`;
-    memory?.forEach(m => context += `- ${m.key}: ${m.value}\n`);
-    context += `\n[Domain Knowledge: ${domain}]\n`;
-    knowledge?.forEach(k => context += `- ${k.key}: ${k.content}\n`);
+  let context = `[Domain Memory: ${domain}]\n`;
+  memory?.forEach(m => context += `- ${m.key}: ${m.value}\n`);
+  context += `\n[Domain Knowledge: ${domain}]\n`;
+  knowledge?.forEach(k => context += `- ${k.key}: ${k.content}\n`);
 
-    return context;
+  return context;
 }
 
 export async function emitSignal(source: AgentDomain, target: AgentDomain, event: string, payload: any): Promise<void> {
-    const client = getSupabase();
-    if (!client) return;
-    await client.from("hapda_signals").insert({
-        source,
-        target,
-        event,
-        payload,
-        created_at: new Date().toISOString()
-    });
+  const client = getSupabase();
+  if (!client) return;
+  await client.from("hapda_signals").insert({
+    source,
+    target,
+    event,
+    payload,
+    created_at: new Date().toISOString()
+  });
 }
 
 export async function logSession(agent: string, summary: string, raw_output: any = null, meta: any = {}): Promise<void> {
