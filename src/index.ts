@@ -32,7 +32,9 @@ async function main() {
         // 5. Start Web Server (API for landing page)
         startWebServer(bot);
 
-        // 6. Launch
+        // 6. Launch — clear any stale connections first
+        await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+        await new Promise(r => setTimeout(r, 2000)); // let old instance fully release
         bot.launch();
         log("🚀 BOT LAUNCHED: Gravity Claw v5.0 ready.");
 
