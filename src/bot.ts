@@ -2,6 +2,8 @@ import "dotenv/config";
 import { processUserInput } from "./taskOrchestrator.js";
 import { PropertyScraper } from "./services/PropertyScraper.js";
 import { runAutonomousPipeline } from "./core/orchestrator/clawOrchestrator.js";
+import { getStuyzaLeads, getStuyzaLeadStats } from "./db/leads.js";
+import { db } from "./core/memory.js";
 
 const COMMAND_PREFIX = "/";
 
@@ -71,8 +73,32 @@ Found ${opportunities.length} high-margin >$10k surplus overages in ${targetCity
     case "agents":
       return listAgents();
 
+      case "leads":
+      try {
+        const stats = getStuyzaLeadStats(db);
+        const leads = getStuyzaLeads(db, 10);
+        
+        let report = `📈 **STUYZA LEAD PIPELINE**\n`;
+        report += `Total: ${stats.total} | New: ${stats.new_leads || 0} | Booked: ${stats.booked || 0}\n\n`;
+        
+        if (leads.length === 0) {
+          report += "_No leads captured yet._";
+        } else {
+          leads.forEach((l: any, i: number) => {
+            report += `${i+1}. **${l.fname}** - ${l.service || 'N/A'}\n`;
+            report += `   📧 ${l.email} | 📱 ${l.phone || 'N/A'}\n`;
+            report += `   🏢 ${l.biz_type || 'N/A'}\n`;
+            if (l.notes) report += `   📝 ${l.notes}\n`;
+            report += `   📅 ${l.created_at}\n\n`;
+          });
+        }
+        return report;
+      } catch (err: any) {
+        return `❌ Failed to fetch leads: ${err.message}`;
+      }
+
     default:
-      return "❌ Unknown command. Available: /auto, /build, /scrape, /agents";
+      return "❌ Unknown command. Available: /auto, /build, /scrape, /agents, /leads";
   }
 }
 

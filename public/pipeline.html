@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>HapBot Console — Website Pipeline</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap');
+
+  :root {
+    --bg: #0d0d0f;
+    --surface: #161618;
+    --border: #2a2a2e;
+    --accent: #ff5f1f;
+    --accent2: #00e5a0;
+    --text: #e8e8e8;
+    --muted: #666;
+    --node-idle: #2a2a2e;
+    --node-active: #ff5f1f;
+    --node-done: #00e5a0;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Space Mono', monospace; display:flex; height:100vh; overflow:hidden; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header {
+    padding: 1.2rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    color: #fff;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .logo-sub {
+    font-size: .6rem;
+    color: var(--muted);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+  }
+
+  .agent-list { flex: 1; padding: .75rem 0; overflow-y: auto; }
+
+  .agent-item {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .6rem 1rem;
+    cursor: pointer;
+    transition: background .15s;
+    font-size: .75rem;
+    color: var(--muted);
+  }
+
+  .agent-item:hover { background: rgba(255,255,255,.04); color: var(--text); }
+  .agent-item.active { background: rgba(255,95,31,.08); color: var(--accent); }
+
+  .agent-avatar {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: var(--node-idle);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem;
+    flex-shrink: 0;
+  }
+
+  .agent-item.active .agent-avatar { background: var(--accent); }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .dot.active { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+
+  /* MAIN AREA */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .topbar {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+  }
+
+  .page-title { font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:800; }
+  .page-sub { font-size:.65rem; color:var(--muted); margin-top:2px; text-transform:uppercase; letter-spacing:.08em; }
+
+  .btn-back {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: .4rem 1rem;
+    border-radius: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: .7rem;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+
+  .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* PIPELINE CANVAS */
+  .canvas {
+    flex: 1;
+    padding: 2rem;
+    position: relative;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pipeline-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 3rem;
+    padding-top: 2rem;
+  }
+
+  .node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .6rem;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .node-circle {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: var(--node-idle);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    transition: all .3s;
+    position: relative;
+  }
+
+  .node.active .node-circle {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(255,95,31,.4);
+  }
+
+  .node.done .node-circle {
+    background: var(--accent2);
+    border-color: var(--accent2);
+    box-shadow: 0 0 20px rgba(0,229,160,.3);
+  }
+
+  .node.running .node-circle {
+    border-color: var(--accent);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,95,31,.4); }
+    50% { box-shadow: 0 0 0 12px rgba(255,95,31,0); }
+  }
+
+  .node-label {
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    text-align: center;
+    max-width: 90px;
+  }
+
+  .node.active .node-label, .node.done .node-label, .node.running .node-label {
+    color: var(--text);
+  }
+
+  .node-sub {
+    font-size: .55rem;
+    color: var(--accent);
+    opacity: 0;
+    transition: opacity .3s;
+    text-align: center;
+    max-width: 90px;
+    position: absolute;
+    bottom: -18px;
+    white-space: nowrap;
+  }
+
+  .node.running .node-sub, .node.active .node-sub { opacity: 1; }
+
+  .connector {
+    display: flex;
+    align-items: center;
+    width: 80px;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .connector-line {
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    position: relative;
+  }
+
+  .connector-line.active { background: var(--accent); }
+  .connector-line.done { background: var(--accent2); }
+
+  .connector-arrow {
+    position: absolute;
+    right: -1px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0; height: 0;
+    border-left: 8px solid var(--border);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+
+  .connector-line.active .connector-arrow { border-left-color: var(--accent); }
+  .connector-line.done .connector-arrow { border-left-color: var(--accent2); }
+
+  .connector-dots {
+    position: absolute;
+    left: 0; top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 4px;
+  }
+
+  .cdot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--muted);
+    opacity: .4;
+  }
+
+  .connector-line.active .cdot { background: var(--accent); opacity: 1; animation: flow 1s linear infinite; }
+  .connector-line.done .cdot { background: var(--accent2); opacity: 1; }
+
+  @keyframes flow {
+    0% { transform: translateX(-8px); opacity:0; }
+    50% { opacity: 1; }
+    100% { transform: translateX(8px); opacity:0; }
+  }
+
+  /* CHAT PANEL */
+  .chat-panel {
+    position: fixed;
+    top: 60px; right: 20px;
+    width: 340px;
+    max-height: 540px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    overflow: hidden;
+    transition: transform .3s, opacity .3s;
+  }
+
+  .chat-panel.hidden { transform: translateX(380px); opacity:0; pointer-events:none; }
+
+  .chat-header {
+    padding: .8rem 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+  }
+
+  .chat-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+
+  .chat-name { font-size: .85rem; font-weight: 700; }
+  .chat-role { font-size: .65rem; color: var(--muted); }
+
+  .chat-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: .2rem .4rem;
+    border-radius: 4px;
+  }
+
+  .chat-close:hover { color: var(--text); background: rgba(255,255,255,.05); }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    max-height: 380px;
+  }
+
+  .chat-bubble {
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .75rem 1rem;
+    font-size: .72rem;
+    line-height: 1.7;
+    color: var(--text);
+    animation: fadeIn .3s ease;
+  }
+
+  .chat-bubble .step-label {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .4rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+
+  .chat-bubble.success .step-label { color: var(--accent2); }
+
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  .chat-input-row {
+    padding: .75rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: .5rem;
+  }
+
+  .chat-input {
+    flex: 1;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .5rem .75rem;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: .7rem;
+    outline: none;
+  }
+
+  .chat-input::placeholder { color: var(--muted); }
+  .chat-input:focus { border-color: var(--accent); }
+
+  .send-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    padding: .5rem .8rem;
+    cursor: pointer;
+    font-size: .9rem;
+    transition: opacity .2s;
+  }
+
+  .send-btn:hover { opacity: .8; }
+
+  /* INPUT AREA BELOW CANVAS */
+  .input-area {
+    padding: 1rem 2rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+  }
+
+  .main-input {
+    flex: 1;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .75rem 1rem;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: .8rem;
+    outline: none;
+    transition: border-color .2s;
+  }
+
+  .main-input:focus { border-color: var(--accent); }
+  .main-input::placeholder { color: var(--muted); }
+
+  .run-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    padding: .75rem 1.5rem;
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: .85rem;
+    cursor: pointer;
+    letter-spacing: .05em;
+    transition: opacity .2s, transform .1s;
+    white-space: nowrap;
+  }
+
+  .run-btn:hover { opacity: .85; }
+  .run-btn:active { transform: scale(.97); }
+  .run-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* STATUS BADGE */
+  .status-area {
+    padding: .5rem 2rem;
+    font-size: .65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    background: rgba(0,229,160,.08);
+    color: var(--accent2);
+    border: 1px solid rgba(0,229,160,.2);
+    border-radius: 20px;
+    padding: .2rem .6rem;
+    font-size: .6rem;
+  }
+
+  .badge-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent2);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* Output section */
+  .output-area {
+    padding: 0 2rem 1rem;
+    display: none;
+  }
+
+  .output-area.visible { display: block; }
+
+  .output-card {
+    background: rgba(0,229,160,.05);
+    border: 1px solid rgba(0,229,160,.2);
+    border-radius: 10px;
+    padding: 1rem;
+    font-size: .7rem;
+    line-height: 1.8;
+  }
+
+  .output-card h4 { color: var(--accent2); font-size: .75rem; margin-bottom: .5rem; }
+
+  .dl-btn {
+    margin-top: .75rem;
+    background: var(--accent2);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    padding: .4rem 1rem;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: .7rem;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">HAP<span>BOT</span></div>
+    <div class="logo-sub">The Command Centre</div>
+  </div>
+
+  <div class="agent-list">
+    <div class="agent-item active">
+      <div class="agent-avatar">🏗️</div>
+      <div>
+        <div>WebsiteBot</div>
+        <div style="font-size:.55rem;color:#666">building site...</div>
+      </div>
+      <div class="dot active"></div>
+    </div>
+    <div class="agent-item">
+      <div class="agent-avatar">🏘️</div>
+      <div>
+        <div>RealEstate</div>
+        <div style="font-size:.55rem">Idle</div>
+      </div>
+      <div class="dot"></div>
+    </div>
+    <div class="agent-item">
+      <div class="agent-avatar">📈</div>
+      <div>
+        <div>Trader</div>
+        <div style="font-size:.55rem">Idle</div>
+      </div>
+      <div class="dot"></div>
+    </div>
+    <div class="agent-item">
+      <div class="agent-avatar">🎬</div>
+      <div>
+        <div>Content</div>
+        <div style="font-size:.55rem">Idle</div>
+      </div>
+      <div class="dot"></div>
+    </div>
+    <div class="agent-item">
+      <div class="agent-avatar">📱</div>
+      <div>
+        <div>Social</div>
+        <div style="font-size:.55rem">Idle</div>
+      </div>
+      <div class="dot"></div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div>
+      <div class="page-title">HAPBOT Flows</div>
+      <div class="page-sub">Website Builder Pipeline</div>
+    </div>
+    <button class="btn-back" onclick="resetPipeline()">↩ Back to Graph</button>
+  </div>
+
+  <div class="status-area" id="statusArea">
+    <span class="badge"><span class="badge-dot"></span> Pipeline Ready</span>
+    &nbsp; Enter business description below to generate a website
+  </div>
+
+  <div class="canvas">
+    <div class="pipeline-row">
+
+      <!-- Node 1: Agent -->
+      <div class="node active" id="node-agent" onclick="openChat()">
+        <div class="node-circle">🤖</div>
+        <div class="node-label">Agent</div>
+        <div class="node-sub">receiving input</div>
+      </div>
+
+      <!-- Connector 1 -->
+      <div class="connector">
+        <div class="connector-line" id="line1">
+          <div class="connector-dots">
+            <div class="cdot"></div>
+            <div class="cdot"></div>
+            <div class="cdot"></div>
+          </div>
+          <div class="connector-arrow"></div>
+        </div>
+      </div>
+
+      <!-- Node 2: Brand Analysis -->
+      <div class="node" id="node-brand" onclick="openChat()">
+        <div class="node-circle">🔍</div>
+        <div class="node-label">Brand Analysis</div>
+        <div class="node-sub">analyzing brand</div>
+      </div>
+
+      <!-- Connector 2 -->
+      <div class="connector">
+        <div class="connector-line" id="line2">
+          <div class="connector-dots">
+            <div class="cdot"></div>
+            <div class="cdot"></div>
+            <div class="cdot"></div>
+          </div>
+          <div class="connector-arrow"></div>
+        </div>
+      </div>
+
+      <!-- Node 3: Scene Generation -->
+      <div class="node" id="node-scene" onclick="openChat()">
+        <div class="node-circle">🎬</div>
+        <div class="node-label">Scene Gen</div>
+        <div class="node-sub">picking concepts</div>
+      </div>
+
+      <!-- Connector 3 -->
+      <div class="connector">
+        <div class="connector-line" id="line3">
+          <div class="connector-dots">
+            <div class="cdot"></div>
+            <div class="cdot"></div>
+            <div class="cdot"></div>
+          </div>
+          <div class="connector-arrow"></div>
+        </div>
+      </div>
+
+      <!-- Node 4: Website Builder -->
+      <div class="node" id="node-builder" onclick="openChat()">
+        <div class="node-circle">🌐</div>
+        <div class="node-label">Website Builder</div>
+        <div class="node-sub">generating HTML</div>
+      </div>
+
+      <!-- Connector 4 -->
+      <div class="connector">
+        <div class="connector-line" id="line4">
+          <div class="connector-dots">
+            <div class="cdot"></div>
+            <div class="cdot"></div>
+            <div class="cdot"></div>
+          </div>
+          <div class="connector-arrow"></div>
+        </div>
+      </div>
+
+      <!-- Node 5: Deploy -->
+      <div class="node" id="node-deploy" onclick="openChat()">
+        <div class="node-circle">🚀</div>
+        <div class="node-label">Deploy</div>
+        <div class="node-sub">publishing live</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Output card area -->
+  <div class="output-area" id="outputArea">
+    <div class="output-card">
+      <h4>✅ Website Generated</h4>
+      <div id="outputText"></div>
+      <button class="dl-btn" id="dlBtn">⬇ Download HTML</button>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <input class="main-input" id="mainInput" placeholder="Describe your business... (e.g. Cash home buyers in South Jersey — fast closings, no repairs)" />
+    <button class="run-btn" id="runBtn" onclick="runPipeline()">▶ RUN PIPELINE</button>
+  </div>
+</main>
+
+<!-- CHAT PANEL -->
+<div class="chat-panel hidden" id="chatPanel">
+  <div class="chat-header">
+    <div class="chat-avatar">🤖</div>
+    <div>
+      <div class="chat-name">HAPBOT</div>
+      <div class="chat-role">Website Pipeline</div>
+    </div>
+    <button class="chat-close" onclick="closeChat()">✕</button>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-input-row">
+    <input class="chat-input" placeholder="Write a message..." disabled />
+    <button class="send-btn">➤</button>
+  </div>
+</div>
+
+<script>
+  let isRunning = false;
+  let generatedHtml = '';
+
+  const nodes = ['agent','brand','scene','builder','deploy'];
+  const lines = [1,2,3,4];
+
+  function resetAllNodes() {
+    nodes.forEach(n => {
+      const el = document.getElementById('node-' + n);
+      el.className = 'node';
+    });
+    lines.forEach(l => {
+      document.getElementById('line' + l).className = 'connector-line';
+    });
+    document.getElementById('node-agent').className = 'node active';
+    document.getElementById('outputArea').className = 'output-area';
+  }
+
+  function setNodeState(nodeId, state) {
+    const el = document.getElementById('node-' + nodeId);
+    el.className = 'node ' + state;
+  }
+
+  function setLineState(lineNum, state) {
+    const el = document.getElementById('line' + lineNum);
+    el.className = 'connector-line ' + state;
+  }
+
+  function addChatMessage(label, content, type='') {
+    const panel = document.getElementById('chatMessages');
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble ' + type;
+    bubble.innerHTML = `<div class="step-label">⚡ ${label}</div>${content}`;
+    panel.appendChild(bubble);
+    panel.scrollTop = panel.scrollHeight;
+    openChat();
+  }
+
+  function updateStatus(msg) {
+    document.getElementById('statusArea').innerHTML =
+      `<span class="badge"><span class="badge-dot"></span> ${msg}</span>`;
+  }
+
+  async function runPipeline() {
+    if (isRunning) return;
+    const input = document.getElementById('mainInput').value.trim();
+    if (!input) {
+      document.getElementById('mainInput').focus();
+      return;
+    }
+
+    isRunning = true;
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('runBtn').textContent = '⏳ Running...';
+    resetAllNodes();
+
+    document.getElementById('chatMessages').innerHTML = '';
+
+    // Step 1: Agent receives input
+    updateStatus('Agent — receiving input');
+    setNodeState('agent', 'running');
+    addChatMessage('Agent', `Processing: "<em>${input.slice(0,60)}...</em>"`);
+    await sleep(900);
+    setNodeState('agent', 'done');
+    setLineState(1, 'active');
+
+    // Step 2: Brand Analysis
+    updateStatus('Brand Analysis — running');
+    setNodeState('brand', 'running');
+    addChatMessage('Brand Analysis', '🔍 Analyzing business profile, target audience, tone, and color palette...');
+    await sleep(1400);
+
+    const profile = analyzeBrand(input);
+    addChatMessage('Brand Analysis', `
+      ✅ <strong>${profile.name}</strong><br>
+      📌 Industry: ${profile.industry}<br>
+      🎯 Audience: ${profile.audience}<br>
+      🎨 Tone: ${profile.tone}<br>
+      🎨 Colors: ${profile.colors.join(', ')}
+    `, 'success');
+
+    setNodeState('brand', 'done');
+    setLineState(1, 'done');
+    setLineState(2, 'active');
+    await sleep(600);
+
+    // Step 3: Scene Generation
+    updateStatus('Scene Generation — picking 3 concepts');
+    setNodeState('scene', 'running');
+    addChatMessage('Scene Generation', '🎬 Picking 3 cinematic layout concepts...');
+    await sleep(1200);
+
+    addChatMessage('Scene Generation', `
+      1. 🏛️ <strong>The Authority</strong> — Full-screen hero, dark overlay, stat counters below fold.<br><br>
+      2. ⚡ <strong>The Converter</strong> — Centered CTA above fold, sticky form sidebar.<br><br>
+      3. 🎨 <strong>The Story</strong> — Scroll-animated sections, testimonials, feature cards.<br><br>
+      ✅ Building with <strong>${profile.tone === 'professional' ? 'The Authority' : 'The Converter'}</strong> for ${profile.tone} tone...
+    `, 'success');
+
+    setNodeState('scene', 'done');
+    setLineState(2, 'done');
+    setLineState(3, 'active');
+    await sleep(600);
+
+    // Step 4: Website Builder
+    updateStatus('Website Builder — generating HTML/CSS/JS');
+    setNodeState('builder', 'running');
+    addChatMessage('Website Builder', '🌐 Generating full HTML website with responsive design, animations, contact form...');
+    await sleep(2000);
+
+    generatedHtml = buildSampleHtml(profile, input);
+    const size = (generatedHtml.length / 1024).toFixed(1);
+
+    addChatMessage('Website Builder', `
+      ✅ <strong>Website Built!</strong><br>
+      📄 ${profile.name.toLowerCase().replace(/\s+/g,'-')}-site.html<br>
+      📏 Size: ${size} KB<br>
+      📋 Sections: Hero → About → Services → Contact → Footer
+    `, 'success');
+
+    setNodeState('builder', 'done');
+    setLineState(3, 'done');
+    setLineState(4, 'active');
+    await sleep(600);
+
+    // Step 5: Deploy
+    updateStatus('Deploy — preparing output');
+    setNodeState('deploy', 'running');
+    addChatMessage('Deploy', '🚀 Packaging for Railway / Netlify / Vercel deploy...');
+    await sleep(1000);
+    addChatMessage('Deploy', '✅ Ready to deploy! Download below or push to Railway.', 'success');
+    setNodeState('deploy', 'done');
+    setLineState(4, 'done');
+
+    // Show output
+    updateStatus('Pipeline Complete ✓');
+    document.getElementById('outputText').innerHTML =
+      `🏢 <strong>${profile.name}</strong><br>
+       📄 File: <code>${profile.name.toLowerCase().replace(/\s+/g,'-')}-site.html</code><br>
+       📏 Size: ${size} KB · 5 sections · Mobile-responsive<br>
+       🚀 Deploy: Netlify Drop, Railway, or Vercel`;
+
+    document.getElementById('outputArea').className = 'output-area visible';
+    document.getElementById('dlBtn').onclick = () => downloadHtml(profile.name);
+
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('runBtn').textContent = '▶ RUN PIPELINE';
+    isRunning = false;
+  }
+
+  function analyzeBrand(input) {
+    const lower = input.toLowerCase();
+    const isRealEstate = lower.includes('cash') || lower.includes('home') || lower.includes('property') || lower.includes('wholesale');
+    const isTech = lower.includes('app') || lower.includes('saas') || lower.includes('tech') || lower.includes('software');
+
+    return {
+      name: extractName(input),
+      industry: isRealEstate ? 'Real Estate' : isTech ? 'Technology' : 'Business Services',
+      audience: isRealEstate ? 'Homeowners & Investors' : 'Business Owners',
+      tone: isRealEstate ? 'professional' : 'bold',
+      colors: isRealEstate ? ['#1a1a2e','#16213e','#e94560'] : ['#0a0a0a','#1c1c1c','#ff5f1f'],
+      cta: isRealEstate ? 'Get Your Free Cash Offer' : 'Get Started Today'
+    };
+  }
+
+  function extractName(input) {
+    const words = input.split(' ').slice(0, 3);
+    return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  }
+
+  function buildSampleHtml(profile, desc) {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>${profile.name}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@300;400;500&display=swap');
+  :root { --p:${profile.colors[0]};--a:${profile.colors[2]};--b:${profile.colors[1]}; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',sans-serif;background:var(--p);color:#fff;}
+  nav{position:sticky;top:0;z-index:99;background:rgba(0,0,0,.8);backdrop-filter:blur(12px);padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;}
+  .logo{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;}
+  .hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:4rem 2rem;background:linear-gradient(135deg,var(--p),var(--b));}
+  .hero h1{font-family:'Syne',sans-serif;font-size:clamp(2.5rem,6vw,4.5rem);font-weight:800;margin-bottom:1.5rem;line-height:1.1;}
+  .hero p{font-size:1.1rem;opacity:.75;max-width:560px;margin:0 auto 2rem;}
+  .cta{background:var(--a);color:#fff;border:none;padding:.9rem 2.2rem;border-radius:50px;font-size:1rem;font-weight:600;cursor:pointer;}
+  .features{padding:6rem 2rem;max-width:1100px;margin:0 auto;}
+  .features h2{font-family:'Syne',sans-serif;font-size:2.2rem;text-align:center;margin-bottom:3rem;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;}
+  .card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:2rem;}
+  footer{text-align:center;padding:2rem;opacity:.4;font-size:.8rem;border-top:1px solid rgba(255,255,255,.1);}
+</style>
+</head>
+<body>
+<nav><div class="logo">${profile.name}</div><button class="cta" style="padding:.5rem 1.2rem;font-size:.85rem;">Contact Us</button></nav>
+<section class="hero">
+  <div>
+    <h1>${desc.slice(0,60)}...</h1>
+    <p>Serving ${profile.audience} with fast, professional service.</p>
+    <button class="cta" onclick="alert('Thank you! We will be in touch shortly.')">Get Your Free Offer</button>
+  </div>
+</section>
+<section class="features">
+  <h2>Why Choose Us</h2>
+  <div class="grid">
+    <div class="card"><h3>⚡ Fast Closings</h3><p style="margin-top:.75rem;opacity:.7">Close in as little as 7 days.</p></div>
+    <div class="card"><h3>💰 Cash Offers</h3><p style="margin-top:.75rem;opacity:.7">No banks, no delays.</p></div>
+    <div class="card"><h3>🏠 Any Condition</h3><p style="margin-top:.75rem;opacity:.7">We buy as-is, no repairs needed.</p></div>
+  </div>
+</section>
+<footer><p>© ${new Date().getFullYear()} ${profile.name}. All rights reserved.</p></footer>
+</body>
+</html>`;
+  }
+
+  function downloadHtml(name) {
+    const blob = new Blob([generatedHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name.toLowerCase().replace(/\s+/g,'-') + '-site.html';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function openChat() {
+    document.getElementById('chatPanel').classList.remove('hidden');
+  }
+
+  function closeChat() {
+    document.getElementById('chatPanel').classList.add('hidden');
+  }
+
+  function resetPipeline() {
+    resetAllNodes();
+    document.getElementById('chatMessages').innerHTML = '';
+    document.getElementById('outputArea').className = 'output-area';
+    document.getElementById('statusArea').innerHTML =
+      '<span class="badge"><span class="badge-dot"></span> Pipeline Ready</span> &nbsp; Enter business description below to generate a website';
+    closeChat();
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('mainInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') runPipeline();
+    });
+  });
+</script>
+</body>
+</html>

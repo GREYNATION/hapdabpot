@@ -1,4 +1,4 @@
-﻿import Database from "better-sqlite3";
+import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
@@ -83,6 +83,23 @@ export function initDb() {
         );
     `);
 
+    // 6. Stuyza Agency Leads table
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS stuyza_leads (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            fname       TEXT NOT NULL,
+            lname       TEXT,
+            email       TEXT NOT NULL,
+            phone       TEXT,
+            biz_type    TEXT,
+            service     TEXT,
+            notes       TEXT,
+            source      TEXT DEFAULT 'landing_page',
+            status      TEXT DEFAULT 'new',
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
     console.log("[db] Database initialization complete.");
 }
 
@@ -151,3 +168,45 @@ export function setVoiceMode(chatId: number, mode: boolean) {
     return stmt.run(chatId, mode ? 1 : 0);
 }
 
+/**
+ * Stuyza Leads Helpers
+ */
+export function insertStuyzaLead(lead: {
+    fname: string;
+    lname?: string;
+    email: string;
+    phone?: string;
+    biz_type?: string;
+    service?: string;
+    notes?: string;
+    source?: string;
+}) {
+    const stmt = db.prepare(`
+        INSERT INTO stuyza_leads (fname, lname, email, phone, biz_type, service, notes, source)
+        VALUES (@fname, @lname, @email, @phone, @biz_type, @service, @notes, @source)
+    `);
+    return stmt.run(lead);
+}
+
+export function getStuyzaLeads(limit = 20) {
+    return db.prepare(`
+        SELECT * FROM stuyza_leads
+        ORDER BY created_at DESC
+        LIMIT ?
+    `).all(limit);
+}
+
+export function updateStuyzaLeadStatus(id: number, status: string) {
+    db.prepare(`UPDATE stuyza_leads SET status = ? WHERE id = ?`).run(status, id);
+}
+
+export function getStuyzaLeadStats() {
+    return db.prepare(`
+        SELECT
+            COUNT(*)                                         AS total,
+            SUM(CASE WHEN status = 'new'      THEN 1 END)   AS new_leads,
+            SUM(CASE WHEN status = 'booked'   THEN 1 END)   AS booked,
+            SUM(CASE WHEN status = 'closed'   THEN 1 END)   AS closed
+        FROM stuyza_leads
+    `).get() as { total: number; new_leads: number; booked: number; closed: number };
+}

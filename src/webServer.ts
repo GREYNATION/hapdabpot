@@ -12,6 +12,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { aiNegotiate } from './core/negotiation/aiCloser.js';
 import { DataIngestionService } from './services/dataIngestionService.js';
+import { createLeadsRouter } from './routes/leads.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -467,11 +468,17 @@ app.post('/api/dashboard/send-contract', async (req: Request, res: Response) => 
   }
 });
 
+// lead Capture API for Stuyza Agency is now handled by leadsRouter
+// Mounted in startWebServer below
 
-export function startWebServer() {
+export function startWebServer(bot: any) {
+  // Mount modular leads router using new boilerplate pattern
+  app.use('/api/leads', createLeadsRouter(getDb(), bot));
+
   const server = app.listen(PORT, '0.0.0.0', () => {
     log(`[WebServer] Started on port ${PORT} (0.0.0.0)`);
     log(`[WebServer] Stripe webhook endpoint: POST /webhook/stripe`);
+    log(`[WebServer] Stuyza leads: POST /api/leads`);
     log(`[WebServer] Health check: GET /health`);
   });
 

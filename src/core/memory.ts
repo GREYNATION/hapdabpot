@@ -3,12 +3,11 @@ import path from "path";
 import fs from "fs";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { config, log } from "./config.js";
+import { initLeadsTable } from "../db/leads.js";
 
 // Database is initialized using the redirected path from config.ts
-export const getDb = () => new Database(config.dbPath);
-
-// Enable WAL for better performance
-
+export const db = new Database(config.dbPath);
+export const getDb = () => db;
 
 // ─── Supabase Client (Master Brain) ───────────────────────────────────────────
 
@@ -66,17 +65,8 @@ export function initDb() {
         );
     `);
 
-    getDb().exec(`
-        CREATE TABLE IF NOT EXISTS background_queue (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_id INTEGER NOT NULL,
-            user_text TEXT,
-            visual_context TEXT,
-            status TEXT DEFAULT 'pending', 
-            retry_count INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-    `);
+    // 6. Stuyza Agency Leads table (Modular)
+    initLeadsTable(getDb());
 
     log("[db] Database initialization complete.");
 }

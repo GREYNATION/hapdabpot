@@ -3,6 +3,7 @@ import { startupSequence } from "./core/startup.js";
 import { Telegraf } from "telegraf";
 import { setupRouter } from "./bot/router.js";
 import { initMarketScans } from "./cron/marketScans.js";
+import { startWebServer } from "./webServer.js";
 
 async function main() {
     log("🌟 --- GRAVITY CLAW SYSTEM LOADING ---");
@@ -28,7 +29,10 @@ async function main() {
         // 4. Initialize Cron Jobs
         initMarketScans(bot);
 
-        // 5. Launch
+        // 5. Start Web Server (API for landing page)
+        startWebServer(bot);
+
+        // 6. Launch
         bot.launch();
         log("🚀 BOT LAUNCHED: Gravity Claw v5.0 ready.");
 
