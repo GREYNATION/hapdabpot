@@ -29,27 +29,11 @@ async function main() {
         // 4. Initialize Cron Jobs
         initMarketScans(bot);
 
-        // 5. Start Web Server (API for landing page)
+        // 5. Start Web Server FIRST (keeps health checks passing)
         startWebServer(bot);
 
-        // 6. Launch — retry loop to handle 409 conflicts during redeployment
-        await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-        
-        const MAX_RETRIES = 10;
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            try {
-                await bot.launch();
-                log("🚀 BOT LAUNCHED: Gravity Claw v5.0 ready.");
-                break;
-            } catch (err: any) {
-                if (err?.response?.error_code === 409 && attempt < MAX_RETRIES) {
-                    log(`⏳ Bot conflict (attempt ${attempt}/${MAX_RETRIES}). Old instance still running. Retrying in 5s...`, "warn");
-                    await new Promise(r => setTimeout(r, 5000));
-                } else {
-                    throw err;
-                }
-            }
-        }
+        // 6. Launch bot in background — doesn't block the web server
+        launchBotWithRetry(bot);
 
         // Graceful Stop
         process.once("SIGINT", () => bot.stop("SIGINT"));
@@ -58,6 +42,33 @@ async function main() {
     } catch (err: any) {
         log(`[index] FATAL: ${err.message}`, "error");
         process.exit(1);
+    }
+}
+
+async function launchBotWithRetry(bot: Telegraf) {
+    try {
+        await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+    } catch (e) {
+        log("[bot] deleteWebhook failed, continuing...", "warn");
+    }
+
+    const MAX_RETRIES = 12;
+    const DELAY_MS = 5000;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            await bot.launch();
+            log("🚀 BOT LAUNCHED: Gravity Claw v5.0 ready.");
+            return;
+        } catch (err: any) {
+            if (err?.response?.error_code === 409 && attempt < MAX_RETRIES) {
+                log(`⏳ Bot conflict (attempt ${attempt}/${MAX_RETRIES}). Retrying in ${DELAY_MS / 1000}s...`, "warn");
+                await new Promise(r => setTimeout(r, DELAY_MS));
+            } else {
+                log(`❌ Bot launch failed after ${attempt} attempts: ${err.message}`, "error");
+                return; // don't crash the process — web server stays up
+            }
+        }
     }
 }
 
