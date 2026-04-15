@@ -1,45 +1,53 @@
 /**
- * CinemaAgent.ts
- * 
- * gravity-claw / hapdabot — "Out the Way" Mini Drama Series
- * Powered by Muapi.ai (Open-Higgsfield-AI engine)
- * 
- * Pipeline:
- *   1. Script → Scene breakdown (Claude/Groq)
- *   2. Scene → Cinematic image frame (Muapi Cinema Studio)
- *   3. Frame → Video clip (Muapi T2V / I2V)
- *   4. Clip → Lip sync (Muapi LipSync)
- *   5. Compiled episode → TikTok/Instagram/YouTube post
+ * CinemaAgent.ts - FIXED ENDPOINTS
+ * Out the Way mini drama series - Muapi.ai
+ *
+ * FIXES:
+ *   nano-banana-pro  -> 402 paid tier    -> flux-dev-image / flux-schnell
+ *   flux-dev         -> 404 wrong name   -> flux-dev-image
+ *   kling-i2v        -> 404 wrong name   -> kling-v2.6-pro-i2v
+ *   wan-2-2          -> 404 wrong name   -> wan2.5-image-to-video
  */
 
 import fs from "fs";
 import path from "path";
 import axios from "axios";
 
-// ─── Config ──────────────────────────────────────────────────────────────────
+const MUAPI_KEY        = process.env.MUAPI_API_KEY!;
+const MUAPI_BASE       = "https://api.muapi.ai/api/v1";
+const POLL_INTERVAL_MS = 5000;
+const MAX_POLLS        = 90;
 
-const MUAPI_KEY   = process.env.MUAPI_API_KEY!;
-const MUAPI_BASE  = "https://api.muapi.ai/api/v1";
-const POLL_INTERVAL_MS = 4000;   // 4s between status checks
-const MAX_POLLS        = 90;     // ~6 min timeout per job
+// Verified correct endpoint names - April 2026
+const ENDPOINTS = {
+  T2I_FAST:    "flux-schnell",           // free tier friendly
+  T2I_QUALITY: "flux-dev-image",         // FIXED: was "flux-dev" -> 404
+  T2I_PRO:     "flux-kontext-max-t2i",
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+  I2V_FAST:    "wan2.5-image-to-video",  // FIXED: was "wan-2-2" -> 404
+  I2V_QUALITY: "kling-v2.6-pro-i2v",    // FIXED: was "kling-i2v" -> 404
+
+  T2V_FAST:    "wan2.5-text-to-video",
+  T2V_QUALITY: "kling-v2.6-pro-t2v",
+
+  LIPSYNC:     "ltx-lipsync",
+  UPSCALE:     "ai-image-upscale",
+} as const;
+
+export interface CameraSettings {
+  lens?: string;
+  aperture?: string;
+  movement?: string;
+}
 
 export interface Scene {
   id: number;
-  description: string;       // visual description for image gen
-  dialogue?: string;         // spoken line for lip sync
+  description: string;
+  dialogue?: string;
   camera?: CameraSettings;
-  character?: string;        // e.g. "Jaylen" | "Mia" | "Dre"
-  location?: string;         // e.g. "Brooklyn rooftop at golden hour"
-  mood?: string;             // e.g. "tense" | "romantic" | "confrontational"
-}
-
-export interface CameraSettings {
-  lens?: string;             // e.g. "85mm Portrait Prime"
-  sensor?: string;           // e.g. "Full-Frame Cine Digital"
-  aperture?: string;         // e.g. "f/1.8"
-  movement?: string;         // e.g. "slow push in" | "handheld"
+  character?: string;
+  location?: string;
+  mood?: string;
 }
 
 export interface Episode {
@@ -51,241 +59,159 @@ export interface Episode {
 
 export interface GeneratedScene {
   sceneId: number;
+  prompt: string;
   imageUrl?: string;
   videoUrl?: string;
   lipSyncUrl?: string;
-  prompt: string;
   status: "pending" | "complete" | "failed";
   error?: string;
 }
 
-export interface MuapiJob {
-  jobId: string;
-  status: "pending" | "processing" | "complete" | "failed";
-  outputUrl?: string;
-}
-
-// ─── "Out the Way" Series Config ─────────────────────────────────────────────
-
-export const OUT_THE_WAY_SERIES = "Out the Way";
-
-/**
- * Default visual style for "Out the Way"
- * Street drama set in South Brooklyn/Jersey — raw, cinematic, grounded.
- */
 export const SERIES_STYLE = {
-  aestheticBase: "urban street drama, golden hour lighting, shallow depth of field",
-  colorGrade:    "warm shadows, teal highlights, high contrast — similar to Moonlight (2016)",
-  sensor:        "Full-Frame Cine Digital",
-  lens:          "35mm Classic Anamorphic",
-  aperture:      "f/2.0",
-  aspectRatio:   "9:16",   // TikTok/Reels vertical
+  aesthetic:   "urban street drama, South Brooklyn, cinematic golden hour lighting, shallow depth of field",
+  colorGrade:  "warm shadows, teal highlights, Moonlight 2016 color palette",
+  lens:        "35mm anamorphic cinematic",
+  aperture:    "f/2.0",
+  aspectRatio: "9:16",
 };
 
-// ─── Muapi Client ─────────────────────────────────────────────────────────────
-
 class MuapiClient {
-  private headers = {
-    "x-api-key": MUAPI_KEY,
-    "Content-Type": "application/json",
-  };
+  private headers = { "x-api-key": MUAPI_KEY, "Content-Type": "application/json" };
 
-  /** Submit a job and return the job ID */
   async submit(endpoint: string, payload: Record<string, unknown>): Promise<string> {
     if (!MUAPI_KEY) throw new Error("MUAPI_API_KEY env var is not set");
-    const url = `${MUAPI_BASE}/${endpoint}`;
+    console.log("[Muapi] POST -> " + endpoint);
     try {
-      const res = await axios.post(url, payload, { headers: this.headers });
-      const jobId = res.data?.job_id ?? res.data?.id;
-      if (!jobId) throw new Error(`No job_id in response: ${JSON.stringify(res.data)}`);
-      console.log(`[Muapi] Job submitted → ${endpoint} | ID: ${jobId}`);
-      return jobId;
+      const res = await axios.post(MUAPI_BASE + "/" + endpoint, payload, { headers: this.headers });
+      const id  = res.data?.job_id ?? res.data?.request_id ?? res.data?.id;
+      if (!id) throw new Error("No job_id: " + JSON.stringify(res.data));
+      console.log("[Muapi] Job: " + id);
+      return id;
     } catch (err: any) {
-      const detail = err?.response?.data ? JSON.stringify(err.response.data) : err?.message;
-      throw new Error(`Muapi [${endpoint}] submit failed (${err?.response?.status ?? 'network'}): ${detail}`);
+      throw new Error(
+        "Muapi [" + endpoint + "] (" + (err?.response?.status ?? "network") + "): " +
+        JSON.stringify(err?.response?.data ?? err?.message)
+      );
     }
   }
 
-  /** Poll until job completes or times out */
   async poll(jobId: string): Promise<string> {
     for (let i = 0; i < MAX_POLLS; i++) {
-      await sleep(POLL_INTERVAL_MS);
-      const res = await axios.get(`${MUAPI_BASE}/status/${jobId}`, { headers: this.headers });
-      const data = res.data;
-      const status: string = data?.status ?? "pending";
-
-      if (status === "complete" || status === "completed" || status === "succeeded") {
-        const outputUrl = data?.output_url ?? data?.url ?? data?.result?.url;
-        if (!outputUrl) throw new Error(`Job ${jobId} complete but no output_url`);
-        console.log(`[Muapi] ✅ Job ${jobId} done → ${outputUrl}`);
-        return outputUrl;
+      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+      try {
+        const { data } = await axios.get(MUAPI_BASE + "/status/" + jobId, { headers: this.headers });
+        const s = (data?.status ?? "pending").toLowerCase();
+        if (["complete", "completed", "succeeded", "success"].includes(s)) {
+          const url = data?.output_url ?? data?.url ?? data?.result?.url ?? data?.outputs?.[0];
+          if (!url) throw new Error("Done but no URL in response: " + JSON.stringify(data));
+          console.log("[Muapi] Done -> " + url);
+          return url;
+        }
+        if (["failed", "error", "cancelled"].includes(s)) {
+          throw new Error("Job " + jobId + " " + s + ": " + JSON.stringify(data));
+        }
+        console.log("[Muapi] " + jobId + " - " + s + " (" + (i + 1) + "/" + MAX_POLLS + ")");
+      } catch (err: any) {
+        console.warn("[Muapi] Poll error: " + err.message);
       }
-
-      if (status === "failed" || status === "error") {
-        throw new Error(`Muapi job ${jobId} failed: ${JSON.stringify(data)}`);
-      }
-
-      console.log(`[Muapi] ⏳ Job ${jobId} — status: ${status} (poll ${i + 1}/${MAX_POLLS})`);
     }
-    throw new Error(`Muapi job ${jobId} timed out after ${(MAX_POLLS * POLL_INTERVAL_MS) / 1000}s`);
+    throw new Error("Timeout: " + jobId);
   }
 
-  /** Submit + poll in one call */
   async run(endpoint: string, payload: Record<string, unknown>): Promise<string> {
-    const jobId = await this.submit(endpoint, payload);
-    return await this.poll(jobId);
+    return this.poll(await this.submit(endpoint, payload));
   }
 }
-
-// ─── Cinema Agent ─────────────────────────────────────────────────────────────
 
 export class CinemaAgent {
   private muapi = new MuapiClient();
 
-  /**
-   * Build the full cinematic prompt for a scene, injecting
-   * "Out the Way" series style and camera settings.
-   */
-  buildCinemaPrompt(scene: Scene): string {
-    const cam    = scene.camera ?? {};
-    const lens   = cam.lens     ?? SERIES_STYLE.lens;
-    const sensor = cam.sensor   ?? SERIES_STYLE.sensor;
-    const aper   = cam.aperture ?? SERIES_STYLE.aperture;
-    const move   = cam.movement ?? "locked off";
-
+  buildPrompt(s: Scene): string {
     return [
-      scene.description,
-      scene.location ? `Location: ${scene.location}` : "",
-      scene.mood     ? `Mood: ${scene.mood}` : "",
-      `Character: ${scene.character ?? "protagonist"}`,
-      `Lens: ${lens}, Sensor: ${sensor}, Aperture: ${aper}`,
-      `Camera: ${move}`,
-      `Style: ${SERIES_STYLE.aestheticBase}`,
-      `Color: ${SERIES_STYLE.colorGrade}`,
-      `Aspect ratio: ${SERIES_STYLE.aspectRatio}, cinematic quality`,
+      s.description,
+      s.character ? "Character: " + s.character : "",
+      s.location  ? "Location: " + s.location : "",
+      s.mood      ? "Mood: " + s.mood : "",
+      "Lens: " + (s.camera?.lens ?? SERIES_STYLE.lens),
+      "Aperture: " + (s.camera?.aperture ?? SERIES_STYLE.aperture),
+      "Camera: " + (s.camera?.movement ?? "subtle cinematic motion"),
+      "Style: " + SERIES_STYLE.aesthetic,
+      "Color: " + SERIES_STYLE.colorGrade,
+      "Aspect: " + SERIES_STYLE.aspectRatio + ", photorealistic, cinematic quality",
     ].filter(Boolean).join(". ");
   }
 
-  // ── Step 1: Text → Cinematic Image ────────────────────────────────────────
-
-  async generateSceneImage(scene: Scene): Promise<string> {
-    console.log(`\n[CinemaAgent] 🎬 Generating image — Scene ${scene.id}: ${scene.description.slice(0, 60)}...`);
-
-    const prompt = this.buildCinemaPrompt(scene);
-
+  async generateImage(s: Scene): Promise<string> {
+    console.log("[Cinema] Image - Scene " + s.id);
+    const payload = { prompt: this.buildPrompt(s), aspect_ratio: SERIES_STYLE.aspectRatio };
     try {
-      return await this.muapi.run("nano-banana-pro", {
-        prompt,
-        aspect_ratio: SERIES_STYLE.aspectRatio,
-        quality: "4K",
-      });
+      return await this.muapi.run(ENDPOINTS.T2I_QUALITY, payload);
     } catch (err) {
-      console.warn("[CinemaAgent] Nano Banana failed, falling back to flux-dev:", err);
-      return await this.muapi.run("flux-dev", {
-        prompt,
-        aspect_ratio: SERIES_STYLE.aspectRatio,
-      });
+      console.warn("[Cinema] Quality T2I failed, trying fast...");
+      return await this.muapi.run(ENDPOINTS.T2I_FAST, payload);
     }
   }
 
-  // ── Step 2: Image → Video Clip ────────────────────────────────────────────
-
-  async animateScene(scene: Scene, imageUrl: string): Promise<string> {
-    console.log(`[CinemaAgent] 🎥 Animating Scene ${scene.id}...`);
-
-    const motionPrompt = scene.camera?.movement
-      ? `${scene.camera.movement}, ${scene.mood ?? "dramatic"} energy`
-      : "subtle cinematic motion, natural movement";
-
-    try {
-      return await this.muapi.run("kling-i2v", {
-        image_url: imageUrl,
-        prompt: motionPrompt,
-        duration: 5,
-        aspect_ratio: SERIES_STYLE.aspectRatio,
-      });
-    } catch (err) {
-      console.warn("[CinemaAgent] Kling failed, falling back to wan-2-2:", err);
-      return await this.muapi.run("wan-2-2", {
-        image_url: imageUrl,
-        prompt: motionPrompt,
-        duration: 5,
-      });
-    }
-  }
-
-  // ── Step 3: Lip Sync (if dialogue) ────────────────────────────────────────
-
-  async lipSyncScene(scene: Scene, videoUrl: string, audioUrl?: string): Promise<string> {
-    if (!scene.dialogue) return videoUrl;
-
-    console.log(`[CinemaAgent] 🎤 Lip sync — Scene ${scene.id}: "${scene.dialogue.slice(0, 50)}..."`);
-
-    return await this.muapi.run("ltx-lipsync", {
-      video_url: videoUrl,
-      text:      scene.dialogue,
-      audio_url: audioUrl,
-    });
-  }
-
-  // ── Full Scene Pipeline ────────────────────────────────────────────────────
-
-  async processScene(scene: Scene, audioUrl?: string): Promise<GeneratedScene> {
-    const result: GeneratedScene = {
-      sceneId: scene.id,
-      prompt:  this.buildCinemaPrompt(scene),
-      status:  "pending",
-      error:   undefined,
+  async animateImage(s: Scene, imageUrl: string): Promise<string> {
+    console.log("[Cinema] Animate - Scene " + s.id);
+    const payload = {
+      image_url:    imageUrl,
+      prompt:       [s.camera?.movement, s.mood, "cinematic"].filter(Boolean).join(", "),
+      duration:     5,
+      aspect_ratio: SERIES_STYLE.aspectRatio,
     };
-
     try {
-      result.imageUrl   = await this.generateSceneImage(scene);
-      result.videoUrl   = await this.animateScene(scene, result.imageUrl);
-      if (scene.dialogue) {
-        result.lipSyncUrl = await this.lipSyncScene(scene, result.videoUrl, audioUrl);
-      }
-      result.status = "complete";
-      console.log(`[CinemaAgent] ✅ Scene ${scene.id} complete`);
+      return await this.muapi.run(ENDPOINTS.I2V_QUALITY, payload);
+    } catch (err) {
+      console.warn("[Cinema] Quality I2V failed, trying fast...");
+      return await this.muapi.run(ENDPOINTS.I2V_FAST, payload);
+    }
+  }
+
+  async lipSync(s: Scene, videoUrl: string): Promise<string> {
+    if (!s.dialogue) return videoUrl;
+    console.log("[Cinema] LipSync - Scene " + s.id);
+    try {
+      return await this.muapi.run(ENDPOINTS.LIPSYNC, { video_url: videoUrl, text: s.dialogue });
     } catch (err: any) {
-      result.status = "failed";
-      result.error  = err?.message ?? String(err);
-      console.error(`[CinemaAgent] ❌ Scene ${scene.id} failed: ${result.error}`);
+      console.warn("[Cinema] LipSync skipped: " + err.message);
+      return videoUrl; // non-fatal — return the video without lip sync
     }
-
-    return result;
   }
 
-  // ── Full Episode Pipeline ──────────────────────────────────────────────────
+  async processScene(s: Scene): Promise<GeneratedScene> {
+    const r: GeneratedScene = { sceneId: s.id, prompt: this.buildPrompt(s), status: "pending" };
+    try {
+      r.imageUrl   = await this.generateImage(s);
+      r.videoUrl   = await this.animateImage(s, r.imageUrl);
+      r.lipSyncUrl = await this.lipSync(s, r.videoUrl);
+      r.status     = "complete";
+      console.log("[Cinema] Scene " + s.id + " complete");
+    } catch (err: any) {
+      r.status = "failed";
+      r.error  = err.message;
+      console.error("[Cinema] Scene " + s.id + " FAILED: " + err.message);
+    }
+    return r;
+  }
 
-  async produceEpisode(episode: Episode): Promise<GeneratedScene[]> {
-    console.log(`\n${"═".repeat(60)}`);
-    console.log(`[CinemaAgent] 🎬 "${episode.series}" — Ep ${episode.episodeNumber}: "${episode.title}"`);
-    console.log(`[CinemaAgent] ${episode.scenes.length} scenes to process`);
-    console.log("═".repeat(60));
-
+  async produceEpisode(ep: Episode): Promise<GeneratedScene[]> {
+    console.log("[Cinema] Starting: " + ep.series + " Ep" + ep.episodeNumber + ": " + ep.title);
     const results: GeneratedScene[] = [];
-
-    for (const scene of episode.scenes) {
-      const generated = await this.processScene(scene);
-      results.push(generated);
-      this.saveCheckpoint(episode, results);
-    }
-
-    const complete = results.filter(r => r.status === "complete").length;
-    console.log(`\n[CinemaAgent] Episode complete: ${complete}/${episode.scenes.length} scenes OK`);
-
-    return results;
-  }
-
-  // ── Checkpoint / Manifest ──────────────────────────────────────────────────
-
-  private saveCheckpoint(episode: Episode, results: GeneratedScene[]): void {
     const dir = path.join(process.cwd(), "out_the_way_output");
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-    const file = path.join(dir, `ep${episode.episodeNumber}_manifest.json`);
-    fs.writeFileSync(file, JSON.stringify({ episode, results }, null, 2));
-    console.log(`[CinemaAgent] 💾 Checkpoint saved → ${file}`);
+    for (const s of ep.scenes) {
+      results.push(await this.processScene(s));
+      // Checkpoint after every scene
+      fs.writeFileSync(
+        path.join(dir, "ep" + ep.episodeNumber + "_manifest.json"),
+        JSON.stringify({ ep, results }, null, 2)
+      );
+    }
+
+    console.log("[Cinema] Done: " + results.filter(r => r.status === "complete").length + "/" + ep.scenes.length + " OK");
+    return results;
   }
 
   getPostableClips(results: GeneratedScene[]): string[] {
@@ -301,72 +227,50 @@ export class CinemaAgent {
 export const OUT_THE_WAY_EP1: Episode = {
   episodeNumber: 1,
   title: "No Looking Back",
-  series: OUT_THE_WAY_SERIES,
+  series: "Out the Way",
   scenes: [
     {
       id: 1,
-      description: "Young Black man in his mid-20s stands on a Brooklyn rooftop at golden hour, looking out at the skyline, jaw tight, eyes tired but determined",
-      character: "Jaylen",
-      location: "Brooklyn rooftop, golden hour, NYC skyline background",
-      mood: "contemplative, tension building",
+      description: "Young Black man in his mid-20s on a Brooklyn rooftop at golden hour, NYC skyline behind him, jaw tight, eyes determined",
+      character: "Jaylen", location: "Brooklyn rooftop, golden hour", mood: "contemplative",
       dialogue: "I'm tired of almost making it.",
-      camera: { lens: "85mm Portrait Prime", sensor: "Full-Frame Cine Digital", aperture: "f/1.8", movement: "slow push in on face" },
+      camera: { lens: "85mm portrait prime", aperture: "f/1.8", movement: "slow push in on face" },
     },
     {
       id: 2,
-      description: "Close-up of hands counting crumpled cash on a worn kitchen table, phone buzzing with unanswered calls beside it",
-      character: "Jaylen",
-      location: "dimly lit apartment kitchen, late night",
-      mood: "desperate, quiet urgency",
-      camera: { lens: "35mm Classic Anamorphic", aperture: "f/2.8", movement: "slow tilt up from hands to face" },
+      description: "Close-up of hands counting crumpled cash on a worn kitchen table, phone buzzing beside it",
+      character: "Jaylen", location: "dimly lit apartment kitchen, late night", mood: "desperate, quiet urgency",
+      camera: { lens: "35mm anamorphic", aperture: "f/2.8", movement: "slow tilt up from hands to face" },
     },
     {
       id: 3,
-      description: "Beautiful woman in her late-20s leans against a doorframe, arms crossed, hurt behind her eyes, waiting for an answer she already knows",
-      character: "Mia",
-      location: "apartment hallway, warm practical lighting",
-      mood: "emotional confrontation",
+      description: "Beautiful woman in her late 20s leans against a doorframe, arms crossed, hurt behind her eyes",
+      character: "Mia", location: "apartment hallway, warm lighting", mood: "emotional confrontation",
       dialogue: "Every time, Jaylen. Every single time.",
-      camera: { lens: "50mm Warm Cinema Prime", aperture: "f/2.0", movement: "locked off, slight rack focus" },
+      camera: { lens: "50mm warm cinema prime", aperture: "f/2.0", movement: "locked off, rack focus" },
     },
     {
       id: 4,
-      description: "Two men face off on a narrow street at night, orange streetlight cutting between them, tension electric",
-      character: "Jaylen",
-      location: "South Brooklyn side street, night, wet pavement reflecting orange light",
-      mood: "confrontational, dangerous",
+      description: "Two men face off on a narrow street at night, orange streetlight between them, tension electric",
+      character: "Jaylen and Dre", location: "South Brooklyn side street, night, wet pavement", mood: "confrontational, dangerous",
       dialogue: "You need to get out my way, Dre.",
-      camera: { lens: "35mm Classic Anamorphic", aperture: "f/2.0", movement: "slow circular dolly around both figures" },
+      camera: { lens: "35mm anamorphic", aperture: "f/2.0", movement: "slow circular dolly" },
     },
     {
       id: 5,
-      description: "Jaylen walks away down an empty street alone, hands in pockets, the city stretching out ahead of him, unsure but moving forward",
-      character: "Jaylen",
-      location: "Brooklyn street at night, wide establishing shot",
-      mood: "resolve, bittersweet",
-      camera: { lens: "24mm Wide Cinema Prime", aperture: "f/4.0", movement: "crane pullback as he walks forward" },
+      description: "Jaylen walks away alone down an empty street, hands in pockets, city stretching ahead",
+      character: "Jaylen", location: "Brooklyn street at night, wide shot", mood: "resolve, bittersweet",
+      camera: { lens: "24mm wide cinema prime", aperture: "f/4.0", movement: "crane pullback" },
     },
   ],
 };
 
-// ─── Hapdabot Integration Hook ────────────────────────────────────────────────
+// ─── Integration Hook ─────────────────────────────────────────────────────────
 
-export async function runOutTheWayEpisode(episodeNumber = 1): Promise<string[]> {
+export async function runOutTheWayEpisode(epNum = 1): Promise<string[]> {
+  const map: Record<number, Episode> = { 1: OUT_THE_WAY_EP1 };
+  const ep = map[epNum];
+  if (!ep) throw new Error("Episode " + epNum + " not defined yet");
   const agent = new CinemaAgent();
-
-  const episodeMap: Record<number, Episode> = {
-    1: OUT_THE_WAY_EP1,
-  };
-
-  const episode = episodeMap[episodeNumber];
-  if (!episode) throw new Error(`Episode ${episodeNumber} not defined yet`);
-
-  const results = await agent.produceEpisode(episode);
-  return agent.getPostableClips(results);
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return agent.getPostableClips(await agent.produceEpisode(ep));
 }
