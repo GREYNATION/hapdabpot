@@ -297,7 +297,7 @@ export class ContentAgent {
         const url = result.lipSyncUrl ?? result.videoUrl ?? result.imageUrl;
         await ctx.reply(`✅ Scene done!\n🎬 ${url}`);
       } else {
-        await ctx.reply("❌ Scene failed. Check Muapi key and server logs.");
+        await ctx.reply(`❌ Scene failed:\n${result.error ?? "unknown error — check server logs"}`);
       }
 
     } else {

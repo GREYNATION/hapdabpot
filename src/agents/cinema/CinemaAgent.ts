@@ -56,6 +56,7 @@ export interface GeneratedScene {
   lipSyncUrl?: string;
   prompt: string;
   status: "pending" | "complete" | "failed";
+  error?: string;
 }
 
 export interface MuapiJob {
@@ -91,12 +92,18 @@ class MuapiClient {
 
   /** Submit a job and return the job ID */
   async submit(endpoint: string, payload: Record<string, unknown>): Promise<string> {
+    if (!MUAPI_KEY) throw new Error("MUAPI_API_KEY env var is not set");
     const url = `${MUAPI_BASE}/${endpoint}`;
-    const res = await axios.post(url, payload, { headers: this.headers });
-    const jobId = res.data?.job_id ?? res.data?.id;
-    if (!jobId) throw new Error(`Muapi submit failed — no job_id. Response: ${JSON.stringify(res.data)}`);
-    console.log(`[Muapi] Job submitted → ${endpoint} | ID: ${jobId}`);
-    return jobId;
+    try {
+      const res = await axios.post(url, payload, { headers: this.headers });
+      const jobId = res.data?.job_id ?? res.data?.id;
+      if (!jobId) throw new Error(`No job_id in response: ${JSON.stringify(res.data)}`);
+      console.log(`[Muapi] Job submitted → ${endpoint} | ID: ${jobId}`);
+      return jobId;
+    } catch (err: any) {
+      const detail = err?.response?.data ? JSON.stringify(err.response.data) : err?.message;
+      throw new Error(`Muapi [${endpoint}] submit failed (${err?.response?.status ?? 'network'}): ${detail}`);
+    }
   }
 
   /** Poll until job completes or times out */
@@ -228,6 +235,7 @@ export class CinemaAgent {
       sceneId: scene.id,
       prompt:  this.buildCinemaPrompt(scene),
       status:  "pending",
+      error:   undefined,
     };
 
     try {
@@ -238,9 +246,10 @@ export class CinemaAgent {
       }
       result.status = "complete";
       console.log(`[CinemaAgent] ✅ Scene ${scene.id} complete`);
-    } catch (err) {
+    } catch (err: any) {
       result.status = "failed";
-      console.error(`[CinemaAgent] ❌ Scene ${scene.id} failed:`, err);
+      result.error  = err?.message ?? String(err);
+      console.error(`[CinemaAgent] ❌ Scene ${scene.id} failed: ${result.error}`);
     }
 
     return result;
