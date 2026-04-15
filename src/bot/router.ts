@@ -7,6 +7,7 @@ import { AdsAgent } from '../agents/ads/AdsAgent.js';
 import { registerWebsiteCommand } from '../agents/website/websiteCommand.js';
 import * as dramaAgent from '../agents/drama/DramaAgent.js';
 import { registerLeadCommands } from '../commands/leads.js';
+import { registerCinemaCommands } from '../agents/cinema/cinemaCommand.js';
 import { getDb } from '../core/memory.js';
 
 export function setupRouter(bot: Telegraf) {
@@ -24,6 +25,9 @@ export function setupRouter(bot: Telegraf) {
         "/surplus - run surplus overage scan\n" +
         "/mao <arv> <repairs> - calculate max allowed offer\n" +
         "/trade - trading account status\n" +
+        "/drama - Out the Way series info\n" +
+        "/produce [ep] - produce a full drama episode\n" +
+        "/scene [ep] [id] - generate a single scene\n" +
         "/ads <skill> - ad strategy (hooks, copy, funnel, budget, audit, strategy)\n" +
         "/hooks <topic> - 20 scroll-stopping hooks\n" +
         "/copy <platform> <product> - ad copy\n" +
@@ -110,6 +114,9 @@ export function setupRouter(bot: Telegraf) {
 
     // 7. Stuyza Lead Management (Modular)
     registerLeadCommands(bot, getDb());
+
+    // 8. Cinema / Drama Production
+    registerCinemaCommands(bot);
 
     // 8. General AI Route
     bot.on('text', async (ctx) => {
