@@ -19,7 +19,7 @@ export const config = {
     openaiApiKey: env.OPENAI_API_KEY || "",
     openaiModel: env.OPENAI_MODEL || "gpt-4o",
     groqModel: env.GROQ_MODEL || "llama-3.3-70b-versatile",
-    anthropicModel: env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20241022",
+    anthropicModel: env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
     deepseekModel: env.DEEPSEEK_MODEL || "deepseek-chat",
     aiProvider: env.AI_PROVIDER || "groq",
     braveApiKey: env.BRAVE_API_KEY || "",

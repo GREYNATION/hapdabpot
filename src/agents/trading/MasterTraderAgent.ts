@@ -55,7 +55,7 @@ export class MasterTraderAgent {
   async ask(userMessage: string): Promise<{ content: string }> {
     try {
       const response = await this.client.messages.create({
-        model: 'claude-3-opus-20240229',
+        model: 'claude-opus-4-5',
         max_tokens: 500,
         system: this.getSystemPrompt(),
         messages: [{ role: 'user', content: userMessage }],
