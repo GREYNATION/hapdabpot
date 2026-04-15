@@ -9,12 +9,13 @@
  */
 
 import { Telegraf } from "telegraf";
-import { CinemaAgent, runOutTheWayEpisode, OUT_THE_WAY_EP1, OUT_THE_WAY_SERIES } from "../cinema/CinemaAgent.js";
+import { CinemaAgent, runOutTheWayEpisode, OUT_THE_WAY_EP1 } from "../cinema/CinemaAgent.js";
 import { log } from "../../core/config.js";
+
+const SERIES_NAME = "Out the Way";
 
 const EPISODE_MAP: Record<number, typeof OUT_THE_WAY_EP1> = {
   1: OUT_THE_WAY_EP1,
-  // Add future episodes here
 };
 
 export function registerCinemaCommands(bot: Telegraf) {
@@ -26,11 +27,12 @@ export function registerCinemaCommands(bot: Telegraf) {
       .join("\n");
 
     await ctx.reply(
-      `🎬 *${OUT_THE_WAY_SERIES}* — Mini Drama Series\n\n` +
+      `🎬 *${SERIES_NAME}* — Mini Drama Series\n\n` +
       `Street drama. South Brooklyn/Jersey. Raw & cinematic.\n\n` +
       `*Episodes:*\n${episodeList}\n\n` +
       `*Commands:*\n` +
-      `/produce 1 — produce full episode 1\n` +
+      `/produce ep 1 — produce full episode 1\n` +
+      `/produce scene <description> — quick single scene\n` +
       `/scene 1 3 — generate scene 3 from episode 1`,
       { parse_mode: "Markdown" }
     );
