@@ -1,5 +1,6 @@
 import { log } from "../core/config.js";
 import { askAI } from "../core/ai.js";
+import { CinemaAgent, runOutTheWayEpisode } from "./cinema/CinemaAgent.js";
 
 // ── LTX Video 2.3 via fal.ai ──────────────────────────────────────────────────
 
@@ -245,5 +246,69 @@ export class ContentAgent {
       "You are a social media strategist."
     );
     return `💡 *Content Ideas*\n\n${response.content}`;
+  }
+
+  // ── Cinema / Drama Production ────────────────────────────────────────────────
+
+  async handleCinemaRequest(ctx: any, args: string[]): Promise<void> {
+    const action = args[0]?.toLowerCase();
+
+    // /produce ep <number> — full episode
+    if (action === "ep") {
+      const epNum = parseInt(args[1] ?? "1", 10);
+      await ctx.reply(`🎬 Starting "Out the Way" Episode ${epNum} production...\n\nThis will take a few minutes. I'll send each scene as it finishes.`);
+
+      try {
+        const clips = await runOutTheWayEpisode(epNum);
+        if (!clips.length) {
+          await ctx.reply("❌ All scenes failed. Check logs for Muapi errors.");
+          return;
+        }
+        await ctx.reply(
+          `✅ Episode ${epNum} produced!\n` +
+          `📹 ${clips.length} clips ready\n\n` +
+          clips.map((url, i) => `Scene ${i + 1}: ${url}`).join("\n") +
+          `\n\nReply /post tiktok to publish all clips.`
+        );
+      } catch (err: any) {
+        await ctx.reply(`❌ Production failed: ${err.message}`);
+      }
+
+    // /produce scene <description> — quick free-form single scene
+    } else if (action === "scene") {
+      const description = args.slice(1).join(" ");
+      if (!description) {
+        await ctx.reply("Usage: /produce scene <description of the shot>\nExample: /produce scene Jaylen on a rooftop at golden hour, looking at the city");
+        return;
+      }
+
+      await ctx.reply(`🎥 Generating scene...\n\n"${description}"`);
+
+      const agent = new CinemaAgent();
+      const result = await agent.processScene({
+        id: 0,
+        description,
+        location: "Brooklyn, cinematic environment",
+        mood: "dramatic",
+        character: "protagonist",
+      });
+
+      if (result.status === "complete") {
+        const url = result.lipSyncUrl ?? result.videoUrl ?? result.imageUrl;
+        await ctx.reply(`✅ Scene done!\n🎬 ${url}`);
+      } else {
+        await ctx.reply("❌ Scene failed. Check Muapi key and server logs.");
+      }
+
+    } else {
+      await ctx.reply(
+        "🎬 *Out the Way Cinema Commands*\n\n" +
+        "`/produce ep 1` — Produce full Episode 1\n" +
+        "`/produce scene <description>` — Quick single scene test\n" +
+        "`/drama` — Series overview\n" +
+        "`/scene 1 3` — Scene 3 from Episode 1",
+        { parse_mode: "Markdown" }
+      );
+    }
   }
 }

@@ -36,52 +36,12 @@ export function registerCinemaCommands(bot: Telegraf) {
     );
   });
 
-  // /produce [episodeNumber] — full episode pipeline
+  // /produce ep <n> | /produce scene <desc> | /produce (help)
   bot.command("produce", async (ctx) => {
-    const text = ctx.message.text.replace("/produce", "").trim();
-    const epNum = parseInt(text) || 1;
-
-    if (!EPISODE_MAP[epNum]) {
-      return ctx.reply(`❌ Episode ${epNum} not defined yet. Available: ${Object.keys(EPISODE_MAP).join(", ")}`);
-    }
-
-    const ep = EPISODE_MAP[epNum];
-    await ctx.reply(
-      `🎬 Starting production of *${OUT_THE_WAY_SERIES}* — Ep ${epNum}: "${ep.title}"\n\n` +
-      `📽️ ${ep.scenes.length} scenes queued\n` +
-      `⏱️ Est. time: ${Math.ceil(ep.scenes.length * 6)}-${ep.scenes.length * 10} minutes\n\n` +
-      `I'll send you each clip as it completes.`,
-      { parse_mode: "Markdown" }
-    );
-
-    // Run in background — doesn't block the bot
-    (async () => {
-      try {
-        const agent = new CinemaAgent();
-        const results = await agent.produceEpisode(ep);
-
-        const clips = agent.getPostableClips(results);
-        const failed = results.filter(r => r.status === "failed").length;
-
-        // Send each clip URL
-        for (const [i, clip] of clips.entries()) {
-          await ctx.reply(
-            `✅ *Scene ${i + 1} ready*\n🎬 ${clip}`,
-            { parse_mode: "Markdown" }
-          );
-        }
-
-        await ctx.reply(
-          `🏁 *Episode ${epNum} complete!*\n` +
-          `${clips.length} clips ready · ${failed} failed\n\n` +
-          `Clips saved to: \`out_the_way_output/ep${epNum}_manifest.json\``,
-          { parse_mode: "Markdown" }
-        );
-      } catch (err: any) {
-        log(`[cinema] Episode ${epNum} production error: ${err.message}`, "error");
-        await ctx.reply(`❌ Production failed: ${err.message}`);
-      }
-    })();
+    const args = ctx.message.text.replace("/produce", "").trim().split(/\s+/).filter(Boolean);
+    const { ContentAgent } = await import("../ContentAgent.js");
+    const agent = new ContentAgent();
+    await agent.handleCinemaRequest(ctx, args);
   });
 
   // /scene [episodeNumber] [sceneId] — single scene test
