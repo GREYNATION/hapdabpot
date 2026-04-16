@@ -36,9 +36,12 @@ export function setupRouter(bot: Telegraf) {
         
         // If it's a command, enforce ownership
         if (ctx.message?.text?.startsWith("/")) {
+            // Check if we have actual IDs configured (not just empty or placeholders)
+            const hasAuthList = allowedIds.length > 0 && allowedIds.every(id => id > 10000000); // Simple check for likely real IDs
+            
             if (allowedIds.length > 0 && !allowedIds.includes(userId)) {
                 log(`[router] Blocking unauthorized command attempt from UID: ${userId}`);
-                return ctx.reply("❌ You are not authorized to use these commands.");
+                return ctx.reply(`❌ **Unauthorized Access**\n\nYour Telegram ID is: \`${userId}\`\n\nPlease add this ID to your \`TELEGRAM_ALLOWED_USER_IDS\` inRailway or the \`.env\` file to activate all commands.`, { parse_mode: 'Markdown' });
             }
         }
         return next();
