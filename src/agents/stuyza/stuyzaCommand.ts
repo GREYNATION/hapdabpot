@@ -10,9 +10,36 @@
  *   /stuyza pipelines       — List available pipelines
  */
 
+import fs from "fs";
 import { Telegraf } from "telegraf";
 import { StuyzaVideoAgent, produceVideo, produceCinematicScene, produceSocialClip } from "./StuyzaVideoAgent.js";
+import { VideoProductionResult } from "./StuyzaVideoAgent.js";
 import { log } from "../../core/config.js";
+
+/**
+ * Send a rendered video to Telegram.
+ * Streams the local file if it exists on disk; falls back to a text reply.
+ */
+async function sendVideo(ctx: any, result: VideoProductionResult, caption: string) {
+  if (result.outputPath && fs.existsSync(result.outputPath)) {
+    const stats = fs.statSync(result.outputPath);
+    const fileSizeMB = stats.size / (1024 * 1024);
+    if (fileSizeMB > 49) {
+      // Telegram bot API limit is 50 MB
+      await ctx.reply(
+        `${caption}\n\n⚠️ Video is ${fileSizeMB.toFixed(1)} MB — too large to send directly via Telegram (50 MB limit).\n📁 Stored at: ${result.outputPath}`
+      );
+    } else {
+      await ctx.replyWithVideo(
+        { source: fs.createReadStream(result.outputPath) },
+        { caption }
+      );
+    }
+  } else {
+    // File not found — just report the path
+    await ctx.reply(`${caption}\n\n🎬 Video: ${result.videoUrl || result.outputPath || "N/A"}`);
+  }
+}
 
 const SERIES_NAME = "Stuyza Productions";
 
@@ -131,12 +158,10 @@ async function handleExplain(ctx: any, topic: string) {
     );
 
     if (result.status === "success") {
-      await ctx.reply(
-        `✅ **Explainer Complete!**\n\n` +
-        `🎬 Video: ${result.videoUrl}\n` +
-        `💰 Cost: $${result.cost?.toFixed(2) || "N/A"}\n\n` +
-        `Stages: ${result.stages?.join(" → ")}`,
-        { parse_mode: "Markdown" }
+      await sendVideo(
+        ctx,
+        result,
+        `✅ Explainer Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}\nStages: ${result.stages?.join(" → ")}`
       );
     } else {
       await ctx.reply(`❌ Production failed: ${result.error}`);
@@ -165,11 +190,10 @@ async function handleCinematic(ctx: any, description: string) {
     );
 
     if (result.status === "success") {
-      await ctx.reply(
-        `✅ **Scene Complete!**\n\n` +
-        `🎬 Video: ${result.videoUrl}\n` +
-        `💰 Cost: $${result.cost?.toFixed(2) || "N/A"}`,
-        { parse_mode: "Markdown" }
+      await sendVideo(
+        ctx,
+        result,
+        `✅ Scene Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}`
       );
     } else {
       await ctx.reply(`❌ Production failed: ${result.error}`);
@@ -194,11 +218,10 @@ async function handleSocial(ctx: any, topic: string) {
     const result = await produceSocialClip(topic, "tiktok");
 
     if (result.status === "success") {
-      await ctx.reply(
-        `✅ **Social Clip Complete!**\n\n` +
-        `🎬 Video: ${result.videoUrl}\n` +
-        `💰 Cost: $${result.cost?.toFixed(2) || "N/A"}`,
-        { parse_mode: "Markdown" }
+      await sendVideo(
+        ctx,
+        result,
+        `✅ Social Clip Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}`
       );
     } else {
       await ctx.reply(`❌ Production failed: ${result.error}`);
@@ -220,12 +243,10 @@ async function handleProduce(ctx: any, prompt: string) {
     const result = await produceVideo(prompt);
 
     if (result.status === "success") {
-      await ctx.reply(
-        `✅ **Production Complete!**\n\n` +
-        `🎬 Video: ${result.videoUrl}\n` +
-        `💰 Cost: $${result.cost?.toFixed(2) || "N/A"}\n\n` +
-        `Stages completed: ${result.stages?.length || 0}`,
-        { parse_mode: "Markdown" }
+      await sendVideo(
+        ctx,
+        result,
+        `✅ Production Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}\nStages: ${result.stages?.length || 0}`
       );
     } else {
       await ctx.reply(`❌ **Production failed**\n\nReason: ${result.error || "Unknown neuro-sync error."}\n\n💡 Try describing your scene in more detail, or use /stuyza pipelines to see available formats.`, { parse_mode: "Markdown" });
