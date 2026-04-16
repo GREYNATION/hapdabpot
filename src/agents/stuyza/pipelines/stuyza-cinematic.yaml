@@ -1,0 +1,84 @@
+# Stuyza Cinematic Pipeline
+# For "Out the Way" drama series and cinematic storytelling
+
+name: stuyza-cinematic
+description: |
+  Cinematic drama production for the "Out the Way" series.
+  Street drama aesthetic: South Brooklyn/Jersey, raw and emotional.
+
+  Style: Film-like quality, color grading, cinematic camera movement
+  Duration: 15-30 seconds per scene
+  Cost target: Under $2 per scene
+
+stages:
+  - scene_analysis:
+      description: Parse scene description for cinematic elements
+      tools: [scene_parser]
+      output: scene_breakdown.json
+
+  - visual_concept:
+      description: Create detailed visual treatment
+      tools: [image_generation]
+      output: concept_frames/
+      requirements:
+        - Character reference images
+        - Location establishing shots
+        - Mood/atmosphere reference
+
+  - cinematography:
+      description: Define camera and lighting specs
+      output: cinematography_plan.json
+      spec:
+        lens: 35mm anamorphic
+        aperture: f/2.0
+        color_grade: warm shadows, teal highlights, Moonlight 2016 palette
+        aspect_ratio: 9:16
+
+  - assets:
+      description: Generate cinematic images and motion
+      tools: [image_generation, image_to_video, lipsync]
+      providers:
+        images: flux_dev
+        video: kling_v2_1
+        lipsync: sync_lipsync
+      output:
+        - scenes/{id}/image.png
+        - scenes/{id}/video.mp4
+        - scenes/{id}/final_lipsync.mp4
+
+  - edit:
+      description: Sequence scenes with transitions
+      tools: [video_editor]
+      output: rough_cut.mp4
+
+  - compose:
+      description: Final grade and render
+      tools: [remotion_composer]
+      output: final.mp4
+      settings:
+        color_correction: true
+        film_grain: subtle
+        letterbox: false
+
+quality_gates:
+  pre_compose:
+    - Image quality check
+    - Motion smoothness
+    - Lip sync accuracy
+
+  post_render:
+    - Color grading validation
+    - Audio sync check
+    - Frame sampling review
+
+cost_budget:
+  max_usd: 2.00
+  alert_threshold: 1.50
+
+style:
+  series: Out the Way
+  aesthetic: urban street drama, South Brooklyn, cinematic golden hour
+  color_grade: warm shadows, teal highlights, Moonlight 2016 palette
+  lens: 35mm anamorphic cinematic
+  aperture: f/2.0
+  aspect_ratio: 9:16

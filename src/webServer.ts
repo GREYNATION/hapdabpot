@@ -13,7 +13,13 @@ import { fileURLToPath } from 'url';
 import { aiNegotiate } from './core/negotiation/aiCloser.js';
 import { DataIngestionService } from './services/dataIngestionService.js';
 import { createLeadsRouter } from './routes/leads.js';
+import { CouncilOrchestrator } from './core/orchestrator/councilOrchestrator.js';
 import fs from 'fs';
+import ws from 'ws';
+import { getSupabase } from './core/supabase.js';
+
+const { WebSocketServer } = ws;
+const orchestrator = new CouncilOrchestrator();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,6 +80,38 @@ app.get('/api/config', (req: Request, res: Response) => {
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseKey: process.env.SUPABASE_ANON_KEY
   });
+});
+
+// ── Council Command Bridge ──────────────────────────────────────────────────
+app.post('/api/command', async (req: Request, res: Response) => {
+  const { message, chatId } = req.body;
+  if (!message) return res.status(400).json({ success: false, error: 'Message required' });
+
+  log(`[Bridge] Council command received: ${message}`);
+  
+  // Trigger background orchestrator
+  const cid = chatId || 0;
+  orchestrator.chat(message, cid).then(() => {
+    log(`[Bridge] Council command processed successfully.`);
+  }).catch(err => {
+    log(`[Bridge] Council command failed: ${err.message}`, "error");
+  });
+
+  return res.json({ success: true, message: 'Command accepted for processing.' });
+});
+
+// api/voice POST is already handled by uploadAudioAndGetUrl in some places, 
+// but we need a specific bridge for the dashboard's manual calls
+app.post('/api/voice', async (req: Request, res: Response) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ success: false, error: 'Text required' });
+
+  try {
+      const audioUrl = await uploadAudioAndGetUrl(text);
+      return res.json({ success: true, audioUrl });
+  } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Stripe webhook endpoint needs raw body
@@ -347,7 +385,8 @@ app.get("/tiktokIfxgUQYQCixpunReOoWQpEWQnqhTD32r.txt", (req: Request, res: Respo
 
 // Configure Static Serving for the Landing Page / Dashboard
 const possibleStaticPaths = [
-  path.join(__dirname, 'web'),
+  path.join(process.cwd(), 'dashboard', 'dist'), // 3D Command Center (Primary)
+  path.join(__dirname, 'web'),                   // Legacy/Fallback Console
   path.join(process.cwd(), 'src', 'web'),
   path.join(process.cwd(), 'dist', 'web')
 ];
@@ -503,8 +542,48 @@ export function startWebServer(bot: any) {
     log(`[WebServer] Health check: GET /health`);
   });
 
-  // Root serves the static landing page from /web
-  // app.get('/', (req, res) => res.send('Gravity Claw Specialist Agent is Online.'));
+  // ── Unified WebSocket Neural Bridge ───────────────────────────────────────
+  const wss = new WebSocketServer({ server });
+  
+  wss.on('connection', (socket) => {
+    log('[WebSocket] Dashboard connected to Neural Bridge.');
+    socket.send(JSON.stringify({ type: 'status', agent: 'SYSTEM', message: 'BRIDGE_CONNECTED: Neural sync established.' }));
+  });
+
+  // Relay logs and handle Heartbeats
+  const supabase = getSupabase();
+  if (supabase) {
+    supabase
+      .channel('ops_logs_unified')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ops_logs' }, payload => {
+          const row = payload.new;
+          const broadcastMessage = JSON.stringify({
+              type: row.type || 'status',
+              agent: row.agent || 'SYSTEM',
+              message: row.message,
+              timestamp: row.timestamp
+          });
+          
+          wss.clients.forEach(client => {
+              if (client.readyState === 1) client.send(broadcastMessage);
+          });
+      })
+      .subscribe();
+  }
+
+  // ── Periodic Stellar Heartbeat ───────────────────────────────────────────
+  setInterval(() => {
+    const heartbeat = JSON.stringify({
+        type: 'heartbeat',
+        agent: 'SYSTEM',
+        status: 'online',
+        timestamp: new Date().toISOString()
+    });
+    
+    wss.clients.forEach(client => {
+        if (client.readyState === 1) client.send(heartbeat);
+    });
+  }, 5000); 
 
   return server;
 }

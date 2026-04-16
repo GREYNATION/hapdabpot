@@ -1,0 +1,47 @@
+{
+  "scenes": [
+    {
+      "id": "1",
+      "kind": "image",
+      "startSeconds": 0,
+      "durationSeconds": 4,
+      "src": "projects/jaylen-rooftop/assets/images/scene1.png",
+      "tone": "neutral"
+    },
+    {
+      "id": "2",
+      "kind": "title",
+      "startSeconds": 4,
+      "durationSeconds": 3,
+      "text": "Brooklyn Skies",
+      "accent": "#F5C470"
+    },
+    {
+      "id": "3",
+      "kind": "image",
+      "startSeconds": 7,
+      "durationSeconds": 5,
+      "src": "projects/jaylen-rooftop/assets/images/scene2.png",
+      "tone": "void"
+    },
+    {
+      "id": "4",
+      "kind": "image",
+      "startSeconds": 12,
+      "durationSeconds": 6,
+      "src": "projects/jaylen-rooftop/assets/images/scene3.png",
+      "tone": "steel"
+    },
+    {
+      "id": "5",
+      "kind": "title",
+      "startSeconds": 18,
+      "durationSeconds": 4,
+      "text": "Stuyza Productions",
+      "accent": "#86d8ff",
+      "intensity": 1.5
+    }
+  ],
+  "titleFontSize": 92,
+  "titleWidth": 1400
+}

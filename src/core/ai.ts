@@ -229,12 +229,33 @@ export async function askAI(
         { role: "user", content: prompt },
     ];
 
+    // Intelligent Routing:
+    const model = options.model || "";
+    const isExplicitCloud = model.includes("google/") || model.includes("anthropic/");
+    const isGroqMode = config.aiProvider === "groq";
+
+    // If we're in Groq mode, we want to stay in Groq unless it's a model Groq physically CANNOT do (like multimodal)
+    if (isGroqMode && !isExplicitCloud) {
+        try {
+            const timeoutMs = options.tools?.length ? 120_000 : 60_000;
+            // Override openai-style model names with the Groq default if in Groq mode
+            if (model.includes("gpt-") || !model) {
+                options.model = config.groqModel || "llama-3.3-70b-versatile";
+            }
+            return await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
+        } catch (err: any) {
+            log(`[ai] Groq call failed: ${err.message}. ${config.openaiApiKey ? "Attempting OpenRouter fallback..." : "No fallback available."}`, "warn");
+            if (!config.openaiApiKey) throw err;
+            return await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
+        }
+    }
+
+    // Default legacy path (OpenRouter/OpenAI)
     try {
-        const timeoutMs = options.tools?.length ? 120_000 : 60_000;
-        return await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
-    } catch (err) {
-        log(`[ai] Groq failed → OpenRouter fallback. Error: ${getErrorMessage(err)}`);
         return await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
+    } catch (err) {
+        log(`[ai] OpenAI/OpenRouter failed. Error: ${getErrorMessage(err)}`, "error");
+        throw err;
     }
 }
 

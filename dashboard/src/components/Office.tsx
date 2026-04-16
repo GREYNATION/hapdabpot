@@ -1,13 +1,6 @@
 import { OrbitControls, Line, PerspectiveCamera } from "@react-three/drei";
 import Agent from "./Agent";
 
-const locations: Record<string, [number, number, number]> = {
-  storyDesk: [-6, 0.5, -2],
-  productionDesk: [0, 0.5, -2],
-  marketingDesk: [6, 0.5, -2],
-  lounge: [0, 0.5, 6],
-};
-
 export default function Office({ agents }: { agents: any[] }) {
   return (
     <>
@@ -31,14 +24,14 @@ export default function Office({ agents }: { agents: any[] }) {
         <meshStandardMaterial color="#1a1a1a" />
       </mesh>
 
-      {/* Story Room */}
-      <Desk position={[-6, 0, -2]} label="Story" />
+      {/* Trading Room */}
+      <Desk position={[-6, 0, -2]} label="Council: Trader" />
 
-      {/* Production Room */}
-      <Desk position={[0, 0, -2]} label="Production" />
+      {/* Real Estate Room */}
+      <Desk position={[0, 0, -2]} label="Council: Real Estate" />
 
-      {/* Marketing Room */}
-      <Desk position={[6, 0, -2]} label="Marketing" />
+      {/* Drama/Content Room */}
+      <Desk position={[6, 0, -2]} label="Council: Drama" />
 
       {/* Pipeline Visual */}
       <Pipeline />

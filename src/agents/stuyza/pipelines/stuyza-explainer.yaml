@@ -1,0 +1,79 @@
+# Stuyza Explainer Pipeline
+# For real estate educational content, animated explainers
+
+name: stuyza-explainer
+description: |
+  Professional animated explainers for real estate topics.
+  Ideal for: wholesaling education, investment concepts, process walkthroughs.
+
+  Style: Clean motion graphics, text animations, voice narration
+  Duration: 60-90 seconds
+  Cost target: Under $1
+
+stages:
+  - research:
+      description: Gather topic information and key points
+      tools: [web_search, knowledge_base]
+      output: research_summary.json
+
+  - script:
+      description: Write narration script with clear explanations
+      tools: [text_generation, script_format]
+      output: script.txt
+      requirements:
+        - Hook in first 5 seconds
+        - Clear problem/solution structure
+        - Strong call-to-action
+        - Max 150 words for 60-sec video
+
+  - scene_plan:
+      description: Create visual scene breakdown
+      tools: [scene_planner]
+      output: scene_plan.json
+      requirements:
+        - 6-8 scenes for 60-sec video
+        - Visual descriptions for each scene
+        - Text overlay key points
+
+  - assets:
+      description: Generate images and motion graphics
+      tools: [image_generation, text_to_speech, music_generation]
+      providers:
+        images: flux_schnell  # Fast, cheap
+        voice: elevenlabs  # Professional TTS
+        music: suno  # Royalty-free background
+      output:
+        - images/
+        - audio/voice.mp3
+        - audio/music.mp3
+
+  - edit:
+      description: Assemble video timeline
+      tools: [video_editor, subtitle_generator]
+      output: timeline.json
+
+  - compose:
+      description: Render final video with Remotion
+      tools: [remotion_composer]
+      output: final.mp4
+
+quality_gates:
+  pre_compose:
+    - Script length check
+    - Scene count validation
+    - Asset completeness
+
+  post_render:
+    - Video duration validation
+    - Audio level check
+    - Subtitle sync check
+
+cost_budget:
+  max_usd: 1.50
+  alert_threshold: 1.00
+
+style:
+  color_palette: professional_blue
+  font_family: Inter
+  motion_style: smooth_slide
+  transition_type: fade_slide

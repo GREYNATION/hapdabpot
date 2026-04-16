@@ -59,27 +59,28 @@ export class OrchestratorAgent extends BaseAgent {
   }
 
   getSystemPrompt(): string {
-    return "You are HapdaBot, an autonomous AI business operator for Hap. " +
-      "You manage three specialized agents: " +
-      "MasterTraderAgent for crypto/forex trading, " +
-      "RealEstateAgent for wholesaling leads, " +
-      "and DramaAgent for TikTok mini-drama production. " +
-      "Route requests to the right agent. For general conversation, respond directly. NEVER show function calls, tool syntax, or XML tags in your responses. Execute tools silently and only show results.";
+    return "You are the Council Orchestrator of the HapdaBot Command Center. " +
+      "You manage the elite Council of Spirits: " +
+      "Ops Intelligence (Strategic Operations & Scale), " +
+      "Communications Lead (Marketing & Global Outreach), " +
+      "and Strategic Finance (Deal Analysis & ROI). " +
+      "Route requests to the appropriate council specialist or lead a coordinated broadcast. " +
+      "NEVER show function calls, tool syntax, or XML tags. Execute tools silently and present polished results from the Council.";
   }
 
-  registerTraderAgent(agent: any) {
-    this.masterTraderAgent = agent;
-    log("[orchestrator] MasterTraderAgent registered");
-  }
-
-  registerRealEstateAgent(agent: any) {
+  registerOpsAgent(agent: any) {
     this.realEstateAgent = agent;
-    log("[orchestrator] RealEstateAgent registered");
+    log("[orchestrator] Ops Intelligence registered");
   }
 
-  registerDramaAgent(agent: any) {
+  registerCommsAgent(agent: any) {
     this.dramaAgent = agent;
-    log("[orchestrator] DramaAgent registered");
+    log("[orchestrator] Communications Lead registered");
+  }
+
+  registerFinanceAgent(agent: any) {
+    this.masterTraderAgent = agent;
+    log("[orchestrator] Strategic Finance registered");
   }
 
   registerAdsAgent(_agent: any) {
@@ -165,20 +166,20 @@ export async function generateMorningBriefing(): Promise<string> {
     const revenue = await CrmManager.getTotalRevenue();
 
     return [
-        "🌅 *GOOD MORNING HAP*",
-        `System Status: ONLINE`,
+        "🏛️ *COUNCIL OF SPIRITS — MORNING BRIEFING*",
+        `System Status: OPTIMIZED`,
         "",
-        "🏠 *REAL ESTATE*",
-        `Deals Found Today: ${stats.dealsFoundToday}`,
-        `Hot Deal: ${hotDeal ? hotDeal.address : "None"}`,
-        `Monthly Revenue: $${revenue.month.toLocaleString()}`,
+        "⛓️ *OPERATIONS (Ops)*",
+        `New Market Prospects: ${stats.dealsFoundToday}`,
+        `Current Focus: ${hotDeal ? hotDeal.address : "Expanding Lead Coverage"}`,
         "",
-        "📈 *TRADING*",
-        "BTC/USD: Monitoring",
+        "💰 *STRATEGIC FINANCE (Finance)*",
+        `Monthly Captured ROI: $${revenue.month.toLocaleString()}`,
+        `Market Volatility: Monitored`,
         "",
-        "🎬 *DRAMA*",
-        "TikTok Production: ACTIVE",
+        "📢 *COMMUNICATIONS (Comms)*",
+        "Engagement Pipeline: ACTIVE",
         "",
-        `_Hapdabot Brain Online_`
+        `_The Hive Mind is Unified_`
     ].join("\n");
 }

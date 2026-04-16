@@ -1,0 +1,64 @@
+export type CinematicTone = "cold" | "steel" | "void" | "neutral";
+
+export interface CinematicBaseScene {
+  id: string;
+  startSeconds: number;
+  durationSeconds: number;
+}
+
+export interface CinematicVideoScene extends CinematicBaseScene {
+  kind: "video";
+  src: string;
+  tone?: CinematicTone;
+  trimBeforeSeconds?: number;
+  trimAfterSeconds?: number;
+  filter?: string;
+  fadeInFrames?: number;
+  fadeOutFrames?: number;
+}
+
+export interface CinematicImageScene extends CinematicBaseScene {
+  kind: "image";
+  src: string;
+  tone?: CinematicTone;
+  filter?: string;
+  fadeInFrames?: number;
+  fadeOutFrames?: number;
+}
+
+export type CinematicScene = CinematicVideoScene | CinematicTitleScene | CinematicImageScene;
+
+export interface CinematicSoundtrack {
+  src: string;
+  volume?: number;
+  trimBeforeSeconds?: number;
+  trimAfterSeconds?: number;
+  fadeInSeconds?: number;
+  fadeOutSeconds?: number;
+}
+
+export interface CinematicWordCaption {
+  word: string;
+  startMs: number;
+  endMs: number;
+}
+
+export interface CinematicCaptionConfig {
+  words: CinematicWordCaption[];
+  wordsPerPage?: number;
+  fontSize?: number;
+  color?: string;
+  highlightColor?: string;
+  backgroundColor?: string;
+}
+
+export interface CinematicRendererProps {
+  [key: string]: unknown;
+  scenes: CinematicScene[];
+  titleFontSize?: number;
+  titleWidth?: number;
+  signalLineCount?: number;
+  soundtrack?: CinematicSoundtrack;
+  music?: CinematicSoundtrack;
+  captions?: CinematicCaptionConfig;
+}

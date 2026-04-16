@@ -1,6 +1,6 @@
 import { log, config } from "./core/config.js";
 import { startupSequence } from "./core/startup.js";
-import { Telegraf } from "telegraf";
+import { TelegramBot } from "./bot/telegram.js";
 import { setupRouter } from "./bot/router.js";
 import { initMarketScans } from "./cron/marketScans.js";
 import { startWebServer } from "./webServer.js";
@@ -15,25 +15,29 @@ async function main() {
             log("⚠️ System partially initialized. Proceeding in fallback mode.", "warn");
         }
 
-        // 2. Setup Bot
-        if (!config.telegramToken || config.telegramToken === "placeholder") {
-            log("❌ TELEGRAM_BOT_TOKEN missing. Bot will not launch.", "error");
-            process.exit(1);
-        }
+        const tgBot = new TelegramBot();
+        const bot = tgBot.getBot();
 
-        const bot = new Telegraf(config.telegramToken);
-
-        // 3. Register Routes
+        // 3. Register command routes from router.ts
         setupRouter(bot);
 
-        // 4. Initialize Cron Jobs
-        initMarketScans(bot);
+        // 4. Initialize Cron Jobs (Skip if in Dashboard-only mode)
+        const skipBot = process.env.SKIP_BOT === 'true';
+        if (skipBot) {
+            log("🌌 [index] Dashboard-only mode detected. Skipping bot/cron launch.", "info");
+        } else {
+            initMarketScans(bot);
+        }
 
-        // 5. Start Web Server FIRST (keeps health checks passing)
+        // 5. Start Web Server (Dashboard + Neural Bridge)
         startWebServer(bot);
 
-        // 6. Launch bot in background — doesn't block the web server
-        launchBotWithRetry(bot);
+        // 6. Launch bot Supreme (Skip if in Dashboard-only mode)
+        if (!skipBot) {
+            tgBot.launch();
+        } else {
+            log("🟢 [index] Local Neural Bridge online. Connect to dashboard to view cloud activity.");
+        }
 
         // Graceful Stop
         process.once("SIGINT", () => bot.stop("SIGINT"));
@@ -42,33 +46,6 @@ async function main() {
     } catch (err: any) {
         log(`[index] FATAL: ${err.message}`, "error");
         process.exit(1);
-    }
-}
-
-async function launchBotWithRetry(bot: Telegraf) {
-    try {
-        await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-    } catch (e) {
-        log("[bot] deleteWebhook failed, continuing...", "warn");
-    }
-
-    const MAX_RETRIES = 12;
-    const DELAY_MS = 5000;
-
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        try {
-            await bot.launch();
-            log("🚀 BOT LAUNCHED: Gravity Claw v5.0 ready.");
-            return;
-        } catch (err: any) {
-            if (err?.response?.error_code === 409 && attempt < MAX_RETRIES) {
-                log(`⏳ Bot conflict (attempt ${attempt}/${MAX_RETRIES}). Retrying in ${DELAY_MS / 1000}s...`, "warn");
-                await new Promise(r => setTimeout(r, DELAY_MS));
-            } else {
-                log(`❌ Bot launch failed after ${attempt} attempts: ${err.message}`, "error");
-                return; // don't crash the process — web server stays up
-            }
-        }
     }
 }
 

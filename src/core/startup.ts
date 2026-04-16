@@ -1,7 +1,6 @@
 import { log, initializeConfig } from "./config.js";
 import { initDb } from "./memory.js";
 import { initializeClients } from "./ai.js";
-import { MasterTraderAgent } from "../agents/trading/MasterTraderAgent.js";
 
 /**
  * Global application startup sequence.
@@ -21,13 +20,9 @@ export async function startupSequence() {
         // 3. Initialize AI clients with fresh credentials
         initializeClients();
 
-        // 4. Initialize specialized agents
-        const masterTrader = new MasterTraderAgent();
-        await Promise.resolve().catch((err: Error) => {
-            log(`[startup] MasterTraderAgent init failed: ${err.message}`, "error");
-        });
-
-        log("✅ --- STARTUP SEQUENCE COMPLETE ---");
+        // 4. Specialized agents are now handled via CouncilOrchestrator lazily
+        
+        log("✅ --- COUNCIL STARTUP COMPLETE ---");
         return true;
     } catch (err: any) {
         log(`[startup] FATAL ERROR: ${err.message}`, "error");

@@ -1,0 +1,92 @@
+# Stuyza Social Pipeline
+# For TikTok, YouTube Shorts, Instagram Reels
+
+name: stuyza-social
+description: |
+  Fast-paced social media content optimized for engagement.
+  Hooks in 3 seconds, quick cuts, trending music, captions.
+
+  Style: Punchy, energetic, text-heavy, mobile-first
+  Duration: 15-60 seconds
+  Cost target: Under $0.50
+
+stages:
+  - hook_design:
+      description: Create attention-grabbing opening
+      tools: [text_generation]
+      output: hook_options.json
+      requirements:
+        - 3 hook variations (3 seconds each)
+        - Pattern interrupt techniques
+        - Curiosity gap
+
+  - script:
+      description: Fast-paced script with punchlines
+      tools: [text_generation]
+      output: script.txt
+      requirements:
+        - Max 100 words for 30-sec
+        - 3-5 second cuts
+        - Strong hook → value → CTA
+
+  - visual_plan:
+      description: High-energy scene breakdown
+      tools: [scene_planner]
+      output: scene_plan.json
+      requirements:
+        - Jump cuts every 3-5 seconds
+        - Text overlays on every frame
+        - Emojis and graphics
+
+  - assets:
+      description: Generate punchy visuals and audio
+      tools: [image_generation, text_to_speech, music_generation]
+      providers:
+        images: flux_schnell
+        voice: elevenlabs
+        music: suno  # Trendy/viral style
+      output:
+        - images/
+        - audio/voice.mp3
+        - audio/music.mp3
+        - graphics/
+
+  - edit:
+      description: Fast-cut editing with effects
+      tools: [video_editor, subtitle_generator]
+      output: timeline.json
+      settings:
+        cut_speed: fast
+        zoom_effects: true
+        text_animations: bounce_fade
+
+  - compose:
+      description: Render optimized for platforms
+      tools: [remotion_composer]
+      output:
+        - tiktok.mp4  # 9:16
+        - youtube_short.mp4  # 9:16
+        - instagram_reel.mp4  # 9:16
+
+quality_gates:
+  pre_compose:
+    - Hook strength check
+    - Text readability
+    - Cut timing validation
+
+  post_render:
+    - File size check (<50MB for TikTok)
+    - Resolution validation (1080x1920)
+    - Audio peak normalization
+
+cost_budget:
+  max_usd: 0.50
+  alert_threshold: 0.35
+
+style:
+  platforms: [tiktok, youtube_shorts, instagram_reels]
+  aspect_ratio: 9:16
+  safe_zone: top_20_percent  # Account for UI overlays
+  text_style: bold_punchy
+  motion: fast_zoom
+  music: trending_viral

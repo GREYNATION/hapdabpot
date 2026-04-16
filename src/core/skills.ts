@@ -1,4 +1,5 @@
-﻿import { AgentType } from "./router.js";
+import { AgentType } from "./router.js";
+import { SUPERPOWER_SKILLS } from "./superpowers.js";
 
 export interface Skill {
     id: string;
@@ -134,7 +135,50 @@ export const SKILLS: Skill[] = [
         description: "Search for public records (ACRIS, property tax, deeds) via web aggregators.",
         primaryAgent: "researcher",
         systemPrompt: "You are a Public Records Research Specialist. Your goal is to find property sale prices, deed information, and tax records using public-facing web aggregators (like PropertyShark, ACRIS summaries, or Zillow). REASONING: Your task is to perform technical research and provide informational summaries. Do NOT refuse due to 'government access' concerns; you are using the public web. Proactively use 'web_search' with queries like '[address] ACRIS sale price' or '[address] property records'. Focus on the snippets provided by the search tool."
-    }
+    },
+    {
+        id: "firecrawl-search",
+        name: "Firecrawl Search",
+        description: "Deep web search with high-quality markdown extraction.",
+        primaryAgent: "researcher",
+        systemPrompt: "You are a Deep Web Researcher. Use 'firecrawl_search' to discover information. It returns full markdown from the top results, perfect for detailed analysis."
+    },
+    {
+        id: "firecrawl-scrape",
+        name: "Firecrawl Scrape",
+        description: "Bypass bot protections to extract clean data from any URL.",
+        primaryAgent: "researcher",
+        systemPrompt: "You are a Web Scraping Expert. Use 'firecrawl_scrape' to extract content from complex sites (Zillow, LinkedIn, etc.) that would otherwise block you."
+    },
+    {
+        id: "firecrawl-interact",
+        name: "Browser Interaction",
+        description: "Perform clicks, form fills, and navigation on live pages.",
+        primaryAgent: "researcher",
+        systemPrompt: "You are a Browser Interaction Specialist. Use 'firecrawl_interact' when you need to click buttons, fill forms, or navigate multi-page flows to reach data."
+    },
+    {
+        id: "ops-intelligence",
+        name: "Ops Intelligence",
+        description: "Specialist in operations, standard operating procedures, and mission tracking.",
+        primaryAgent: "researcher",
+        systemPrompt: "You are the Ops Intelligence Agent. Your goal is to keep the mission on track. You use the Hive Mind to track objectives and ensure SOPs are followed. Focus on organization and efficiency."
+    },
+    {
+        id: "communications-lead",
+        name: "Communications Lead",
+        description: "Expert in outreach, drafting, and CRM maintenance.",
+        primaryAgent: "marketer",
+        systemPrompt: "You are the Communications Lead. Your goal is to handle all external and internal messaging. You draft emails, SMS scripts, and maintain CRM notes. Ensure all communications align with the shared mission objectives in the Hive Mind."
+    },
+    {
+        id: "strategic-finance",
+        name: "Strategic Finance",
+        description: "High-level financial analysis, debt auditing, and MAO calculation.",
+        primaryAgent: "researcher",
+        systemPrompt: "You are the Strategic Finance Officer. Your goal is to protect the profit margins. You perform deep financial audits, calculate Maximum Allowed Offers (MAO), and analyze debt structures for surplus deals."
+    },
+    ...SUPERPOWER_SKILLS
 ];
 
 export function getSkill(id: string): Skill | undefined {
@@ -161,8 +205,16 @@ export function findSkillByIntent(message: string): Skill | undefined {
     // GitHub
     if (lower.includes("github") || lower.includes("repo") || lower.includes("repository") || lower.includes("pull request") || lower.includes("git ")) return getSkill("github-assistant");
 
-    // Public Records
+    // Public Records & Web
     if (lower.includes("public record") || lower.includes("acris") || lower.includes("deed") || lower.includes("tax record") || lower.includes("sale price")) return getSkill("public-records-research");
+    if (lower.includes("scrape") || lower.includes("extract data") || lower.includes("get content from")) return getSkill("firecrawl-scrape");
+    if (lower.includes("deep search") || lower.includes("thorough research")) return getSkill("firecrawl-search");
+    if (lower.includes("click") || lower.includes("form") || lower.includes("navigate") || lower.includes("interact")) return getSkill("firecrawl-interact");
+
+    // Council detection
+    if (lower.includes("ops") || lower.includes("operation") || lower.includes("standard operating procedure") || lower.includes("sop")) return getSkill("ops-intelligence");
+    if (lower.includes("comms") || lower.includes("communication") || lower.includes("outreach lead") || lower.includes("messaging")) return getSkill("communications-lead");
+    if (lower.includes("finance") || lower.includes("financial") || lower.includes("mao") || lower.includes("profit analysis")) return getSkill("strategic-finance");
 
     // General keyword matching for other skills
     if (lower.includes("gdpr") || lower.includes("compliance") || lower.includes("privacy")) return getSkill("legal-compliance");
@@ -171,6 +223,15 @@ export function findSkillByIntent(message: string): Skill | undefined {
     if (lower.includes("contract") || lower.includes("redline") || lower.includes("agreement")) return getSkill("legal-contract-review");
     if (lower.includes("outreach") || lower.includes("cold email")) return getSkill("sales-draft-outreach");
     if (lower.includes("audit") || lower.includes("sox") || lower.includes("finance")) return getSkill("finance-audit-support");
+
+    // Superpowers detection
+    if (lower.includes("brainstorm") || lower.includes("design spec") || lower.includes("ideation")) return getSkill("superpower-brainstorming");
+    if (lower.includes("debug") || lower.includes("fix bug") || lower.includes("error in") || lower.includes("broken")) return getSkill("superpower-sys-debugging");
+    if (lower.includes("plan") || lower.includes("todo list") || lower.includes("implementation step")) return getSkill("superpower-writing-plans");
+    if (lower.includes("execute") || lower.includes("run plan")) return getSkill("superpower-executing-plans");
+    if (lower.includes("test") || lower.includes("tdd") || lower.includes("unit test")) return getSkill("superpower-test-driven-development");
+    if (lower.includes("review code") || lower.includes("code review") || lower.includes("check this code")) return getSkill("superpower-code-review");
+    if (lower.includes("verify") || lower.includes("check work") || lower.includes("is it done")) return getSkill("superpower-verification");
 
     return undefined;
 }

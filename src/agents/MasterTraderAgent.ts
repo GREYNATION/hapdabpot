@@ -106,8 +106,8 @@ Always prioritize capital preservation over aggressive trading.`;
   private async chat(userMessage: string, systemPrompt?: string): Promise<string> {
     try {
       const response = await this.client.messages.create({
-        model: 'claude-opus-4-5',
-        max_tokens: 500,
+        model: 'claude-3-5-sonnet-latest',
+        max_tokens: 1000,
         system: systemPrompt || this.getSystemPrompt(),
         messages: this.conversationHistory as any,
       });
@@ -192,11 +192,14 @@ Provide:
     try {
       const response = await this.chat(
         userMessage,
-        this.getSystemPrompt() + '\n\nThe user is chatting with you directly. Respond helpfully.'
+        `You are Strategic Finance, the analytical soul of the Council of Spirits. 
+        Analyze the request from a business and ROI perspective.
+        Current Market Context: ${JSON.stringify(this.state.openTrades)}
+        Respond as a member of the elite Command Center Council.`
       );
-      return { content: response };
+      return { content: `**[Strategic Finance]**: ${response}` };
     } catch (e: any) {
-      return { content: "I am having trouble connecting to my trading models right now." };
+      return { content: "📡 **[Strategic Finance]**: I am currently recalibrating my predictive engines. Please stand by." };
     }
   }
 

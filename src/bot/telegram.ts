@@ -3,7 +3,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { log, config } from '../core/config.js';
-import { orchestrator } from '../agents/orchestrator/OrchestratorAgent.js';
+import { CouncilOrchestrator } from '../core/orchestrator/councilOrchestrator.js';
 import { saveMessage } from '../core/memory.js';
 import { listApps, stopApp, getLogs } from '../core/processManager.js';
 import { manager } from '../core/manager.js';
@@ -33,6 +33,11 @@ export class TelegramBot {
     private isBusy: boolean = false;
     private analysisSessions: Map<number, any> = new Map();
     private masterTrader = new MasterTraderAgent();
+    private council = new CouncilOrchestrator();
+
+    public getBot(): Telegraf {
+        return this.bot;
+    }
 
     constructor() {
         if (!config.telegramToken) {
@@ -114,7 +119,7 @@ export class TelegramBot {
 
                 const transcription = await openai.audio.transcriptions.create({
                     file: fs.createReadStream(audioPath),
-                    model: "whisper-large-v3",
+                    model: "whisper-1",
                 });
                 caption = (caption + "\n\n[Walkthrough Transcript]: " + transcription.text).trim();
 
@@ -159,7 +164,7 @@ export class TelegramBot {
                     fs.writeFileSync(voicePath, Buffer.from(voiceResponse.data));
                     const transcription = await openai.audio.transcriptions.create({
                         file: fs.createReadStream(voicePath),
-                        model: "whisper-large-v3",
+                        model: "whisper-1",
                     });
                     userText = transcription.text;
                     fs.unlinkSync(voicePath);
@@ -183,8 +188,17 @@ export class TelegramBot {
 
                 if (userText || attachments.length > 0) {
                     await ctx.sendChatAction("typing");
-                    const res = await orchestrator.route(userText, attachments);
-                    return this.safeReply(ctx, `🤖 HapdaBot\n\n${res.response}`);
+                    
+                    if ("voice" in msg || "audio" in msg) {
+                        // Handle voice-to-voice council session
+                        const { text, voiceBuffer } = await this.council.chatWithVoice(userText, chatId);
+                        await this.safeReply(ctx, `🤖 **Hapdabot Council**\n\n${text}`);
+                        return await ctx.replyWithVoice({ source: voiceBuffer });
+                    } else {
+                        // Standard chat
+                        const response = await this.council.chat(userText, chatId);
+                        return this.safeReply(ctx, `🤖 **Hapdabot Council**\n\n${response}`);
+                    }
                 }
             } catch (err: any) { await this.safeReply(ctx, `⚠️ Error: ${err.message}`); }
         });

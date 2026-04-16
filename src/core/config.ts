@@ -12,6 +12,25 @@ export function log(msg: string, level: "info" | "warn" | "error" = "info") {
     console.log(`[${time}] [${level.toUpperCase()}] ${msg}`);
 }
 
+/**
+ * Broadcasts a log entry to the Supabase 'ops_logs' table for the web Command Center.
+ */
+export async function logToOpsConsole(agent: string, message: string, type: "think" | "tool" | "error" | "status" | "chat" = "status") {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    try {
+        await supabase.from("ops_logs").insert({
+            agent,
+            message,
+            type,
+            timestamp: new Date().toISOString()
+        });
+    } catch (e) {
+        // Silently fail to avoid crashing the bot if logging fails
+    }
+}
+
 const env = process.env;
 
 export const config = {
@@ -44,6 +63,7 @@ export const config = {
     anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
     visionModel: process.env.VISION_MODEL ?? "gpt-4-vision-preview",
     STITCH_MASTER_PROJECT_ID: process.env.STITCH_MASTER_PROJECT_ID ?? "",
+    firecrawlApiKey: env.FIRECRAWL_API_KEY || "",
 };
 
 // ── AI Clients (Exports are updated by initializeClients) ──────────────────
@@ -57,10 +77,11 @@ export let anthropic = env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHR
  * This allows the bot to run without a local .env file once registered.
  */
 export async function initializeConfig() {
+    log("[config] 🏛️ STARTING COUNCIL OF SPIRITS ENGINE");
     log("[config] Initializing dynamic config from Supabase...");
     const client = getSupabase();
-    if (!client) {
-        log("[config] Supabase not connected. Using local .env only.", "warn");
+    if (!client || process.env.SKIP_DB_CONFIG === 'true') {
+        log("[config] Using local .env for configuration.");
         return;
     }
 
@@ -95,6 +116,7 @@ export async function initializeConfig() {
             if (row.key === "AGENTMAIL_EMAIL") config.agentmailEmail = row.value;
             if (row.key === "KIE_AI_API_KEY") config.kieAiApiKey = row.value;
             if (row.key === "RUNWAY_API_KEY") config.runwayApiKey = row.value;
+            if (row.key === "FIRECRAWL_API_KEY") config.firecrawlApiKey = row.value;
         });
         log(`[config] Loaded ${data.length} credentials from Master Brain.`);
     }

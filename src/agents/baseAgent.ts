@@ -1,9 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { config, log } from "../core/config.js";
+import { config, log, logToOpsConsole } from "../core/config.js";
 import { askAI } from "../core/ai.js";
 import axios from "axios";
 import { agentMail } from "../services/agentmail.js";
+import { HiveMind } from "../core/hiveMind.js";
 
 export interface AgentResponse {
     content: string;
@@ -24,6 +25,7 @@ export abstract class BaseAgent {
 
     public async executeTool(name: string, args: any): Promise<string> {
         log(`[tool] ${this.getName()} executing ${name}...`);
+        await logToOpsConsole(this.getName(), `Executing tool: ${name}`, "tool");
         try {
             if (name === "list_shared_files") {
                 const dir = path.join(process.cwd(), "data", "shared");
@@ -59,6 +61,62 @@ export abstract class BaseAgent {
                 await agentMail.sendEmail(to, subject, body);
                 return `Email sent to ${to}.`;
             }
+            if (name === "update_hive_mind") {
+                const hive = HiveMind.getInstance();
+                hive.updateState(args);
+                return "Hive Mind updated.";
+            }
+            if (name === "pin_fact") {
+                const hive = HiveMind.getInstance();
+                hive.pinFact(args.key, args.value);
+                return `Fact pinned: ${args.key}`;
+            }
+            if (name === "pin_agent") {
+                const hive = HiveMind.getInstance();
+                hive.pinAgent(args.agent_id);
+                return `Session pinned to ${args.agent_id}.`;
+            }
+            if (name === "unpin_agent") {
+                const hive = HiveMind.getInstance();
+                hive.pinAgent(null);
+                return "Session unpinned.";
+            }
+            if (name === "firecrawl_scrape") {
+                const { url } = args;
+                if (!config.firecrawlApiKey) return "Error: Firecrawl API Key missing.";
+                const res = await axios.post("https://api.firecrawl.dev/v2/scrape", { 
+                    url, 
+                    formats: ["markdown"] 
+                }, {
+                    headers: { "Authorization": `Bearer ${config.firecrawlApiKey}` }
+                });
+                return res.data.data.markdown || "No content extracted.";
+            }
+            if (name === "firecrawl_search") {
+                const { query } = args;
+                if (!config.firecrawlApiKey) return "Error: Firecrawl API Key missing.";
+                const res = await axios.post("https://api.firecrawl.dev/v2/search", { 
+                    query, 
+                    limit: 3,
+                    scrapeOptions: { formats: ["markdown"] }
+                }, {
+                    headers: { "Authorization": `Bearer ${config.firecrawlApiKey}` }
+                });
+                return res.data.data.map((r: any) => `### [${r.metadata.title}](${r.metadata.sourceURL})\n${r.markdown || r.metadata.description}`).join("\n\n");
+            }
+            if (name === "firecrawl_interact") {
+                const { url, prompt } = args;
+                if (!config.firecrawlApiKey) return "Error: Firecrawl API Key missing.";
+                const res = await axios.post("https://api.firecrawl.dev/v2/interact", { 
+                    url, 
+                    prompt 
+                }, {
+                    headers: { "Authorization": `Bearer ${config.firecrawlApiKey}` }
+                });
+                // Note: interact might be async, but V2 usually returns a result or status.
+                // For simplicity, we assume immediate result for now.
+                return JSON.stringify(res.data.data || res.data);
+            }
             return "Unknown tool";
         } catch (e: any) {
             return `Error executing tool: ${e.message}`;
@@ -90,6 +148,97 @@ export abstract class BaseAgent {
                         required: ["url"]
                     }
                 }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "firecrawl_scrape",
+                    description: "Scrape high-fidelity markdown from a URL using Firecrawl.",
+                    parameters: {
+                        type: "object",
+                        properties: { url: { type: "string" } },
+                        required: ["url"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "firecrawl_search",
+                    description: "Search the web and return high-quality scraped results using Firecrawl.",
+                    parameters: {
+                        type: "object",
+                        properties: { query: { type: "string" } },
+                        required: ["query"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "firecrawl_interact",
+                    description: "Perform browser actions (clicks, forms) on a live page using Firecrawl.",
+                    parameters: {
+                        type: "object",
+                        properties: { 
+                            url: { type: "string" },
+                            prompt: { type: "string", description: "What to do on the page (e.g. 'click the login button')" }
+                        },
+                        required: ["url", "prompt"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "update_hive_mind",
+                    description: "Update the shared mission state (active_mission, objectives, agent_handoffs).",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            active_mission: { type: "string" },
+                            objectives: { type: "array", items: { type: "string" } },
+                            agent_handoffs: { type: "object" }
+                        }
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "pin_fact",
+                    description: "Pin a permanent fact to the global knowledge base (pinned_facts).",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            key: { type: "string" },
+                            value: { type: "string" }
+                        },
+                        required: ["key", "value"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "pin_agent",
+                    description: "Pin the current user session to a specific agent (e.g. 'researcher', 'marketer').",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            agent_id: { type: "string" }
+                        },
+                        required: ["agent_id"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "unpin_agent",
+                    description: "Clear the current agent pin and return to the Dispatcher/Triage routing.",
+                    parameters: { type: "object", properties: {} }
+                }
             }
         ];
     }
@@ -101,20 +250,40 @@ export abstract class BaseAgent {
 
     async ask(userText: any, history: any[] = [], systemOverride?: string): Promise<any> {
         const name = this.getName();
-        const systemPrompt = systemOverride || this.getSystemPrompt();
+        let systemPrompt = systemOverride || this.getSystemPrompt();
+        // Inject Hive Mind and Council Protocol
+        const hive = HiveMind.getInstance();
+        systemPrompt += hive.getContextString();
+        systemPrompt += `\n\n--- COUNCIL OPERATIONAL PROTOCOL ---
+1. You are PART OF A COUNCIL. Focus on your specific role within the larger mission.
+2. ALWAYS start your high-level insight with your signature tag like: [${this.getName()}].
+3. Updates to the mission state or objectives MUST be done using 'update_hive_mind'.
+-------------------------------------`;
+
         const tools = this.getTools();
         let messages = [...history, { role: "user", content: userText }] as any;
 
         try {
             let toolIteration = 0;
             while (toolIteration < 5) {
+                if (toolIteration === 0) {
+                    await logToOpsConsole(name, `Processing: ${userText}`, "think");
+                }
                 const aiResponse = await askAI("", systemPrompt, {
                     messages, tools, model: this.model
                 });
 
-                if (!aiResponse.tool_calls) return aiResponse;
+                if (!aiResponse.tool_calls) {
+                    // Ensure [Name] prefix if missing
+                    if (aiResponse.content && !aiResponse.content.includes(`[${name}]`)) {
+                        aiResponse.content = `**[${name}]**: ${aiResponse.content}`;
+                    }
+                    await logToOpsConsole(name, "Response delivered.", "chat");
+                    return aiResponse;
+                }
 
                 log(`[agent] ${name} calling ${aiResponse.tool_calls.length} tools...`);
+                await logToOpsConsole(name, `Calling tools: ${aiResponse.tool_calls.map(tc => tc.function.name).join(", ")}`, "tool");
                 messages.push({ role: "assistant", content: aiResponse.content, tool_calls: aiResponse.tool_calls });
 
                 for (const tc of aiResponse.tool_calls) {
@@ -123,9 +292,11 @@ export abstract class BaseAgent {
                 }
                 toolIteration++;
             }
+            await logToOpsConsole(name, "Response delivered.", "chat");
             return { content: "Max tool iterations reached." };
         } catch (error: any) {
             log(`[error] Agent ${name} failed: ${error.message}`, "error");
+            await logToOpsConsole(name, `CRITICAL ERROR: ${error.message}`, "error");
             throw error;
         }
     }
