@@ -24,6 +24,25 @@ import { getDb } from '../core/memory.js';
 
 export function setupRouter(bot: Telegraf) {
     log("[router] Initializing Command Router...");
+    
+    // Global Middleware for Permission Check
+    bot.use(async (ctx: any, next) => {
+        const allowedIds = (process.env.TELEGRAM_ALLOWED_USER_IDS || "").split(",").map(Number);
+        const ownerId = Number(process.env.TELEGRAM_OWNER_ID);
+        if (ownerId && !allowedIds.includes(ownerId)) allowedIds.push(ownerId);
+        
+        const userId = ctx.from?.id;
+        if (!userId) return next();
+        
+        // If it's a command, enforce ownership
+        if (ctx.message?.text?.startsWith("/")) {
+            if (allowedIds.length > 0 && !allowedIds.includes(userId)) {
+                log(`[router] Blocking unauthorized command attempt from UID: ${userId}`);
+                return ctx.reply("❌ You are not authorized to use these commands.");
+            }
+        }
+        return next();
+    });
 
     // 1. Agents are now orchestrated via CouncilOrchestrator
 

@@ -140,11 +140,15 @@ export class TelegramBot {
             ctx.reply("🤖 **Hapdabot Supreme v5.0**\n\nEquipped with Vision, Real-Time Trading, and Lead Intelligence. Send me a photo, video, or voice note to begin.");
         });
 
-        this.bot.on(["message", "voice", "video", "video_note", "photo", "document"], async (ctx) => {
+        this.bot.on(["message", "voice", "video", "video_note", "photo", "document"], async (ctx, next) => {
             const chatId = ctx.chat?.id;
             if (!chatId) return;
             const msg = ctx.message as any;
-            if (msg.text?.startsWith("/")) return;
+            
+            // Allow commands to pass through to the router
+            if (msg.text?.startsWith("/")) {
+                return next();
+            }
 
             let userText = "";
             let attachments: any[] = [];
