@@ -61,4 +61,6 @@ export interface CinematicRendererProps {
   soundtrack?: CinematicSoundtrack;
   music?: CinematicSoundtrack;
   captions?: CinematicCaptionConfig;
+  /** When true, renders at 1080×1920 (9:16) instead of 1920×1080 (16:9) */
+  vertical?: boolean;
 }

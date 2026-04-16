@@ -377,11 +377,13 @@ export const calculateCinematicMetadata: CalculateMetadataFunction<CinematicRend
             ...props.scenes.map((scene) => scene.startSeconds + scene.durationSeconds),
           );
 
+    const isVertical = props.vertical === true;
+
     return {
       durationInFrames: Math.max(1, Math.ceil(totalSeconds * FPS)),
       fps: FPS,
-      width: 1920,
-      height: 1080,
+      width: isVertical ? 1080 : 1920,
+      height: isVertical ? 1920 : 1080,
     };
   };
 

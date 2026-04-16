@@ -10,7 +10,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import fs from "fs";
-import { log, openai } from "../../core/config.js";
+import { log, openai, config } from "../../core/config.js";
 import { askAI } from "../../core/ai.js";
 
 const execAsync = promisify(exec);
@@ -26,18 +26,77 @@ interface SceneBeat {
 }
 
 /**
+ * Generates an ElevenLabs voiceover for the scene beats,
+ * saves it to outputPath, and returns the file:// URI on success.
+ */
+async function generateNarration(
+  beats: SceneBeat[],
+  outputPath: string
+): Promise<string | null> {
+  const apiKey = process.env.ELEVEN_API_KEY || config.elevenKey;
+  const voiceId = config.elevenVoiceId || "pNInz6obpgmqnzPCWZZf"; // Adam
+
+  if (!apiKey) {
+    log("[StuyzaVideoAgent] ElevenLabs key not set — skipping narration.", "warn");
+    return null;
+  }
+
+  // Build a natural-sounding narration from beat titles
+  const narration = beats
+    .map((b, i) => {
+      const clean = b.title.replace(/^TIP\s*\d+[:.]/i, "").trim();
+      return `Tip ${i + 1}. ${clean}.`;
+    })
+    .join(" ");
+
+  try {
+    const res = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "xi-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          text: narration,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.text();
+      log(`[StuyzaVideoAgent] ElevenLabs error: ${err}`, "warn");
+      return null;
+    }
+
+    const buf = await res.arrayBuffer();
+    fs.writeFileSync(outputPath, Buffer.from(buf));
+    log(`[StuyzaVideoAgent] ✅ Narration saved to ${outputPath}`);
+    return `file:///${outputPath.replace(/\\/g, "/")}`;
+  } catch (e: any) {
+    log(`[StuyzaVideoAgent] Narration failed: ${e.message}`, "warn");
+    return null;
+  }
+}
+
+/**
  * Builds a rich CinematicRendererProps from a prompt.
  * 1. AI splits the prompt into scene beats (tips, points, etc.)
  * 2. DALL-E 3 generates a cinematic image per beat
- * 3. Images are downloaded to assetPath for reliable local rendering
- * 4. Scenes are assembled: intro title → [image + title] × N → outro CTA
- * Falls back to a single title card if anything fails.
+ * 3. ElevenLabs narrates each tip as a single voiceover track
+ * 4. Scenes: intro title → [image + title] × N → outro CTA
+ * Falls back gracefully if AI/images/narration fail.
  */
 async function buildCinematicProps(
   prompt: string,
   assetPath: string,
-  duration: number
+  duration: number,
+  pipeline: string = "stuyza-social"
 ): Promise<object> {
+  const isVertical = pipeline === "stuyza-social";
   // ── Step 1: AI Scene Planning ──────────────────────────────────────────────
   let beats: SceneBeat[] = [];
   try {
@@ -93,7 +152,7 @@ Return ONLY valid JSON array, no markdown fences.`,
         model: "dall-e-3",
         prompt: `${beat.imagePrompt}. Cinematic, dramatic lighting, no text, no watermarks, photorealistic.`,
         n: 1,
-        size: "1792x1024",
+        size: isVertical ? "1024x1792" : "1792x1024",
         quality: "standard",
       });
       const url = imgRes.data?.[0]?.url;
@@ -127,11 +186,24 @@ Return ONLY valid JSON array, no markdown fences.`,
   scenes.push({ kind: "title", id: "outro", startSeconds: t, durationSeconds: 2.5,
     text: "FOLLOW FOR MORE TIPS 🔥", accent: "#f5a623", intensity: 1.6 });
 
+  // ── Step 3: ElevenLabs Narration ─────────────────────────────────────────
+  const audioPath = path.join(assetPath, "narration.mp3");
+  const narrationSrc = await generateNarration(beats, audioPath);
+
   return {
     scenes,
-    titleFontSize: 72,
-    titleWidth: 1280,
+    vertical: isVertical,
+    titleFontSize: isVertical ? 64 : 72,
+    titleWidth: isVertical ? 900 : 1280,
     signalLineCount: 14,
+    ...(narrationSrc ? {
+      soundtrack: {
+        src: narrationSrc,
+        volume: 1,
+        fadeInSeconds: 0.3,
+        fadeOutSeconds: 1.0,
+      }
+    } : {}),
   };
 }
 
@@ -307,7 +379,8 @@ print(json.dumps(registry.support_envelope(), indent=2))
     const cinematicProps = await buildCinematicProps(
       script.prompt as string,
       assetPath,
-      script.duration as number || 15
+      script.duration as number || 15,
+      pipeline
     );
 
     const propsPath = path.join(projectDir, "props.json");
