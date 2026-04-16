@@ -25,6 +25,7 @@ WORKDIR /app
 # Install dependencies first (layer cache friendly)
 COPY package*.json ./
 RUN npm ci
+RUN cd src/agents/stuyza/openmontage/remotion-composer && npm install
 
 # Copy source and build TypeScript
 COPY . .

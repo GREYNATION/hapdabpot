@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "deploy": "npm run build && npm start",
     "typecheck": "tsc --noEmit",
-    "bot": "tsx src/bot.ts"
+    "bot": "tsx src/bot.ts",
+    "postinstall": "cd src/agents/stuyza/openmontage/remotion-composer && npm install"
   },
   "keywords": [],
   "author": "",
@@ -47,7 +48,13 @@
     "stripe": "^21.0.1",
     "telegraf": "^4.16.3",
     "twilio": "^5.13.1",
-    "ws": "^8.20.0"
+    "ws": "^8.20.0",
+    "remotion": "^4.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "@remotion/bundler": "^4.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

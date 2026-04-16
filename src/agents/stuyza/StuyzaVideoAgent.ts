@@ -193,10 +193,15 @@ print(json.dumps(registry.support_envelope(), indent=2))
       const composerDir = path.join(process.cwd(), "src/agents/stuyza/openmontage/remotion-composer");
       const outputFilePath = path.join(renderPath, "final.mp4");
 
-      const renderCmd = `npx remotion render src/index.tsx Cinematic ${outputFilePath} --props ${propsPath} --codec h264`;
+      const renderCmd = `npx -y remotion render src/index.tsx Cinematic ${outputFilePath} --props ${propsPath} --codec h264`;
       
-      log(`[StuyzaVideoAgent] Executing: ${renderCmd}`);
-      await execAsync(renderCmd, { cwd: composerDir });
+      log(`[StuyzaVideoAgent] Executing: ${renderCmd} in ${composerDir}`);
+      try {
+        await execAsync(renderCmd, { cwd: composerDir });
+      } catch (childErr: any) {
+        log(`[StuyzaVideoAgent] Child process error: ${childErr.stdout || childErr.stderr || childErr.message}`, "error");
+        throw childErr;
+      }
 
       return {
         videoUrl: `file://${outputFilePath}`,
