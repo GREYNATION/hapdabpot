@@ -15,10 +15,8 @@ import { DataIngestionService } from './services/dataIngestionService.js';
 import { createLeadsRouter } from './routes/leads.js';
 import { CouncilOrchestrator } from './core/orchestrator/councilOrchestrator.js';
 import fs from 'fs';
-import ws from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import { getSupabase } from './core/supabase.js';
-
-const { WebSocketServer } = ws;
 const orchestrator = new CouncilOrchestrator();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -545,7 +543,7 @@ export function startWebServer(bot: any) {
   // ── Unified WebSocket Neural Bridge ───────────────────────────────────────
   const wss = new WebSocketServer({ server });
   
-  wss.on('connection', (socket) => {
+  wss.on('connection', (socket: WebSocket) => {
     log('[WebSocket] Dashboard connected to Neural Bridge.');
     socket.send(JSON.stringify({ type: 'status', agent: 'SYSTEM', message: 'BRIDGE_CONNECTED: Neural sync established.' }));
   });
@@ -555,7 +553,7 @@ export function startWebServer(bot: any) {
   if (supabase) {
     supabase
       .channel('ops_logs_unified')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ops_logs' }, payload => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ops_logs' }, (payload: any) => {
           const row = payload.new;
           const broadcastMessage = JSON.stringify({
               type: row.type || 'status',
@@ -564,7 +562,7 @@ export function startWebServer(bot: any) {
               timestamp: row.timestamp
           });
           
-          wss.clients.forEach(client => {
+          wss.clients.forEach((client: WebSocket) => {
               if (client.readyState === 1) client.send(broadcastMessage);
           });
       })
@@ -580,7 +578,7 @@ export function startWebServer(bot: any) {
         timestamp: new Date().toISOString()
     });
     
-    wss.clients.forEach(client => {
+    wss.clients.forEach((client: WebSocket) => {
         if (client.readyState === 1) client.send(heartbeat);
     });
   }, 5000); 

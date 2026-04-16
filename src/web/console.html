@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COMMAND CENTER | Council of Spirits</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --terminal-green: #D4FF47;
+            --terminal-bg: #0A0A0B;
+            --terminal-border: rgba(212, 255, 71, 0.2);
+            --crt-scanline: rgba(18, 16, 16, 0.1);
+        }
+
+        body.console-mode {
+            background: var(--terminal-bg);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+        }
+
+        .crt-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 999;
+            opacity: 0.15;
+        }
+
+        .console-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            grid-template-rows: 60px 1fr 50px;
+            height: 100vh;
+            gap: 1px;
+            background: var(--terminal-border);
+        }
+
+        header.console-header {
+            grid-column: 1 / span 2;
+            background: var(--terminal-bg);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--terminal-border);
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 11px;
+            color: var(--terminal-green);
+        }
+
+        .mission-panel {
+            grid-column: 1;
+            grid-row: 2;
+            background: rgba(255,255,255,0.02);
+            padding: 20px;
+            border-top: 1px solid var(--terminal-border);
+            margin-top: auto;
+        }
+
+        .mission-title { font-size: 10px; color: var(--text-dim); margin-bottom: 8px; }
+        .mission-value { color: var(--terminal-green); font-size: 14px; font-weight: bold; }
+
+        .objectives-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0 0;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .objectives-list li::before { content: "› "; color: var(--terminal-green); }
+
+        .sidebar {
+            background: var(--terminal-bg);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            border-right: 1px solid var(--terminal-border);
+        }
+
+        .agent-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--terminal-border);
+            padding: 16px;
+            border-radius: 4px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .agent-card.active {
+            border-color: var(--terminal-green);
+            box-shadow: 0 0 15px rgba(212, 255, 71, 0.1);
+        }
+
+        .agent-card .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #333; /* Truthful Neutral */
+            box-shadow: none;
+            display: inline-block;
+            margin-right: 8px;
+            transition: all 0.5s ease;
+        }
+
+        .agent-card.online .status-dot {
+            background: var(--terminal-green);
+            box-shadow: 0 0 5px var(--terminal-green);
+            opacity: 0.6;
+        }
+
+        .agent-card.active .status-dot {
+            background: var(--terminal-green);
+            opacity: 1;
+            box-shadow: 0 0 12px var(--terminal-green);
+            animation: pulse 1s infinite;
+        }
+
+        .main-terminal {
+            background: var(--terminal-bg);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #logStream {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 13px;
+            padding-bottom: 20px;
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 12px;
+            line-height: 1.5;
+            animation: logFade 0.3s ease-out;
+        }
+
+        @keyframes logFade {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .log-time { color: var(--text-dim); min-width: 80px; }
+        .log-agent { color: var(--terminal-green); font-weight: bold; min-width: 100px; }
+        .log-msg { color: var(--text-muted); }
+        .log-type-tool { color: #5BCEFA; }
+        .log-type-think { color: #A0A0A0; font-style: italic; }
+        .log-type-error { color: #F44336; }
+
+        .terminal-input-row {
+            grid-column: 1 / span 2;
+            background: var(--terminal-bg);
+            border-top: 1px solid var(--terminal-border);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+        }
+
+        .terminal-input-row input {
+            background: transparent;
+            border: none;
+            color: var(--terminal-green);
+            width: 100%;
+            height: 100%;
+            font-family: inherit;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .terminal-input-row span {
+            color: var(--terminal-green);
+            margin-right: 12px;
+        }
+    </style>
+</head>
+<body class="console-mode">
+    <div class="crt-overlay"></div>
+
+    <div class="console-layout">
+        <header class="console-header">
+            <div class="logo" style="font-size: 18px;">HAPDABOT <span style="opacity: 0.5;">COMMAND_CENTER</span></div>
+            <div class="system-status">
+                <span>CPU: 12.4%</span>
+                <span>MEM: 512MB</span>
+                <span id="supabaseStatus"><span class="status-dot"></span> LIVE_SYNC</span>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <div class="agent-card" id="agent-researcher">
+                <span class="status-dot"></span> OPS_RESEARCHER
+            </div>
+            <div class="agent-card" id="agent-marketer">
+                <span class="status-dot"></span> GROWTH_STRATEGIST
+            </div>
+            <div class="agent-card" id="agent-developer">
+                <span class="status-dot"></span> CODE_ARCHITECT
+            </div>
+            <div class="agent-card" id="agent-finance">
+                <span class="status-dot"></span> STRATEGIC_FINANCE
+            </div>
+            <div class="agent-card" id="agent-github">
+                <span class="status-dot"></span> GITHUB_SYSTEMS
+            </div>
+
+            <div class="mission-panel">
+                <div class="mission-title">ACTIVE_MISSION</div>
+                <div class="mission-value" id="activeMission">IDLE</div>
+                <div class="mission-title" style="margin-top: 15px;">OBJECTIVES</div>
+                <ul class="objectives-list" id="objectivesList">
+                    <li>Awaiting system heartbeat...</li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="main-terminal">
+            <div id="logStream">
+                <div class="log-entry">
+                    <span class="log-time">[00:00:00]</span>
+                    <span class="log-agent">SYSTEM</span>
+                    <span class="log-msg">AUTH_SUCCESS: COMMAND CENTER INITIALIZED.</span>
+                </div>
+            </div>
+        </main>
+
+        <footer class="terminal-input-row">
+            <div class="voice-hud" id="voiceHUD">
+                <div class="aura-ring"></div>
+                <div class="aura-core"></div>
+            </div>
+            <span>></span>
+            <input type="text" id="consoleInput" placeholder="Always listening... Speak or type command" autocomplete="off">
+            <div class="voice-status" id="micStatus">
+                <span class="status-dot"></span> <span class="status-text">MIC_READY</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="console.js"></script>
+</body>
+</html>

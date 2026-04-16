@@ -1,0 +1,7 @@
+{
+  "character": "Dre",
+  "line": "Tell your cousin Marcus made a deal with the feds. His name's in it. He's got seventy-two hours to decide what he wants to do about that.",
+  "error": "{\"detail\":{\"type\":\"not_found\",\"code\":\"voice_not_found\",\"message\":\"A voice with voice_id 'pNInz6obpg8ndEao7mAl' was not found.\",\"status\":\"voice_not_found\",\"request_id\":\"8f89704d8d761f84952b894dbe94a9f3\"}}",
+  "stubNote": "This is a stub — real generation failed or API key missing",
+  "generatedAt": "2026-03-26T23:14:26.677Z"
+}

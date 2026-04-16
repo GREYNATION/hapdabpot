@@ -1,0 +1,74 @@
+[
+  {
+    "sceneNumber": 1,
+    "location": "Jace's dim apartment, 5:17 AM. A single streetlight cuts through the blinds.",
+    "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene1.mp4",
+    "clipGenerated": true,
+    "audioPaths": [],
+    "mergedAudioPath": null,
+    "elevenLabsLines": 0,
+    "errorLog": [],
+    "producedAt": "2026-03-26T23:12:58.966Z",
+    "runwayStatus": "SKIPPED_ALREADY_EXISTS"
+  },
+  {
+    "sceneNumber": 2,
+    "location": "Sunrise Bodega, corner of Lexington and 8th. Fluorescent lights, bulletproof glass.",
+    "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene2.mp4",
+    "clipGenerated": true,
+    "audioPaths": [],
+    "mergedAudioPath": null,
+    "elevenLabsLines": 0,
+    "errorLog": [],
+    "producedAt": "2026-03-26T23:13:10.990Z",
+    "runwayStatus": "SKIPPED_ALREADY_EXISTS"
+  },
+  {
+    "sceneNumber": 3,
+    "location": "Nia's bedroom, converted corner studio. Clothes on the door, fairy lights, a mic stand made from a broom handle.",
+    "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene3.mp4",
+    "clipGenerated": true,
+    "audioPaths": [],
+    "mergedAudioPath": null,
+    "elevenLabsLines": 0,
+    "errorLog": [],
+    "producedAt": "2026-03-26T23:13:33.232Z",
+    "runwayStatus": "SKIPPED_ALREADY_EXISTS"
+  },
+  {
+    "sceneNumber": 4,
+    "location": "Their rooftop — cinder blocks, a rusted railing, the skyline spread wide. Their spot since they were fifteen.",
+    "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene4.mp4",
+    "clipGenerated": true,
+    "audioPaths": [],
+    "mergedAudioPath": null,
+    "elevenLabsLines": 0,
+    "errorLog": [],
+    "producedAt": "2026-03-26T23:13:49.910Z",
+    "runwayStatus": "SKIPPED_ALREADY_EXISTS"
+  },
+  {
+    "sceneNumber": 5,
+    "location": "Outside the same bodega, 9 PM. The neighborhood is quieter now. Streetlights humming.",
+    "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene5.mp4",
+    "clipGenerated": true,
+    "audioPaths": [],
+    "mergedAudioPath": null,
+    "elevenLabsLines": 0,
+    "errorLog": [],
+    "producedAt": "2026-03-26T23:14:06.519Z",
+    "runwayStatus": "SKIPPED_ALREADY_EXISTS"
+  },
+  {
+    "sceneNumber": 6,
+    "location": "Jace's apartment, same night. Dark except for the phone screen glow.",
+    "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene6.mp4",
+    "clipGenerated": true,
+    "audioPaths": [],
+    "mergedAudioPath": null,
+    "elevenLabsLines": 0,
+    "errorLog": [],
+    "producedAt": "2026-03-26T23:14:27.430Z",
+    "runwayStatus": "SKIPPED_ALREADY_EXISTS"
+  }
+]

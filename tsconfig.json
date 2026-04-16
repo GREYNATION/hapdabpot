@@ -15,5 +15,5 @@
     "sourceMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "src/agents/superpowers"]
+  "exclude": ["node_modules", "src/agents/superpowers", "src/agents/stuyza/openmontage/remotion-composer"]
 }

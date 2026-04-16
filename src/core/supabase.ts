@@ -12,7 +12,12 @@ export function getSupabase(): SupabaseClient | null {
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
-    if (!url || !key) {
+    if (!url) {
+      console.log("[supabase] ⚠️ SUPABASE_URL is missing in environment.");
+      return null;
+    }
+    if (!key) {
+      console.log("[supabase] ⚠️ SUPABASE_SERVICE_ROLE_KEY is missing in environment.");
       return null;
     }
 

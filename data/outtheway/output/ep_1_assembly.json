@@ -1,0 +1,47 @@
+{
+  "episode": 1,
+  "title": "First Light",
+  "outputPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\output\\ep_1_final.mp4",
+  "totalScenes": 6,
+  "clips": [
+    {
+      "scene": 1,
+      "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene1.mp4",
+      "audioPath": null,
+      "exists": true
+    },
+    {
+      "scene": 2,
+      "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene2.mp4",
+      "audioPath": null,
+      "exists": true
+    },
+    {
+      "scene": 3,
+      "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene3.mp4",
+      "audioPath": null,
+      "exists": true
+    },
+    {
+      "scene": 4,
+      "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene4.mp4",
+      "audioPath": null,
+      "exists": true
+    },
+    {
+      "scene": 5,
+      "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene5.mp4",
+      "audioPath": null,
+      "exists": true
+    },
+    {
+      "scene": 6,
+      "clipPath": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw\\data\\outtheway\\clips\\ep1_scene6.mp4",
+      "audioPath": null,
+      "exists": true
+    }
+  ],
+  "subtitles": "1\n00:00:05,000 --> 00:00:06,500\n[Rel] Man, this honey bun is $2.75?! In THIS economy? Yo, I'm writing my congressman.\n\n2\n00:00:06,500 --> 00:00:08,000\n[Jace] You ain't writing nobody. Pick your snack and let's go.\n\n3\n00:00:08,000 --> 00:00:09,500\n[Rel] Aight, aight — but real talk though. Some dude named Dre been asking 'bout you. West side type. Clean but... off.\n\n4\n00:00:09,500 --> 00:00:11,000\n[Jace] I don't know no Dre.\n\n5\n00:00:11,000 --> 00:00:13,500\n[Nia] Heaven knows... I've been waiting on this... mmhmm...\n\n6\n00:00:13,500 --> 00:00:16,000\n[Nia] Oh my God. Oh my GOD.\n\n7\n00:00:16,000 --> 00:00:17,500\n[Nia] Kingdom Records, Jace. They actually listened. They want to meet me next week.\n\n8\n00:00:17,500 --> 00:00:19,000\n[Jace] I told you. I been told you. Wasn't nobody gonna sleep on that voice.\n\n9\n00:00:19,000 --> 00:00:20,500\n[Nia] You good? You got that look again.\n\n10\n00:00:20,500 --> 00:00:22,000\n[Jace] I'm good. Just handling business.\n\n11\n00:00:22,000 --> 00:00:23,500\n[Dre] Tell your cousin Marcus made a deal with the feds. His name's in it. He's got seventy-two hours to decide what he wants to do about that.\n\n12\n00:00:23,500 --> 00:00:25,000\n[Rel] ...\n\n13\n00:00:25,000 --> 00:00:26,500\n[Dre] Have a good night, little cousin.\n\n14\n00:00:26,500 --> 00:00:28,000\n[Rel] Jace... pick up. Jace, pick up the phone, bro. It's about Marcus.\n\n15\n00:00:28,000 --> 00:00:29,666\n[Uncle] Jace. Sit down, nephew.\n\n16\n00:00:29,666 --> 00:00:31,332\n[Jace] I'm standing.\n\n17\n00:00:31,332 --> 00:00:32,998\n[Uncle] Then you already know.\n\n",
+  "resolution": "1080x1920",
+  "assembledAt": "2026-03-26T23:14:41.242Z"
+}

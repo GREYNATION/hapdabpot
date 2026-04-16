@@ -1,0 +1,7 @@
+{
+  "character": "Uncle",
+  "line": "Jace. Sit down, nephew.",
+  "error": "{\"detail\":{\"type\":\"not_found\",\"code\":\"voice_not_found\",\"message\":\"A voice with voice_id 'pNInz6obpg8ndEao7mAl' was not found.\",\"status\":\"voice_not_found\",\"request_id\":\"367baf83500cd646587b551ff3d4c45a\"}}",
+  "stubNote": "This is a stub — real generation failed or API key missing",
+  "generatedAt": "2026-03-26T23:14:40.856Z"
+}

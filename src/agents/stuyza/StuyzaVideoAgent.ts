@@ -254,7 +254,7 @@ export async function produceVideo(
   pipeline?: string
 ): Promise<VideoProductionResult> {
   const agent = new StuyzaVideoAgent(pipeline);
-  return await agent.produce({ prompt, pipeline });
+  return await agent.produce({ prompt, pipeline: pipeline as any });
 }
 
 /**

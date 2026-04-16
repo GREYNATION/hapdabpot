@@ -1,0 +1,7 @@
+{
+  "character": "Rel",
+  "line": "...",
+  "error": "{\"detail\":{\"type\":\"payment_required\",\"code\":\"paid_plan_required\",\"message\":\"Free users cannot use library voices via the API. Please upgrade your subscription to use this voice.\",\"status\":\"payment_required\",\"request_id\":\"efdffe6c4bed8896952b894dbe94a10e\"}}",
+  "stubNote": "This is a stub — real generation failed or API key missing",
+  "generatedAt": "2026-03-26T23:14:26.900Z"
+}

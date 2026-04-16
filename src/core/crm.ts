@@ -26,7 +26,7 @@ export interface Deal {
     updated_at: string;
 }
 
-import { DealWatcher } from "./dealWatcher.js";
+// import { DealWatcher } from "./dealWatcher.js"; // Removed to resolve circular dependency
 
 export class CrmManager {
     static calculateMaxOffer(arv: number, repairs: number): number {
@@ -90,8 +90,12 @@ export class CrmManager {
         const result = stmt.run(...values, id);
         
         // After any update, check if we need to trigger logic (like invoice prompt)
-        DealWatcher.checkDealStatus(id).catch(err => {
-            console.log(`[crm] Error in checkDealStatus for ${id}: ${err.message}`);
+        import("./dealWatcher.js").then(({ DealWatcher }) => {
+            DealWatcher.checkDealStatus(id).catch(err => {
+                log(`[crm] Error in checkDealStatus for ${id}: ${err.message}`, "error");
+            });
+        }).catch(err => {
+            log(`[crm] Failed to load DealWatcher: ${err.message}`, "error");
         });
 
         return result;

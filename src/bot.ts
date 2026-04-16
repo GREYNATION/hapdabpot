@@ -2,10 +2,12 @@ import "dotenv/config";
 import { processUserInput } from "./taskOrchestrator.js";
 import { PropertyScraper } from "./services/PropertyScraper.js";
 import { runAutonomousPipeline } from "./core/orchestrator/clawOrchestrator.js";
+import { CouncilOrchestrator } from "./core/orchestrator/councilOrchestrator.js";
 import { getStuyzaLeads, getStuyzaLeadStats } from "./db/leads.js";
 import { db } from "./core/memory.js";
 
 const COMMAND_PREFIX = "/";
+const council = new CouncilOrchestrator();
 
 async function handleCommand(input: string, userId: string = "default-user") {
   if (!input.startsWith("/")) return;
@@ -98,17 +100,22 @@ Found ${opportunities.length} high-margin >$10k surplus overages in ${targetCity
       }
 
     default:
-      return "❌ Unknown command. Available: /auto, /build, /scrape, /agents, /leads";
+      // FALLBACK TO COUNCIL CHAT
+      const chatInput = input.startsWith("/") ? input.slice(1) : input;
+      try {
+        return await council.chat(chatInput, parseInt(userId) || 0);
+      } catch (err: any) {
+        return `❌ Council failed to respond: ${err.message}`;
+      }
   }
 }
 
 function listAgents() {
   return [
-    "📍 DeveloperAgent - Software development",
-    "📊 TraderAgent - Market trading",
-    "🏠 RealEstateAgent - Property analysis",
-    "📱 MarketerAgent - Content & outreach",
-    "🔍 ResearcherAgent - Web research & scraping",
+    "📍 Council (Default Chat) - Multi-agent hierarchical swarm",
+    "📍 Ops Intelligence - Mission tracking & SOPs",
+    "📍 Comms Lead - Outreach & messaging",
+    "📍 Strategic Finance - ROI & MAO audits",
     "🤖 ClawAgent - Autonomous command execution (/auto)"
   ].join("\n");
 }

@@ -1,0 +1,7 @@
+{
+  "character": "Jace",
+  "line": "You ain't writing nobody. Pick your snack and let's go.",
+  "error": "{\"detail\":{\"type\":\"payment_required\",\"code\":\"paid_plan_required\",\"message\":\"Free users cannot use library voices via the API. Please upgrade your subscription to use this voice.\",\"status\":\"payment_required\",\"request_id\":\"81799a6b7db13cfd4b7c4ac8c5938adc\"}}",
+  "stubNote": "This is a stub — real generation failed or API key missing",
+  "generatedAt": "2026-03-26T23:13:32.779Z"
+}

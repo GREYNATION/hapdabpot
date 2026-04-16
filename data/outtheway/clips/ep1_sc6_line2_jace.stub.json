@@ -1,0 +1,7 @@
+{
+  "character": "Jace",
+  "line": "I'm standing.",
+  "error": "{\"detail\":{\"type\":\"payment_required\",\"code\":\"paid_plan_required\",\"message\":\"Free users cannot use library voices via the API. Please upgrade your subscription to use this voice.\",\"status\":\"payment_required\",\"request_id\":\"1d04a5703e85a9fe587b551ff3d4cde8\"}}",
+  "stubNote": "This is a stub — real generation failed or API key missing",
+  "generatedAt": "2026-03-26T23:14:41.112Z"
+}

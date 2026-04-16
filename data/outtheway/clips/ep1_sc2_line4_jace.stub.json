@@ -1,0 +1,7 @@
+{
+  "character": "Jace",
+  "line": "I don't know no Dre.",
+  "error": "{\"detail\":{\"type\":\"payment_required\",\"code\":\"paid_plan_required\",\"message\":\"Free users cannot use library voices via the API. Please upgrade your subscription to use this voice.\",\"status\":\"payment_required\",\"request_id\":\"685669181e4afbc5bcee0a6a89ad8d8f\"}}",
+  "stubNote": "This is a stub — real generation failed or API key missing",
+  "generatedAt": "2026-03-26T23:13:33.230Z"
+}

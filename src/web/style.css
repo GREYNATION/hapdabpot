@@ -698,6 +698,79 @@ footer {
     margin-bottom: 30px;
 }
 
+/* --- Voice HUD & Always Listening UI --- */
+.voice-hud {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 40px;
+    height: 40px;
+    margin-right: 15px;
+}
+
+.aura-core {
+    width: 12px;
+    height: 12px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 15px var(--accent-primary);
+    transition: var(--transition-fast);
+}
+
+.aura-ring {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--accent-primary);
+    border-radius: 50%;
+    opacity: 0.2;
+    animation: aura-expand 2s infinite ease-out;
+}
+
+@keyframes aura-expand {
+    0% { transform: scale(0.6); opacity: 1; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+.voice-hud.speaking .aura-core {
+    background: var(--accent-secondary);
+    box-shadow: 0 0 20px var(--accent-secondary);
+    transform: scale(1.4);
+}
+
+.voice-hud.speaking .aura-ring {
+    border-color: var(--accent-secondary);
+    animation-duration: 0.8s;
+}
+
+.voice-status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.voice-status .status-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--text-dim);
+    border-radius: 50%;
+}
+
+.voice-status.active .status-dot {
+    background: var(--accent-primary);
+    box-shadow: 0 0 8px var(--accent-primary);
+    animation: pulse 1s infinite;
+}
+
+.voice-status.active .status-text {
+    color: var(--accent-primary);
+}
+
 /* --- Mobile Responsive --- */
 @media (max-width: 768px) {
     .container { padding: 0 20px; }

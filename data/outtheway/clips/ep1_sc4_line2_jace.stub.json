@@ -1,0 +1,7 @@
+{
+  "character": "Jace",
+  "line": "I told you. I been told you. Wasn't nobody gonna sleep on that voice.",
+  "error": "{\"detail\":{\"type\":\"payment_required\",\"code\":\"paid_plan_required\",\"message\":\"Free users cannot use library voices via the API. Please upgrade your subscription to use this voice.\",\"status\":\"payment_required\",\"request_id\":\"8534453f25a103286cf0fb9b89253036\"}}",
+  "stubNote": "This is a stub — real generation failed or API key missing",
+  "generatedAt": "2026-03-26T23:14:05.955Z"
+}

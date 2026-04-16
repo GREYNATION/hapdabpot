@@ -1,0 +1,7 @@
+{
+  "character": "Dre",
+  "line": "Have a good night, little cousin.",
+  "error": "{\"detail\":{\"type\":\"not_found\",\"code\":\"voice_not_found\",\"message\":\"A voice with voice_id 'pNInz6obpg8ndEao7mAl' was not found.\",\"status\":\"voice_not_found\",\"request_id\":\"0d3250ee30b19d34952b894dbe94a4a0\"}}",
+  "stubNote": "This is a stub — real generation failed or API key missing",
+  "generatedAt": "2026-03-26T23:14:26.996Z"
+}

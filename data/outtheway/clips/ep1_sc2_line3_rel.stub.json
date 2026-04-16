@@ -1,0 +1,7 @@
+{
+  "character": "Rel",
+  "line": "Aight, aight — but real talk though. Some dude named Dre been asking 'bout you. West side type. Clean but... off.",
+  "error": "{\"detail\":{\"type\":\"payment_required\",\"code\":\"paid_plan_required\",\"message\":\"Free users cannot use library voices via the API. Please upgrade your subscription to use this voice.\",\"status\":\"payment_required\",\"request_id\":\"128f0a0501c58b00bcee0a6a89ad8271\"}}",
+  "stubNote": "This is a stub — real generation failed or API key missing",
+  "generatedAt": "2026-03-26T23:13:33.017Z"
+}

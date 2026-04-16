@@ -1,0 +1,7 @@
+{
+  "character": "Nia",
+  "line": "Heaven knows... I've been waiting on this... mmhmm...",
+  "error": "{\"detail\":{\"type\":\"payment_required\",\"code\":\"paid_plan_required\",\"message\":\"Free users cannot use library voices via the API. Please upgrade your subscription to use this voice.\",\"status\":\"payment_required\",\"request_id\":\"ae389d05bbd255e781d16d62a63afd8a\"}}",
+  "stubNote": "This is a stub — real generation failed or API key missing",
+  "generatedAt": "2026-03-26T23:13:49.561Z"
+}
