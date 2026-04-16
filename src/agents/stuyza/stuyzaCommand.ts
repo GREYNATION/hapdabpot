@@ -43,6 +43,27 @@ async function sendVideo(ctx: any, result: VideoProductionResult, caption: strin
 
 const SERIES_NAME = "Stuyza Productions";
 
+/**
+ * Creates a progress callback that edits a Telegram message in place.
+ * @param ctx      Telegraf context (for ctx.telegram access)
+ * @param msgId    The message ID to edit
+ * @param header   Fixed header line(s) shown above the status text
+ */
+function makeSafeEdit(ctx: any, msgId: number, header: string) {
+  return async (status: string) => {
+    try {
+      await ctx.telegram.editMessageText(
+        ctx.chat.id,
+        msgId,
+        undefined,
+        `${header}\n\n${status}`
+      );
+    } catch {
+      // Silently ignore — edit failures (rate limit, unchanged text) must not crash the render
+    }
+  };
+}
+
 export function registerStuyzaCommands(bot: Telegraf) {
 
   // /stuyza — Main production command
@@ -149,20 +170,19 @@ async function handleExplain(ctx: any, topic: string) {
     return ctx.reply("🏠 Please specify a topic. Example: /stuyza explain wholesaling");
   }
 
-  await ctx.reply(`🎬 **Stuyza Productions**\n\nStarting explainer production about: *${topic}*\nThis will take a few minutes...`, { parse_mode: "Markdown" });
+  const statusMsg = await ctx.reply(`🎬 Stuyza Productions\n\nTopic: ${topic}\n\n⏳ Starting...`);
+  const safeEdit = makeSafeEdit(ctx, statusMsg.message_id, `🎬 Stuyza Productions\n\nTopic: ${topic}`);
 
   try {
     const result = await produceVideo(
       `Make a 60-second animated explainer about ${topic}. Professional tone, clear visuals, suitable for real estate marketing.`,
-      "stuyza-explainer"
+      "stuyza-explainer",
+      safeEdit
     );
 
     if (result.status === "success") {
-      await sendVideo(
-        ctx,
-        result,
-        `✅ Explainer Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}\nStages: ${result.stages?.join(" → ")}`
-      );
+      await sendVideo(ctx, result,
+        `✅ Explainer Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}\nStages: ${result.stages?.join(" → ")}`);
     } else {
       await ctx.reply(`❌ Production failed: ${result.error}`);
     }
@@ -180,21 +200,15 @@ async function handleCinematic(ctx: any, description: string) {
     return ctx.reply("🎬 Please describe the scene. Example: /stuyza cinematic Jaylen on a Brooklyn rooftop");
   }
 
-  await ctx.reply(`🎬 **Stuyza Productions**\n\nStarting cinematic production...\nScene: *${description}*`, { parse_mode: "Markdown" });
+  const statusMsg = await ctx.reply(`🎬 Stuyza Productions\n\nScene: ${description}\n\n⏳ Starting...`);
+  const safeEdit = makeSafeEdit(ctx, statusMsg.message_id, `🎬 Stuyza Productions\n\nScene: ${description}`);
 
   try {
-    const result = await produceCinematicScene(
-      description,
-      "protagonist",
-      "Brooklyn"
-    );
+    const result = await produceCinematicScene(description, "protagonist", "Brooklyn", safeEdit);
 
     if (result.status === "success") {
-      await sendVideo(
-        ctx,
-        result,
-        `✅ Scene Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}`
-      );
+      await sendVideo(ctx, result,
+        `✅ Scene Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}`);
     } else {
       await ctx.reply(`❌ Production failed: ${result.error}`);
     }
@@ -212,17 +226,15 @@ async function handleSocial(ctx: any, topic: string) {
     return ctx.reply("📱 Please specify a topic. Example: /stuyza social 3 tips for sellers");
   }
 
-  await ctx.reply(`📱 **Stuyza Productions**\n\nCreating social media clip...\nTopic: *${topic}*`, { parse_mode: "Markdown" });
+  const statusMsg = await ctx.reply(`📱 Stuyza Productions\n\nTopic: ${topic}\n\n⏳ Starting...`);
+  const safeEdit = makeSafeEdit(ctx, statusMsg.message_id, `📱 Stuyza Productions\n\nTopic: ${topic}`);
 
   try {
-    const result = await produceSocialClip(topic, "tiktok");
+    const result = await produceSocialClip(topic, "tiktok", safeEdit);
 
     if (result.status === "success") {
-      await sendVideo(
-        ctx,
-        result,
-        `✅ Social Clip Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}`
-      );
+      await sendVideo(ctx, result,
+        `✅ Social Clip Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}`);
     } else {
       await ctx.reply(`❌ Production failed: ${result.error}`);
     }
@@ -237,22 +249,21 @@ async function handleSocial(ctx: any, topic: string) {
  */
 async function handleProduce(ctx: any, prompt: string) {
   log(`[stuyza] Handshake received. Prompt: ${prompt.substring(0, 50)}...`);
-  await ctx.reply(`🎬 **Stuyza Productions**\n\n*Neural Bridge Active.*\nStarting high-fidelity video expansion...\n\nPrompt: *${prompt.substring(0, 80)}*`, { parse_mode: "Markdown" });
+
+  const statusMsg = await ctx.reply(`🎬 Stuyza Productions\n\n${prompt.substring(0, 80)}\n\n⏳ Starting...`);
+  const safeEdit = makeSafeEdit(ctx, statusMsg.message_id, `🎬 Stuyza Productions\n\n${prompt.substring(0, 80)}`);
 
   try {
-    const result = await produceVideo(prompt);
+    const result = await produceVideo(prompt, undefined, safeEdit);
 
     if (result.status === "success") {
-      await sendVideo(
-        ctx,
-        result,
-        `✅ Production Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}\nStages: ${result.stages?.length || 0}`
-      );
+      await sendVideo(ctx, result,
+        `✅ Production Complete!\n💰 Cost: $${result.cost?.toFixed(2) || "N/A"}\nStages: ${result.stages?.length || 0}`);
     } else {
-      await ctx.reply(`❌ **Production failed**\n\nReason: ${result.error || "Unknown neuro-sync error."}\n\n💡 Try describing your scene in more detail, or use /stuyza pipelines to see available formats.`, { parse_mode: "Markdown" });
+      await ctx.reply(`❌ Production failed\n\n${result.error || "Unknown error."}\n\n💡 Try /stuyza pipelines.`);
     }
   } catch (err: any) {
     log(`[stuyza] Production failed: ${err.message}`, "error");
-    await ctx.reply(`❌ **Neural Link Error**\n\n${err.message}\n\nI have automatically reported this to the Master Brain. Please try again in 30 seconds.`, { parse_mode: "Markdown" });
+    await ctx.reply(`❌ Neural Link Error\n\n${err.message}`);
   }
 }

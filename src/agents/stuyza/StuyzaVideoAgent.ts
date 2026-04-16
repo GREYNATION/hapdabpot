@@ -94,10 +94,12 @@ async function buildCinematicProps(
   prompt: string,
   assetPath: string,
   duration: number,
-  pipeline: string = "stuyza-social"
+  pipeline: string = "stuyza-social",
+  onProgress?: (msg: string) => Promise<void>
 ): Promise<object> {
   const isVertical = pipeline === "stuyza-social";
   // ── Step 1: AI Scene Planning ──────────────────────────────────────────────
+  await onProgress?.("🧠 Planning scenes...");
   let beats: SceneBeat[] = [];
   try {
     const res = await askAI(
@@ -162,6 +164,7 @@ Return ONLY valid JSON array, no markdown fences.`,
         fs.writeFileSync(imgPath, Buffer.from(buf));
         imageSrc = `file:///${imgPath.replace(/\\/g, "/")}`;
         log(`[StuyzaVideoAgent] ✅ Image ${i + 1}/${beats.length} generated`);
+        await onProgress?.(`📸 Generating images... (${i + 1}/${beats.length})`);
       }
     } catch (imgErr: any) {
       log(`[StuyzaVideoAgent] Image gen failed for beat ${i}: ${imgErr.message}`, "warn");
@@ -187,6 +190,7 @@ Return ONLY valid JSON array, no markdown fences.`,
     text: "FOLLOW FOR MORE TIPS 🔥", accent: "#f5a623", intensity: 1.6 });
 
   // ── Step 3: ElevenLabs Narration ─────────────────────────────────────────
+  await onProgress?.("🎙️ Generating voiceover...");
   const audioPath = path.join(assetPath, "narration.mp3");
   const narrationSrc = await generateNarration(beats, audioPath);
 
@@ -211,9 +215,11 @@ Return ONLY valid JSON array, no markdown fences.`,
 export interface VideoProductionRequest {
   prompt: string;
   pipeline?: "stuyza-explainer" | "stuyza-cinematic" | "stuyza-social" | "animated-explainer" | "cinematic" | "documentary-montage";
-  duration?: number; // seconds
-  referenceVideo?: string; // URL or local path
+  duration?: number;
+  referenceVideo?: string;
   outputName?: string;
+  /** Optional progress callback — called at each production stage */
+  onProgress?: (msg: string) => Promise<void>;
 }
 
 export interface VideoProductionResult {
@@ -267,7 +273,7 @@ export class StuyzaVideoAgent {
       const productionScript = await this.generateProductionScript(request);
 
       // Step 3: Execute the pipeline
-      const result = await this.executePipeline(pipeline, productionScript, outputName);
+      const result = await this.executePipeline(pipeline, productionScript, outputName, request.onProgress);
 
       return {
         status: "success",
@@ -365,7 +371,8 @@ print(json.dumps(registry.support_envelope(), indent=2))
   private async executePipeline(
     pipeline: string,
     script: any,
-    outputName: string
+    outputName: string,
+    onProgress?: (msg: string) => Promise<void>
   ): Promise<{ videoUrl?: string; outputPath?: string; cost?: number; stages?: string[] }> {
     const projectDir = path.join(process.cwd(), "projects", outputName);
     const renderPath = path.join(projectDir, "renders");
@@ -380,13 +387,15 @@ print(json.dumps(registry.support_envelope(), indent=2))
       script.prompt as string,
       assetPath,
       script.duration as number || 15,
-      pipeline
+      pipeline,
+      onProgress
     );
 
     const propsPath = path.join(projectDir, "props.json");
     fs.writeFileSync(propsPath, JSON.stringify(cinematicProps, null, 2));
 
     log(`[StuyzaVideoAgent] Starting Remotion render for: ${outputName}`);
+    await onProgress?.("🎬 Rendering video...");
 
     try {
       // Execute Remotion render — composition must match Root.tsx id="CinematicRenderer"
@@ -456,10 +465,11 @@ print(json.dumps(registry.support_envelope(), indent=2))
  */
 export async function produceVideo(
   prompt: string,
-  pipeline?: string
+  pipeline?: string,
+  onProgress?: (msg: string) => Promise<void>
 ): Promise<VideoProductionResult> {
   const agent = new StuyzaVideoAgent(pipeline);
-  return await agent.produce({ prompt, pipeline: pipeline as any });
+  return await agent.produce({ prompt, pipeline: pipeline as any, onProgress });
 }
 
 /**
@@ -468,13 +478,15 @@ export async function produceVideo(
 export async function produceCinematicScene(
   sceneDescription: string,
   character: string,
-  location: string
+  location: string,
+  onProgress?: (msg: string) => Promise<void>
 ): Promise<VideoProductionResult> {
   const agent = new StuyzaVideoAgent("stuyza-cinematic");
   return await agent.produce({
     prompt: `Cinematic scene: ${sceneDescription}. Character: ${character}. Location: ${location}.`,
     pipeline: "stuyza-cinematic",
     duration: 15,
+    onProgress,
   });
 }
 
@@ -483,12 +495,14 @@ export async function produceCinematicScene(
  */
 export async function produceSocialClip(
   topic: string,
-  platform: "tiktok" | "youtube" | "instagram" = "tiktok"
+  platform: "tiktok" | "youtube" | "instagram" = "tiktok",
+  onProgress?: (msg: string) => Promise<void>
 ): Promise<VideoProductionResult> {
   const agent = new StuyzaVideoAgent("stuyza-social");
   return await agent.produce({
     prompt: `${platform} short about: ${topic}. Hook in first 3 seconds. Fast pacing. Music.`,
     pipeline: "stuyza-social",
     duration: platform === "tiktok" ? 15 : 60,
+    onProgress,
   });
 }
