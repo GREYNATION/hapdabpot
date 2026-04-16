@@ -213,7 +213,8 @@ async function handleSocial(ctx: any, topic: string) {
  * Handle generic /stuyza [prompt]
  */
 async function handleProduce(ctx: any, prompt: string) {
-  await ctx.reply(`🎬 **Stuyza Productions**\n\nStarting video production...\nPrompt: *${prompt.substring(0, 100)}${prompt.length > 100 ? "..." : ""}*`, { parse_mode: "Markdown" });
+  log(`[stuyza] Handshake received. Prompt: ${prompt.substring(0, 50)}...`);
+  await ctx.reply(`🎬 **Stuyza Productions**\n\n*Neural Bridge Active.*\nStarting high-fidelity video expansion...\n\nPrompt: *${prompt.substring(0, 80)}*`, { parse_mode: "Markdown" });
 
   try {
     const result = await produceVideo(prompt);

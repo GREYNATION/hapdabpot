@@ -51,14 +51,7 @@ export class TelegramBot {
         }
 
         this.setupHandlers();
-        this.setupAnalysisHandlers();
-        this.setupLeadGenHandlers();
-        this.setupStatusHandlers();
-        this.setupAppHandlers();
-        this.setupBuildHandler();
         this.setupDashboardHandlers();
-        this.setupTradingHandlers();
-        this.setupGoogleHandlers();
 
         log("[bot] Telegram handlers initialized.");
     }
@@ -184,7 +177,7 @@ export class TelegramBot {
                     userText = msg.text;
                 }
 
-                if (this.analysisSessions.has(chatId) && userText) return this.processAnalysisStep(ctx, chatId, userText);
+                // Process council chat
 
                 if (userText || attachments.length > 0) {
                     await ctx.sendChatAction("typing");
@@ -201,83 +194,6 @@ export class TelegramBot {
                     }
                 }
             } catch (err: any) { await this.safeReply(ctx, `⚠️ Error: ${err.message}`); }
-        });
-    }
-
-    private setupAnalysisHandlers() {
-        this.bot.command('analyze', (ctx) => {
-            if (!this.checkOwner(ctx)) return;
-            const address = ctx.message.text.split(" ").slice(1).join(" ");
-            if (!address) return ctx.reply("🏠 Usage: /analyze [address]");
-            this.analysisSessions.set(ctx.chat.id, { address, step: 'arv' });
-            ctx.reply(`📋 Analyzing: ${address}\n\nWhat is the estimated ARV?`);
-        });
-    }
-
-    private async processAnalysisStep(ctx: Context, chatId: number, text: string) {
-        const session = this.analysisSessions.get(chatId);
-        const val = parseFloat(text.replace(/[^0-9.]/g, ""));
-        if (session.step === 'arv') { session.arv = val; session.step = 'repairs'; return ctx.reply("🛠️ Estimated Repair Cost?"); }
-        if (session.step === 'repairs') { session.repairs = val; session.step = 'price'; return ctx.reply("💰 Asking Price?"); }
-        if (session.step === 'price') {
-            const mao = (session.arv * 0.7) - session.repairs;
-            ctx.reply(`📊 Report: ${session.address}\n\nMAO: $${mao.toLocaleString()}\nAsking: $${val.toLocaleString()}\n\n${val <= mao ? "🔥 GREAT DEAL" : "⚠️ MARGINAL"}`);
-            this.analysisSessions.delete(chatId);
-        }
-    }
-
-    private setupLeadGenHandlers() {
-        this.bot.command('scrape', async (ctx) => {
-            if (!this.checkOwner(ctx)) return;
-            await ctx.reply("🔎 Searching for high-motivation signals in target markets...");
-            try {
-                const leads = await findMotivatedSellers();
-                await ctx.reply(`✅ Found ${leads.length} fresh prospects. Enriched in CRM.`);
-            } catch (err: any) { ctx.reply(`⚠️ Scraping failed: ${err.message}`); }
-        });
-
-        this.bot.command('leads', async (ctx) => {
-            if (!this.checkOwner(ctx)) return;
-            try {
-                const leads = CrmManager.listDeals(10);
-                const msg = leads.map((l: any) => `📍 ${l.address} | Score: ${l.dealScore || 'N/A'}`).join("\n");
-                ctx.reply(`📂 **Active Leads:**\n\n${msg || "No leads in database."}`);
-            } catch (err: any) { ctx.reply(`⚠️ CRM Error: ${err.message}`); }
-        });
-    }
-
-    private setupStatusHandlers() {
-        this.bot.command('stats', (ctx) => {
-            if (!this.checkOwner(ctx)) return;
-            try {
-                const stats = CrmManager.getStats();
-                const apps = listApps();
-                ctx.reply(`📊 **System Health**\n\nLeads: ${stats.leads}\nContracts: ${stats.contracts}\nApps: ${apps.length} active\nBuilds: ${this.isBusy ? 'Busy' : 'Idle'}`);
-            } catch (err: any) { ctx.reply(`⚠️ Stats failed: ${err.message}`); }
-        });
-    }
-
-    private setupAppHandlers() {
-        this.bot.command("apps", (ctx) => {
-            if (!this.checkOwner(ctx)) return;
-            const apps = listApps();
-            const list = apps.map((a: any) => `🟢 ${a.id} (P:${a.port})`).join("\n");
-            ctx.reply(`📋 **Managed Apps:**\n\n${list || "None"}`);
-        });
-        this.bot.command("stop", (ctx) => {
-            if (!this.checkOwner(ctx)) return;
-            const id = ctx.message.text.split(" ")[1];
-            if (!id) return ctx.reply("❌ Usage: /stop [appId]");
-            ctx.reply(stopApp(id));
-        });
-    }
-
-    private setupBuildHandler() {
-        this.bot.command("build", (ctx) => {
-            if (!this.checkOwner(ctx)) return;
-            const prompt = ctx.message.text.split(" ").slice(1).join(" ");
-            if (!prompt) return ctx.reply("🏗️ Usage: /build [task]");
-            this.runBuild(prompt, ctx);
         });
     }
 
@@ -375,41 +291,6 @@ export class TelegramBot {
         } finally { 
             this.isBusy = false; 
         }
-    }
-
-    private setupTradingHandlers() {
-        this.bot.command('trade', async (ctx) => {
-            if (!this.checkOwner(ctx)) return;
-            try {
-                const { liveBalance } = await this.masterTrader.getLiveAccountState();
-                ctx.reply(`💹 **Tradovate Account**\n\nBalance: $${liveBalance?.marginBalance?.toFixed(2) ?? '0.00'}`);
-            } catch (e: any) { ctx.reply(`⚠️ Tradovate error: ${e.message}`); }
-        });
-        this.bot.command('markets', async (ctx) => {
-            if (!this.checkOwner(ctx)) return;
-            await ctx.reply("📡 Scanning prediction markets...");
-            try {
-                const { filtered } = await scanMarkets();
-                ctx.reply(formatMarketsReport(filtered));
-            } catch (err: any) { ctx.reply(`⚠️ Market scan failed: ${err.message}`); }
-        });
-    }
-
-    private setupGoogleHandlers() {
-        this.bot.command('google', async (ctx) => {
-            if (!this.checkOwner(ctx)) return;
-            if (!isGoogleEnabled()) return ctx.reply("⚠️ Google not configured.");
-            const [action, ...args] = ctx.message.text.split(" ").slice(1);
-            if (!action) return ctx.reply("📂 Usage: /google [drive|gmail|cal] [args]");
-            try {
-                switch (action.toLowerCase()) {
-                    case 'drive': ctx.reply(await driveListFiles(args.join(" "))); break;
-                    case 'gmail': ctx.reply(await listEmails(args.join(" ") || "is:unread")); break;
-                    case 'cal': ctx.reply(await listEvents(7)); break;
-                    default: ctx.reply("❌ Unknown service: drive, gmail, cal.");
-                }
-            } catch (err: any) { ctx.reply(`⚠️ Google error: ${err.message}`); }
-        });
     }
 
     public launch() { DealWatcher.init(); this.bot.launch(); log("[bot] Launched Hapdabot Supreme."); }
