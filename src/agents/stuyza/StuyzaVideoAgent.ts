@@ -10,12 +10,131 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import fs from "fs";
-import { log } from "../../core/config.js";
+import { log, openai } from "../../core/config.js";
 import { askAI } from "../../core/ai.js";
 
 const execAsync = promisify(exec);
 
 const OPENMONTAGE_DIR = path.join(process.cwd(), "src", "agents", "stuyza", "openmontage");
+
+// ─── Multi-Scene Props Builder ────────────────────────────────────────────────
+
+interface SceneBeat {
+  title: string;
+  imagePrompt: string;
+  duration: number;
+}
+
+/**
+ * Builds a rich CinematicRendererProps from a prompt.
+ * 1. AI splits the prompt into scene beats (tips, points, etc.)
+ * 2. DALL-E 3 generates a cinematic image per beat
+ * 3. Images are downloaded to assetPath for reliable local rendering
+ * 4. Scenes are assembled: intro title → [image + title] × N → outro CTA
+ * Falls back to a single title card if anything fails.
+ */
+async function buildCinematicProps(
+  prompt: string,
+  assetPath: string,
+  duration: number
+): Promise<object> {
+  // ── Step 1: AI Scene Planning ──────────────────────────────────────────────
+  let beats: SceneBeat[] = [];
+  try {
+    const res = await askAI(
+      `You are a social media video director. Break this prompt into 3-5 punchy video scenes:
+
+Prompt: "${prompt}"
+
+Return ONLY a JSON array. Each element must have:
+- "title": short display text, max 8 words, ALL CAPS (e.g. "TIP 1: PRICE IT RIGHT")
+- "imagePrompt": vivid DALL-E prompt, photorealistic, cinematic lighting, no text/watermarks
+- "duration": seconds for this scene (3-5)
+
+Example: [{"title":"TIP 1: PRICE IT RIGHT","imagePrompt":"Real estate agent presenting home, golden hour, wide angle, dramatic sky","duration":4}]
+
+Return ONLY valid JSON array, no markdown fences.`,
+      "You are a professional social media video director."
+    );
+    const clean = res.content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+    beats = JSON.parse(clean);
+  } catch (e: any) {
+    log(`[StuyzaVideoAgent] AI scene planning failed: ${e.message}`, "warn");
+  }
+
+  // ── Fallback: single title card ────────────────────────────────────────────
+  if (!Array.isArray(beats) || beats.length === 0) {
+    return {
+      scenes: [{ kind: "title", id: "title-0", startSeconds: 0,
+        durationSeconds: duration || 15, text: prompt.substring(0, 120),
+        accent: "#86d8ff", intensity: 1 }],
+      titleFontSize: 78, titleWidth: 1320, signalLineCount: 18,
+    };
+  }
+
+  // ── Step 2: Generate Images with DALL-E 3 ─────────────────────────────────
+  const scenes: object[] = [];
+  let t = 0;
+
+  // Opening title (2s)
+  scenes.push({ kind: "title", id: "intro", startSeconds: t, durationSeconds: 2,
+    text: prompt.replace(/^.*?:/,"").trim().toUpperCase().substring(0, 60),
+    accent: "#86d8ff", intensity: 1.3 });
+  t += 2;
+
+  for (let i = 0; i < beats.length; i++) {
+    const beat = beats[i];
+    const beatDur = Math.min(5, Math.max(3, beat.duration || 4));
+
+    // Try DALL-E 3
+    let imageSrc: string | null = null;
+    try {
+      const imgRes = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: `${beat.imagePrompt}. Cinematic, dramatic lighting, no text, no watermarks, photorealistic.`,
+        n: 1,
+        size: "1792x1024",
+        quality: "standard",
+      });
+      const url = imgRes.data?.[0]?.url;
+      if (url) {
+        const buf = await fetch(url).then(r => r.arrayBuffer());
+        const imgPath = path.join(assetPath, `scene-${i}.png`);
+        fs.writeFileSync(imgPath, Buffer.from(buf));
+        imageSrc = `file:///${imgPath.replace(/\\/g, "/")}`;
+        log(`[StuyzaVideoAgent] ✅ Image ${i + 1}/${beats.length} generated`);
+      }
+    } catch (imgErr: any) {
+      log(`[StuyzaVideoAgent] Image gen failed for beat ${i}: ${imgErr.message}`, "warn");
+    }
+
+    // Image scene (if we got one)
+    if (imageSrc) {
+      scenes.push({ kind: "image", id: `img-${i}`, startSeconds: t,
+        durationSeconds: beatDur, src: imageSrc,
+        tone: "neutral", fadeInFrames: 12, fadeOutFrames: 8 });
+      t += beatDur;
+    }
+
+    // Title card for this beat (2.5s after image, or full duration if no image)
+    scenes.push({ kind: "title", id: `title-${i}`, startSeconds: t,
+      durationSeconds: imageSrc ? 2.5 : beatDur,
+      text: beat.title, accent: "#86d8ff", intensity: 0.85 });
+    t += imageSrc ? 2.5 : beatDur;
+  }
+
+  // Outro CTA (2.5s)
+  scenes.push({ kind: "title", id: "outro", startSeconds: t, durationSeconds: 2.5,
+    text: "FOLLOW FOR MORE TIPS 🔥", accent: "#f5a623", intensity: 1.6 });
+
+  return {
+    scenes,
+    titleFontSize: 72,
+    titleWidth: 1280,
+    signalLineCount: 14,
+  };
+}
+
 
 export interface VideoProductionRequest {
   prompt: string;
@@ -183,30 +302,13 @@ print(json.dumps(registry.support_envelope(), indent=2))
     if (!fs.existsSync(renderPath)) fs.mkdirSync(renderPath, { recursive: true });
     if (!fs.existsSync(assetPath)) fs.mkdirSync(assetPath, { recursive: true });
 
-    // Build a CinematicRendererProps-compatible props object.
-    // The AI script may contain raw content; we map it to the scenes schema.
-    // A title scene is always injected as a guaranteed fallback so scenes is never [].
-    const titleText: string =
-      (script.enhanced_data?.script as string) ||
-      (script.prompt as string) ||
-      outputName;
-
-    const cinematicProps = {
-      scenes: [
-        {
-          kind: "title" as const,
-          id: "title-0",
-          startSeconds: 0,
-          durationSeconds: script.duration || 15,
-          text: titleText.substring(0, 120),
-          accent: "#86d8ff",
-          intensity: 1,
-        },
-      ],
-      titleFontSize: 78,
-      titleWidth: 1320,
-      signalLineCount: 18,
-    };
+    // Build rich multi-scene CinematicRendererProps (AI scenes + DALL-E images)
+    log(`[StuyzaVideoAgent] Building multi-scene props for: ${outputName}`);
+    const cinematicProps = await buildCinematicProps(
+      script.prompt as string,
+      assetPath,
+      script.duration as number || 15
+    );
 
     const propsPath = path.join(projectDir, "props.json");
     fs.writeFileSync(propsPath, JSON.stringify(cinematicProps, null, 2));
