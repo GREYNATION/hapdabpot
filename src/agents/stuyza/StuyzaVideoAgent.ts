@@ -183,17 +183,42 @@ print(json.dumps(registry.support_envelope(), indent=2))
     if (!fs.existsSync(renderPath)) fs.mkdirSync(renderPath, { recursive: true });
     if (!fs.existsSync(assetPath)) fs.mkdirSync(assetPath, { recursive: true });
 
+    // Build a CinematicRendererProps-compatible props object.
+    // The AI script may contain raw content; we map it to the scenes schema.
+    // A title scene is always injected as a guaranteed fallback so scenes is never [].
+    const titleText: string =
+      (script.enhanced_data?.script as string) ||
+      (script.prompt as string) ||
+      outputName;
+
+    const cinematicProps = {
+      scenes: [
+        {
+          kind: "title" as const,
+          id: "title-0",
+          startSeconds: 0,
+          durationSeconds: script.duration || 15,
+          text: titleText.substring(0, 120),
+          accent: "#86d8ff",
+          intensity: 1,
+        },
+      ],
+      titleFontSize: 78,
+      titleWidth: 1320,
+      signalLineCount: 18,
+    };
+
     const propsPath = path.join(projectDir, "props.json");
-    fs.writeFileSync(propsPath, JSON.stringify(script, null, 2));
+    fs.writeFileSync(propsPath, JSON.stringify(cinematicProps, null, 2));
 
     log(`[StuyzaVideoAgent] Starting Remotion render for: ${outputName}`);
 
     try {
-      // Execute Remotion render
+      // Execute Remotion render — composition must match Root.tsx id="CinematicRenderer"
       const composerDir = path.join(process.cwd(), "src/agents/stuyza/openmontage/remotion-composer");
       const outputFilePath = path.join(renderPath, "final.mp4");
 
-      const renderCmd = `npx -y remotion render src/index.tsx Cinematic ${outputFilePath} --props ${propsPath} --codec h264`;
+      const renderCmd = `npx -y remotion render src/index.tsx CinematicRenderer ${outputFilePath} --props ${propsPath} --codec h264`;
       
       log(`[StuyzaVideoAgent] Executing: ${renderCmd} in ${composerDir}`);
       try {
