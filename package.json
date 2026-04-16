@@ -10,8 +10,7 @@
     "start": "node dist/index.js",
     "deploy": "npm run build && npm start",
     "typecheck": "tsc --noEmit",
-    "bot": "tsx src/bot.ts",
-    "postinstall": "cd src/agents/stuyza/openmontage/remotion-composer && npm install"
+    "bot": "tsx src/bot.ts"
   },
   "keywords": [],
   "author": "",

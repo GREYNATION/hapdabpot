@@ -25,11 +25,11 @@ WORKDIR /app
 
 # Install dependencies first (layer cache friendly)
 COPY package*.json ./
-RUN npm ci
-RUN cd src/agents/stuyza/openmontage/remotion-composer && npm install
+RUN npm install --legacy-peer-deps
 
 # Copy source and build TypeScript
 COPY . .
+RUN cd src/agents/stuyza/openmontage/remotion-composer && npm install --legacy-peer-deps && cd /app
 RUN npm run build
 
 # No hardcoded EXPOSE 3001, Railway handles port mapping via PORT env var
