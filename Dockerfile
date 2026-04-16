@@ -1,10 +1,11 @@
-# Use official Node 20 slim image (Debian-based — has python3/gcc/make for node-gyp)
-FROM node:20-slim
+# Use official Node 22 slim image
+FROM node:22-slim
 
 # Install system dependencies
 RUN apt-get update && \
     apt-get install -y \
     python3 \
+    python-is-python3 \
     make \
     g++ \
     ffmpeg \
