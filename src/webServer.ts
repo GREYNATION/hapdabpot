@@ -15,8 +15,9 @@ import { DataIngestionService } from './services/dataIngestionService.js';
 import { createLeadsRouter } from './routes/leads.js';
 import { CouncilOrchestrator } from './core/orchestrator/councilOrchestrator.js';
 import fs from 'fs';
-import ws from 'ws';
-const { WebSocketServer, WebSocket } = ws as any;
+import * as wsModule from 'ws';
+const WebSocketServer = wsModule.WebSocketServer || (wsModule as any).Server;
+const WebSocketClass = wsModule.WebSocket || (wsModule as any).default;
 import { getSupabase } from './core/supabase.js';
 const orchestrator = new CouncilOrchestrator();
 
@@ -543,7 +544,7 @@ export function startWebServer(bot: any) {
   // ── Unified WebSocket Neural Bridge ───────────────────────────────────────
   const wss = new WebSocketServer({ server });
   
-  wss.on('connection', (socket: WebSocket) => {
+  wss.on('connection', (socket: any) => {
     log('[WebSocket] Dashboard connected to Neural Bridge.');
     socket.send(JSON.stringify({ type: 'status', agent: 'SYSTEM', message: 'BRIDGE_CONNECTED: Neural sync established.' }));
   });
@@ -562,7 +563,7 @@ export function startWebServer(bot: any) {
               timestamp: row.timestamp
           });
           
-          wss.clients.forEach((client: WebSocket) => {
+          wss.clients.forEach((client: any) => {
               if (client.readyState === 1) client.send(broadcastMessage);
           });
       })
@@ -578,7 +579,7 @@ export function startWebServer(bot: any) {
         timestamp: new Date().toISOString()
     });
     
-    wss.clients.forEach((client: WebSocket) => {
+    wss.clients.forEach((client: any) => {
         if (client.readyState === 1) client.send(heartbeat);
     });
   }, 5000); 
