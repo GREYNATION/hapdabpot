@@ -97,7 +97,7 @@ async function buildCinematicProps(
   pipeline: string = "stuyza-social",
   onProgress?: (msg: string) => Promise<void>
 ): Promise<object> {
-  const isVertical = pipeline === "stuyza-social";
+  const isVertical = true; // Forced vertical for TikTok/Reels
   // ── Step 1: AI Scene Planning ──────────────────────────────────────────────
   await onProgress?.("🧠 Planning scenes...");
   let beats: SceneBeat[] = [];
@@ -147,24 +147,23 @@ Return ONLY valid JSON array, no markdown fences.`,
     const beat = beats[i];
     const beatDur = Math.min(5, Math.max(3, beat.duration || 4));
 
-    // Try DALL-E 3
+    // Try Pollinations AI (100% Free, NO API KEY)
     let imageSrc: string | null = null;
     try {
-      const imgRes = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: `${beat.imagePrompt}. Cinematic, dramatic lighting, no text, no watermarks, photorealistic.`,
-        n: 1,
-        size: isVertical ? "1024x1792" : "1792x1024",
-        quality: "standard",
-      });
-      const url = imgRes.data?.[0]?.url;
-      if (url) {
-        const buf = await fetch(url).then(r => r.arrayBuffer());
-        const imgPath = path.join(assetPath, `scene-${i}.png`);
+      const encodedPrompt = encodeURIComponent(`${beat.imagePrompt}. Cinematic, dramatic lighting, no text, no watermarks, photorealistic, 8k resolution.`);
+      const imageWidth = isVertical ? 1024 : 1792;
+      const imageHeight = isVertical ? 1792 : 1024;
+      const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${imageWidth}&height=${imageHeight}&nologo=true`;
+      
+      const buf = await fetch(url).then(r => r.arrayBuffer());
+      if (buf && buf.byteLength > 1000) {
+        const imgPath = path.join(assetPath, `scene-${i}.jpeg`);
         fs.writeFileSync(imgPath, Buffer.from(buf));
         imageSrc = `file:///${imgPath.replace(/\\/g, "/")}`;
-        log(`[StuyzaVideoAgent] ✅ Image ${i + 1}/${beats.length} generated`);
+        log(`[StuyzaVideoAgent] ✅ Image ${i + 1}/${beats.length} generated via Pollinations`);
         await onProgress?.(`📸 Generating images... (${i + 1}/${beats.length})`);
+      } else {
+        throw new Error("Invalid image buffer returned");
       }
     } catch (imgErr: any) {
       log(`[StuyzaVideoAgent] Image gen failed for beat ${i}: ${imgErr.message}`, "warn");

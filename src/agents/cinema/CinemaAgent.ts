@@ -147,26 +147,15 @@ export class CinemaAgent {
     console.log("[Cinema] Image - Scene " + s.id);
     const prompt = this.buildPrompt(s);
     try {
-      console.log(`[Cinema] Using DALL-E 3 for Scene ${s.id}...`);
-      const response = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: prompt,
-        n: 1,
-        size: "1024x1792", // Vertical format
-        quality: "hd",
-      });
-      if (response?.data && response.data[0]?.url) {
-        return response.data[0].url;
-      }
-      throw new Error("No URL returned from DALL-E 3");
+      console.log(`[Cinema] Using Pollinations AI for Scene ${s.id}...`);
+      const encodedPrompt = encodeURIComponent(`${prompt}. Cinematic, dramatic lighting, photorealistic, 8k resolution, no watermarks, vertical formatting.`);
+      // Fixed purely to Vertical TikTok/Reels size
+      const imageWidth = 1024;
+      const imageHeight = 1792;
+      return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${imageWidth}&height=${imageHeight}&nologo=true`;
     } catch (err: any) {
-      console.warn(`[Cinema] DALL-E 3 failed, falling back to Muapi... Error: ${err.message}`);
-      const payload = { prompt, aspect_ratio: SERIES_STYLE.aspectRatio };
-      try {
-        return await this.muapi.run(ENDPOINTS.T2I_QUALITY, payload);
-      } catch (err2) {
-        return await this.muapi.run(ENDPOINTS.T2I_FAST, payload);
-      }
+      console.warn(`[Cinema] Error generating image: ${err.message}`);
+      return "";
     }
   }
 
