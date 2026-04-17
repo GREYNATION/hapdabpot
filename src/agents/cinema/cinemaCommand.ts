@@ -71,7 +71,15 @@ export function registerCinemaCommands(bot: Telegraf) {
 
       if (result.status === "complete") {
         const url = result.lipSyncUrl ?? result.videoUrl ?? result.imageUrl;
-        await ctx.reply(`✅ *Scene ${sceneId} complete!*\n[🎬 View Cinematic Render](${url})`, { parse_mode: "Markdown" });
+        if (url) {
+          await ctx.replyWithPhoto(
+            { url }, 
+            { caption: `✅ *Scene ${sceneId} complete!*`, parse_mode: "Markdown" }
+          ).catch(async () => {
+            // Fallback if URL is too long for replyWithPhoto
+            await ctx.reply(`✅ *Scene ${sceneId} complete!*\n<a href="${url}">🎬 View Render</a>`, { parse_mode: "HTML", link_preview_options: { is_disabled: false } });
+          });
+        }
       } else {
         await ctx.reply(`❌ Scene ${sceneId} failed:\n${result.error ?? "unknown error"}`);
       }
