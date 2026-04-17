@@ -297,6 +297,21 @@ export class TelegramBot {
         }
     }
 
-    public launch() { DealWatcher.init(); this.bot.launch(); log("[bot] Launched Hapdabot Supreme."); }
+    public launch() {
+        DealWatcher.init();
+
+        // dropPendingUpdates: true fixes 409 Conflict on Railway redeploys
+        // (old instance is still polling when new one starts)
+        this.bot.launch({ dropPendingUpdates: true }).catch((err: any) => {
+            log(`[bot] Launch error: ${err.message}`, 'error');
+        });
+
+        // Recover from polling errors without crashing
+        this.bot.catch((err: any) => {
+            log(`[bot] Polling error (non-fatal): ${err.message}`, 'error');
+        });
+
+        log('[bot] Launched Hapdabot Supreme (conflict-safe mode).');
+    }
     public stop(signal: string) { this.bot.stop(signal); }
 }
