@@ -12,6 +12,7 @@
 import fs from "fs";
 import path from "path";
 import axios from "axios";
+import { openai } from "../../core/config.js";
 
 const MUAPI_KEY        = process.env.MUAPI_API_KEY!;
 const MUAPI_BASE       = "https://api.muapi.ai/api/v1";
@@ -144,12 +145,28 @@ export class CinemaAgent {
 
   async generateImage(s: Scene): Promise<string> {
     console.log("[Cinema] Image - Scene " + s.id);
-    const payload = { prompt: this.buildPrompt(s), aspect_ratio: SERIES_STYLE.aspectRatio };
+    const prompt = this.buildPrompt(s);
     try {
-      return await this.muapi.run(ENDPOINTS.T2I_QUALITY, payload);
-    } catch (err) {
-      console.warn("[Cinema] Quality T2I failed, trying fast...");
-      return await this.muapi.run(ENDPOINTS.T2I_FAST, payload);
+      console.log(`[Cinema] Using DALL-E 3 for Scene ${s.id}...`);
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: prompt,
+        n: 1,
+        size: "1024x1792", // Vertical format
+        quality: "hd",
+      });
+      if (response?.data && response.data[0]?.url) {
+        return response.data[0].url;
+      }
+      throw new Error("No URL returned from DALL-E 3");
+    } catch (err: any) {
+      console.warn(`[Cinema] DALL-E 3 failed, falling back to Muapi... Error: ${err.message}`);
+      const payload = { prompt, aspect_ratio: SERIES_STYLE.aspectRatio };
+      try {
+        return await this.muapi.run(ENDPOINTS.T2I_QUALITY, payload);
+      } catch (err2) {
+        return await this.muapi.run(ENDPOINTS.T2I_FAST, payload);
+      }
     }
   }
 
@@ -165,7 +182,12 @@ export class CinemaAgent {
       return await this.muapi.run(ENDPOINTS.I2V_QUALITY, payload);
     } catch (err) {
       console.warn("[Cinema] Quality I2V failed, trying fast...");
-      return await this.muapi.run(ENDPOINTS.I2V_FAST, payload);
+      try {
+        return await this.muapi.run(ENDPOINTS.I2V_FAST, payload);
+      } catch (err2: any) {
+        console.warn(`[Cinema] Fast I2V also failed (likely out of credits). Falling back to static image. Error: ${err2.message}`);
+        return imageUrl; // Fallback to static image so the pipeline succeeds
+      }
     }
   }
 
