@@ -3,780 +3,722 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>STUYZA COMMAND CENTER</title>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<title>STUYZA COMMAND CENTER · HapdaBot</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦀</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
-/* ─── RESET & BASE ────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --bg:       #07070f;
-  --room:     #0d0d1e;
-  --desk:     #141428;
-  --border:   #2a2a5a;
-  --text:     #c8d8ff;
-  --dim:      #5a6a9a;
-  --green:    #39ff14;
-  --cyan:     #00e5ff;
-  --purple:   #b44fff;
-  --orange:   #ff9f1c;
-  --red:      #ff3a3a;
-  --yellow:   #ffe066;
-  --pink:     #ff6eb4;
-  --pixel:    'Press Start 2P', monospace;
-  --mono:     'Share Tech Mono', monospace;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#070710;--panel:#0d0d1e;--border:#252550;--text:#c8d8ff;--dim:#5a6a9a;
+  --cyan:#00e5ff;--green:#39ff14;--red:#ff3a3a;--orange:#ff9f1c;
+  --purple:#b44fff;--yellow:#ffe066;--pink:#ff6eb4;
+  --pixel:'Press Start 2P',monospace;--mono:'Share Tech Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);overflow:hidden;}
+
+/* ── CRT EFFECT ── */
+body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.12) 0,rgba(0,0,0,.12) 1px,transparent 1px,transparent 3px);
 }
 
-html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--mono); overflow: hidden; }
+/* ── LAYOUT ── */
+#app{display:grid;grid-template-rows:44px 1fr 44px;grid-template-columns:1fr 280px;height:100vh;}
 
-/* ─── SCANLINE CRT OVERLAY ────────────────────────────────────────────── */
-body::after {
-  content: '';
-  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
-  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 3px);
-  animation: scanroll 10s linear infinite;
+/* ── HEADER ── */
+#hdr{
+  grid-column:1/-1;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;background:var(--panel);border-bottom:2px solid var(--border);
 }
-@keyframes scanroll { to { background-position: 0 100%; } }
+#hdr h1{font-family:var(--pixel);font-size:9px;color:var(--cyan);
+  text-shadow:0 0 8px var(--cyan),0 0 24px rgba(0,229,255,.3);letter-spacing:2px;}
+.hdr-right{display:flex;align-items:center;gap:16px;}
+.dot-badge{display:flex;align-items:center;gap:5px;font-family:var(--pixel);font-size:6px;}
+.dot{width:7px;height:7px;border-radius:50%;animation:blink 1.3s ease-in-out infinite;}
+.dot.green{background:var(--green);box-shadow:0 0 5px var(--green);}
+.dot.red{background:var(--red);box-shadow:0 0 5px var(--red);}
+#clock{font-family:var(--pixel);font-size:7px;color:var(--dim);}
+#ws-label{font-family:var(--pixel);font-size:6px;}
+#ws-label.on{color:var(--green);}#ws-label.off{color:var(--red);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 
-/* ─── LAYOUT ──────────────────────────────────────────────────────────── */
-#app {
-  display: grid;
-  grid-template-rows: 48px 1fr 200px 44px;
-  grid-template-columns: 1fr 300px;
-  height: 100vh;
-  gap: 0;
+/* ── CANVAS SCENE ── */
+#scene-wrap{
+  grid-column:1;grid-row:2;
+  position:relative;overflow:hidden;background:#0a0a18;
+  border-right:2px solid var(--border);
 }
+#room-canvas{display:block;width:100%;height:100%;image-rendering:pixelated;}
 
-/* ─── HEADER ──────────────────────────────────────────────────────────── */
-#header {
-  grid-column: 1 / -1;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 16px;
-  background: var(--desk);
-  border-bottom: 2px solid var(--border);
-  image-rendering: pixelated;
+/* ── SPEECH BUBBLE ── */
+.bubble{
+  position:absolute;pointer-events:none;z-index:100;
+  background:rgba(10,8,28,.95);border:2px solid var(--border);
+  border-radius:4px;padding:5px 9px;
+  font-family:var(--pixel);font-size:6px;color:var(--text);
+  white-space:nowrap;max-width:200px;white-space:normal;
+  opacity:0;transition:opacity .3s;
+  box-shadow:0 0 10px rgba(0,200,255,.15);
 }
-#header h1 {
-  font-family: var(--pixel); font-size: 10px; color: var(--cyan);
-  text-shadow: 0 0 8px var(--cyan), 0 0 20px var(--cyan);
-  letter-spacing: 2px;
-}
-#header-right { display: flex; align-items: center; gap: 16px; font-size: 11px; }
-.live-badge {
-  display: flex; align-items: center; gap: 6px; color: var(--green);
-  font-family: var(--pixel); font-size: 7px;
-}
-.live-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--green);
-  box-shadow: 0 0 6px var(--green);
-  animation: blink 1.2s ease-in-out infinite;
-}
-@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
-#clock { color: var(--dim); font-size: 11px; font-family: var(--pixel); font-size: 7px; }
-#conn-status { font-size: 9px; font-family: var(--pixel); }
-#conn-status.online { color: var(--green); }
-#conn-status.offline { color: var(--red); }
+.bubble.show{opacity:1;}
+.bubble::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);
+  width:0;height:0;border:8px solid transparent;border-top-color:var(--border);border-bottom:none;}
 
-/* ─── PIXEL ROOM SCENE ────────────────────────────────────────────────── */
-#scene {
-  grid-column: 1; grid-row: 2;
-  background: var(--room);
-  position: relative; overflow: hidden;
-  border-right: 2px solid var(--border);
-  border-bottom: 2px solid var(--border);
+/* ── PLAQUE ── */
+#plaque{
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(180deg,#5c3d14,#3a2508);
+  border:3px solid #8b6333;border-radius:3px;
+  padding:5px 24px;font-family:var(--pixel);font-size:7px;
+  color:#f0c060;text-shadow:0 1px 2px rgba(0,0,0,.8);
+  box-shadow:0 3px 0 #1a1005,0 0 12px rgba(140,100,50,.3);
+  letter-spacing:2px;white-space:nowrap;
+  pointer-events:none;z-index:50;
 }
 
-/* Water / floor */
-#scene::before {
-  content: '';
-  position: absolute; bottom: 0; left: 0; right: 0; height: 60px;
-  background: linear-gradient(180deg, transparent, rgba(0,60,120,0.3));
+/* ── STATUS TICKER ── */
+#ticker{
+  position:absolute;bottom:36px;left:0;right:0;height:22px;
+  background:rgba(7,7,16,.8);border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;padding:0 8px;overflow:hidden;
+  z-index:50;pointer-events:none;
 }
+#ticker span{font-family:var(--pixel);font-size:5px;color:var(--dim);flex-shrink:0;}
+#ticker-txt{font-family:var(--pixel);font-size:5px;color:var(--cyan);
+  white-space:nowrap;animation:marquee 28s linear infinite;}
+@keyframes marquee{from{transform:translateX(60%)}to{transform:translateX(-100%)}}
 
-/* Pixel grid overlay */
-#scene::after {
-  content: '';
-  position: absolute; inset: 0; pointer-events: none; z-index: 0;
-  background-image:
-    linear-gradient(rgba(42,42,90,0.15) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(42,42,90,0.15) 1px, transparent 1px);
-  background-size: 32px 32px;
+/* ── SIDEBAR ── */
+#sidebar{
+  grid-column:2;grid-row:2;
+  background:#08081a;border-left:2px solid var(--border);overflow-y:auto;
+  padding:8px 6px;display:flex;flex-direction:column;gap:4px;
 }
+#sidebar h2{font-family:var(--pixel);font-size:6px;color:var(--dim);
+  padding:4px 4px 8px;border-bottom:1px solid var(--border);margin-bottom:2px;}
+.card{
+  display:flex;align-items:center;gap:6px;padding:6px 7px;
+  background:var(--panel);border:1px solid var(--border);border-radius:2px;
+  transition:border-color .3s,box-shadow .3s;cursor:pointer;
+}
+.card:hover{border-color:var(--dim);}
+.card.active{border-color:var(--cyan);box-shadow:0 0 7px rgba(0,229,255,.2);}
+.card.error{border-color:var(--red);box-shadow:0 0 7px rgba(255,58,58,.2);}
+.card.idle{opacity:.65;}
+.card-ico{font-size:19px;width:26px;text-align:center;flex-shrink:0;}
+.card-info{flex:1;min-width:0;}
+.card-name{font-family:var(--pixel);font-size:6px;color:#fff;margin-bottom:2px;}
+.card-role{font-size:9px;color:var(--dim);}
+.card-msg{font-size:9px;color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.badge{font-family:var(--pixel);font-size:5px;padding:2px 4px;border-radius:2px;flex-shrink:0;}
+.badge.active{background:rgba(0,229,255,.15);color:var(--cyan);border:1px solid var(--cyan);}
+.badge.idle  {background:rgba(90,106,154,.15);color:var(--dim);border:1px solid var(--border);}
+.badge.work  {background:rgba(57,255,20,.12);color:var(--green);border:1px solid var(--green);}
+.badge.error {background:rgba(255,58,58,.15);color:var(--red);border:1px solid var(--red);}
+#sidebar::-webkit-scrollbar{width:3px;}
+#sidebar::-webkit-scrollbar-thumb{background:var(--border);}
 
-/* Lily pads decoration */
-.lily { position: absolute; pointer-events: none; z-index: 1; }
-.lily::before { content: '🌿'; font-size: 18px; filter: brightness(0.6) hue-rotate(80deg); }
-.lily::after  { content: '🌸'; font-size: 10px; position: absolute; top: -8px; left: 6px; }
+/* ── CMD BAR ── */
+#cmd{
+  grid-column:1/-1;grid-row:3;
+  display:flex;align-items:center;gap:8px;padding:0 12px;
+  background:var(--panel);border-top:2px solid var(--border);
+}
+#cmd label{font-family:var(--pixel);font-size:6px;color:var(--cyan);flex-shrink:0;}
+#cmdInput{
+  flex:1;background:var(--bg);color:var(--text);border:1px solid var(--border);
+  padding:6px 10px;font-family:var(--mono);font-size:12px;border-radius:2px;outline:none;
+}
+#cmdInput:focus{border-color:var(--cyan);box-shadow:0 0 5px rgba(0,229,255,.2);}
+#cmdBtn{
+  background:var(--cyan);color:#000;border:none;cursor:pointer;
+  padding:6px 14px;font-family:var(--pixel);font-size:6px;border-radius:2px;
+}
+#cmdBtn:hover{filter:brightness(1.15);}
 
-/* ─── AGENT WORKSTATION ───────────────────────────────────────────────── */
-.workstation {
-  position: absolute; z-index: 10;
-  display: flex; flex-direction: column; align-items: center; gap: 0;
-  cursor: pointer; transition: transform 0.2s;
+/* ── LOG PANEL (inside sidebar bottom) ── */
+#log-panel{
+  margin-top:4px;padding:4px 0;border-top:1px solid var(--border);flex:1;display:flex;flex-direction:column;overflow:hidden;
 }
-.workstation:hover { transform: scale(1.04); }
-
-/* Desk surface */
-.desk-surface {
-  width: 88px; height: 10px;
-  background: linear-gradient(180deg, #4a3a28, #2a210f);
-  border: 2px solid #6a5a38;
-  border-radius: 1px;
-  box-shadow: 0 4px 0 #1a120c, 0 4px 0 1px #100c06;
-}
-
-/* Character sprite container */
-.char-wrap {
-  position: relative;
-  width: 40px; height: 48px;
-  display: flex; align-items: flex-end; justify-content: center;
-}
-.char-sprite {
-  font-size: 28px;
-  line-height: 1;
-  animation: bob 2.4s ease-in-out infinite;
-  filter: drop-shadow(0 0 4px currentColor);
-  image-rendering: pixelated;
-}
-@keyframes bob {
-  0%,100% { transform: translateY(0); }
-  50%      { transform: translateY(-4px); }
-}
-.workstation.active .char-sprite { animation: active-pulse 0.4s ease-in-out infinite; filter: brightness(1.3) drop-shadow(0 0 8px var(--cyan)); }
-@keyframes active-pulse {
-  0%,100% { transform: translateY(-1px) scale(1.05); }
-  50%      { transform: translateY(-4px) scale(1.08); }
-}
-.workstation.error .char-sprite { animation: error-shake 0.3s linear infinite; filter: drop-shadow(0 0 8px var(--red)) brightness(1.2); }
-@keyframes error-shake {
-  0%,100% { transform: translateX(0); }
-  25%      { transform: translateX(-3px); }
-  75%      { transform: translateX(3px); }
-}
-.workstation.idle .char-sprite { animation: bob 4s ease-in-out infinite; filter: brightness(0.7); }
-
-/* Computer / tool on desk */
-.desk-item { font-size: 18px; position: absolute; bottom: 8px; }
-.desk-item-right { font-size: 14px; position: absolute; right: -12px; bottom: 4px; }
-
-/* Name tag */
-.agent-tag {
-  margin-top: 4px;
-  padding: 2px 6px;
-  font-family: var(--pixel); font-size: 5px;
-  color: #fff;
-  border-radius: 2px;
-  white-space: nowrap;
-  text-align: center;
-}
-.agent-role { font-size: 4px; color: var(--dim); font-family: var(--pixel); margin-top: 2px; text-align: center; }
-
-/* ─── SPEECH BUBBLE ───────────────────────────────────────────────────── */
-.bubble {
-  position: absolute; top: -64px; left: 50%; transform: translateX(-50%);
-  background: rgba(15,10,35,0.95);
-  border: 2px solid var(--border);
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 7px; font-family: var(--pixel);
-  color: var(--text);
-  white-space: nowrap;
-  max-width: 180px; white-space: normal; text-align: center;
-  pointer-events: none;
-  opacity: 0; transition: opacity 0.3s;
-  z-index: 100;
-  box-shadow: 0 0 10px rgba(0,200,255,0.2);
-}
-.bubble.visible { opacity: 1; }
-.bubble::after {
-  content: '';
-  position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%);
-  border: 7px solid transparent; border-top-color: var(--border);
-  border-bottom: none; width: 0; height: 0;
-}
-
-/* ─── DECORATIVE PROPS ────────────────────────────────────────────────── */
-.prop { position: absolute; z-index: 5; pointer-events: none; }
-.server-rack {
-  position: absolute; right: 8px; top: 20px; z-index: 5;
-  width: 72px; background: #0e0e20;
-  border: 2px solid #3a3a7a;
-  border-radius: 2px; padding: 4px;
-  font-family: var(--pixel); font-size: 5px; color: var(--green);
-}
-.server-line {
-  display: flex; align-items: center; gap: 4px; margin: 3px 0;
-  border-bottom: 1px solid #1a1a3a; padding-bottom: 3px;
-}
-.server-light { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; animation: blink 1.8s infinite; }
-.server-light.g { background: var(--green); box-shadow: 0 0 3px var(--green); }
-.server-light.y { background: var(--yellow); box-shadow: 0 0 3px var(--yellow); animation-delay: 0.3s; }
-.server-light.r { background: var(--red); box-shadow: 0 0 3px var(--red); animation-delay: 0.6s; }
-
-.bookshelf {
-  position: absolute; left: 8px; top: 16px; z-index: 5;
-  font-size: 32px; line-height: 1;
-  filter: brightness(0.8) saturate(0.6);
-}
-
-/* ─── SIDEBAR (agent roster) ──────────────────────────────────────────── */
-#sidebar {
-  grid-column: 2; grid-row: 2 / 4;
-  background: #0a0a18;
-  border-left: 2px solid var(--border);
-  border-bottom: 2px solid var(--border);
-  overflow-y: auto; padding: 8px;
-  display: flex; flex-direction: column; gap: 4px;
-}
-#sidebar h2 { font-family: var(--pixel); font-size: 7px; color: var(--dim); padding: 4px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
-
-.roster-card {
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 8px;
-  background: var(--desk);
-  border: 1px solid var(--border); border-radius: 2px;
-  transition: border-color 0.3s, box-shadow 0.3s;
-  cursor: pointer;
-}
-.roster-card.active { border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,230,255,0.2); }
-.roster-card.error  { border-color: var(--red);  box-shadow: 0 0 8px rgba(255,58,58,0.2); animation: error-shake 0.3s linear infinite; }
-.roster-card.idle   { opacity: 0.6; }
-.roster-emoji { font-size: 20px; width: 28px; text-align: center; }
-.roster-info { flex: 1; min-width: 0; }
-.roster-name { font-family: var(--pixel); font-size: 6px; color: #fff; }
-.roster-role { font-size: 9px; color: var(--dim); margin-top: 2px; }
-.roster-status { font-size: 8px; margin-top: 2px; color: var(--cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.roster-badge {
-  font-family: var(--pixel); font-size: 5px; padding: 2px 4px;
-  border-radius: 2px; white-space: nowrap;
-}
-.badge-active  { background: rgba(0,230,255,0.15); color: var(--cyan); border: 1px solid var(--cyan); }
-.badge-idle    { background: rgba(90,106,154,0.2); color: var(--dim);  border: 1px solid var(--border); }
-.badge-error   { background: rgba(255,58,58,0.2);  color: var(--red);  border: 1px solid var(--red); }
-.badge-working { background: rgba(57,255,20,0.15); color: var(--green); border: 1px solid var(--green); }
-
-/* ─── LOG STREAM ──────────────────────────────────────────────────────── */
-#logPanel {
-  grid-column: 1; grid-row: 3;
-  background: #060610;
-  border-top: 2px solid var(--border);
-  overflow: hidden; display: flex; flex-direction: column;
-}
-#logPanel h3 { font-family: var(--pixel); font-size: 7px; color: var(--dim); padding: 6px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-#logStream {
-  flex: 1; overflow-y: auto; padding: 6px 12px;
-  font-size: 11px; font-family: var(--mono);
-  scroll-behavior: smooth;
-}
-#logStream::-webkit-scrollbar { width: 4px; }
-#logStream::-webkit-scrollbar-track { background: transparent; }
-#logStream::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-.log-entry { display: flex; gap: 8px; padding: 2px 0; border-bottom: 1px solid rgba(42,42,90,0.3); align-items: flex-start; }
-.log-time  { color: var(--dim); flex-shrink: 0; font-size: 10px; }
-.log-agent { font-family: var(--pixel); font-size: 6px; padding: 1px 4px; border-radius: 2px; flex-shrink: 0; align-self: center; white-space: nowrap; }
-.log-msg   { color: var(--text); flex: 1; font-size: 11px; line-height: 1.4; word-break: break-word; }
-.log-type-think  .log-agent { background: rgba(180,79,255,0.2); color: var(--purple); border: 1px solid var(--purple); }
-.log-type-tool   .log-agent { background: rgba(0,230,255,0.15); color: var(--cyan); border: 1px solid var(--cyan); }
-.log-type-error  .log-agent { background: rgba(255,58,58,0.2); color: var(--red); border: 1px solid var(--red); }
-.log-type-error  .log-msg   { color: var(--red); }
-.log-type-chat   .log-agent { background: rgba(57,255,20,0.15); color: var(--green); border: 1px solid var(--green); }
-.log-type-status .log-agent { background: rgba(255,159,28,0.15); color: var(--orange); border: 1px solid var(--orange); }
-
-/* ─── COMMAND BAR ─────────────────────────────────────────────────────── */
-#cmdBar {
-  grid-column: 1 / -1; grid-row: 4;
-  display: flex; align-items: center; gap: 8px;
-  padding: 0 12px;
-  background: var(--desk);
-  border-top: 2px solid var(--border);
-}
-#cmdBar label { font-family: var(--pixel); font-size: 7px; color: var(--cyan); white-space: nowrap; }
-#consoleInput {
-  flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--border);
-  padding: 6px 10px; font-family: var(--mono); font-size: 12px;
-  border-radius: 2px; outline: none;
-  transition: border-color 0.2s;
-}
-#consoleInput:focus { border-color: var(--cyan); box-shadow: 0 0 6px rgba(0,230,255,0.2); }
-#sendBtn {
-  background: var(--cyan); color: #000; border: none; cursor: pointer;
-  padding: 6px 14px; font-family: var(--pixel); font-size: 7px;
-  border-radius: 2px; transition: filter 0.2s;
-}
-#sendBtn:hover { filter: brightness(1.2); }
-
-/* ─── ACCENT BARS PER AGENT ───────────────────────────────────────────── */
-.workstation[data-agent="hapda"]    .desk-surface { border-color: var(--cyan);   box-shadow: 0 4px 0 #001520, 0 0 6px rgba(0,230,255,0.4); }
-.workstation[data-agent="rex"]      .desk-surface { border-color: var(--orange);  box-shadow: 0 4px 0 #1a0c00, 0 0 6px rgba(255,159,28,0.4); }
-.workstation[data-agent="stuyza"]   .desk-surface { border-color: var(--pink);    box-shadow: 0 4px 0 #1a0010, 0 0 6px rgba(255,110,180,0.4); }
-.workstation[data-agent="aria"]     .desk-surface { border-color: var(--purple);  box-shadow: 0 4px 0 #0d0020, 0 0 6px rgba(180,79,255,0.4); }
-.workstation[data-agent="phantom"]  .desk-surface { border-color: var(--green);   box-shadow: 0 4px 0 #001500, 0 0 6px rgba(57,255,20,0.4); }
-.workstation[data-agent="surplus"]  .desk-surface { border-color: var(--yellow);  box-shadow: 0 4px 0 #1a1500, 0 0 6px rgba(255,224,102,0.4); }
-.workstation[data-agent="prophet"]  .desk-surface { border-color: var(--red);     box-shadow: 0 4px 0 #1a0000, 0 0 6px rgba(255,58,58,0.4); }
-
-[data-agent="hapda"]   .agent-tag { background: rgba(0,230,255,0.2);   color: var(--cyan);   border: 1px solid var(--cyan); }
-[data-agent="rex"]     .agent-tag { background: rgba(255,159,28,0.2);  color: var(--orange); border: 1px solid var(--orange); }
-[data-agent="stuyza"]  .agent-tag { background: rgba(255,110,180,0.2); color: var(--pink);   border: 1px solid var(--pink); }
-[data-agent="aria"]    .agent-tag { background: rgba(180,79,255,0.2);  color: var(--purple); border: 1px solid var(--purple); }
-[data-agent="phantom"] .agent-tag { background: rgba(57,255,20,0.2);   color: var(--green);  border: 1px solid var(--green); }
-[data-agent="surplus"] .agent-tag { background: rgba(255,224,102,0.2); color: var(--yellow); border: 1px solid var(--yellow); }
-[data-agent="prophet"] .agent-tag { background: rgba(255,58,58,0.2);   color: var(--red);    border: 1px solid var(--red); }
-
-/* ─── MISSION TICKER ──────────────────────────────────────────────────── */
-#ticker-bar {
-  position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
-  background: rgba(7,7,15,0.85); border-top: 1px solid var(--border);
-  padding: 4px 8px; overflow: hidden; height: 24px;
-  display: flex; align-items: center; gap: 12px;
-}
-#ticker-bar span { font-size: 9px; color: var(--dim); font-family: var(--pixel); flex-shrink:0; }
-#ticker-content {
-  color: var(--cyan); font-size: 9px; font-family: var(--pixel);
-  white-space: nowrap;
-  animation: marquee 30s linear infinite;
-}
-@keyframes marquee { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
-
-/* ─── TOOLTIPS ────────────────────────────────────────────────────────── */
-.tooltip-badge {
-  position: absolute; top: -8px; right: -8px;
-  background: var(--red); color: #fff;
-  width: 14px; height: 14px; border-radius: 50%;
-  font-size: 8px; display: flex; align-items: center; justify-content: center;
-  font-family: var(--pixel); animation: blink 1s infinite;
-  z-index: 100;
-}
+#log-panel h3{font-family:var(--pixel);font-size:5px;color:var(--dim);padding:0 4px 4px;}
+#log-scroll{flex:1;overflow-y:auto;padding:0 4px;}
+#log-scroll::-webkit-scrollbar{width:2px;}
+#log-scroll::-webkit-scrollbar-thumb{background:var(--border);}
+.log-row{display:flex;gap:5px;padding:2px 0;border-bottom:1px solid rgba(37,37,80,.4);align-items:flex-start;font-size:9px;}
+.log-t{color:var(--dim);flex-shrink:0;}
+.log-a{font-family:var(--pixel);font-size:5px;padding:1px 3px;border-radius:2px;flex-shrink:0;align-self:center;}
+.log-m{color:var(--text);flex:1;line-height:1.35;word-break:break-word;}
+.lt-think .log-a{background:rgba(180,79,255,.2);color:var(--purple);border:1px solid var(--purple);}
+.lt-tool  .log-a{background:rgba(0,229,255,.15);color:var(--cyan);border:1px solid var(--cyan);}
+.lt-error .log-a{background:rgba(255,58,58,.2);color:var(--red);border:1px solid var(--red);}
+.lt-error .log-m{color:var(--red);}
+.lt-chat  .log-a{background:rgba(57,255,20,.12);color:var(--green);border:1px solid var(--green);}
+.lt-status.log-a{background:rgba(255,159,28,.15);color:var(--orange);border:1px solid var(--orange);}
 </style>
 </head>
 <body>
 <div id="app">
 
-  <!-- ── HEADER ── -->
-  <header id="header">
-    <h1>⬡ STUYZA COMMAND CENTER</h1>
-    <div id="header-right">
-      <div class="live-badge"><div class="live-dot"></div> LIVE_OPS</div>
-      <span id="conn-status" class="offline">◉ CONNECTING</span>
-      <span id="clock">--:--:--</span>
+<!-- HEADER -->
+<header id="hdr">
+  <h1>⬡ STUYZA COMMAND CENTER</h1>
+  <div class="hdr-right">
+    <div class="dot-badge"><div class="dot green" id="live-dot"></div><span id="ws-label" class="off">CONNECTING</span></div>
+    <span id="clock">--:--:--</span>
+  </div>
+</header>
+
+<!-- SCENE -->
+<div id="scene-wrap">
+  <canvas id="room-canvas"></canvas>
+  <!-- Speech bubbles (positioned by JS) -->
+  <div class="bubble" id="b-hapda"></div>
+  <div class="bubble" id="b-rex"></div>
+  <div class="bubble" id="b-stuyza"></div>
+  <div class="bubble" id="b-aria"></div>
+  <div class="bubble" id="b-phantom"></div>
+  <div class="bubble" id="b-surplus"></div>
+  <div class="bubble" id="b-prophet"></div>
+  <!-- Plaque -->
+  <div id="plaque">★ STUYZA COMMAND CENTER ★</div>
+  <!-- Ticker -->
+  <div id="ticker">
+    <span>▶ OPS:</span>
+    <div id="ticker-txt">⬡ GRAVITY CLAW SYSTEMS ONLINE · ALL AGENTS STANDING BY · HAPDA ORCHESTRATOR ACTIVE · STUYZA PRODUCTIONS READY ·</div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<aside id="sidebar">
+  <h2>⬡ AGENT ROSTER</h2>
+
+  <div class="card idle" id="card-hapda" onclick="focusAgent('hapda')">
+    <div class="card-ico">🦀</div>
+    <div class="card-info">
+      <div class="card-name">HAPDA</div>
+      <div class="card-role">Orchestrator</div>
+      <div class="card-msg" id="msg-hapda">Awaiting commands</div>
     </div>
-  </header>
-
-  <!-- ── PIXEL ART SCENE ── -->
-  <section id="scene">
-
-    <!-- Decorative Elements -->
-    <div class="bookshelf prop" style="left:8px;top:12px">📚</div>
-    <div class="prop" style="left:8px;top:48px;font-size:20px">🪴</div>
-    <div class="prop" style="left:36px;top:60px;font-size:14px">☕</div>
-    <div class="lily" style="left:50px;bottom:40px"></div>
-    <div class="lily" style="left:140px;bottom:20px"></div>
-    <div class="lily" style="left:320px;bottom:35px"></div>
-    <div class="lily" style="left:490px;bottom:15px"></div>
-    <div class="prop" style="left:50%;top:8px;transform:translateX(-50%);font-size:11px;color:#5a6a9a;font-family:var(--pixel);font-size:6px;letter-spacing:1px">⬡ GRAVITY CLAW AI SYSTEMS ⬡</div>
-
-    <!-- SERVER RACK (right side) -->
-    <div class="server-rack">
-      <div style="font-size:5px;margin-bottom:4px;color:var(--cyan)">▶ SRV RACK</div>
-      <div class="server-line"><div class="server-light g"></div><span>BRAIN_01</span></div>
-      <div class="server-line"><div class="server-light g" style="animation-delay:0.2s"></div><span>AI_CORE</span></div>
-      <div class="server-line"><div class="server-light y"></div><span>RENDER</span></div>
-      <div class="server-line"><div class="server-light g" style="animation-delay:0.5s"></div><span>SUPABASE</span></div>
-      <div class="server-line"><div class="server-light r"></div><span>QUEUE</span></div>
-    </div>
-
-    <!-- Decorative right-side -->
-    <div class="prop" style="right:90px;top:12px;font-size:22px">🖥️</div>
-    <div class="prop" style="right:90px;top:40px;font-size:12px;color:var(--green);font-family:var(--pixel);font-size:5px">SYSTEM OK</div>
-
-    <!-- ── AGENT WORKSTATIONS ── -->
-
-    <!-- HAPDA — THE ORCHESTRATOR (center, back) -->
-    <div class="workstation idle" id="ws-hapda" data-agent="hapda" style="left:50%;top:30px;transform:translateX(-50%)">
-      <div class="bubble" id="bubble-hapda">Standing by...</div>
-      <div class="char-wrap">
-        <div class="desk-item" style="left:10px">🖥️</div>
-        <div class="char-sprite">🦀</div>
-      </div>
-      <div class="desk-surface"></div>
-      <div class="agent-tag">HAPDA</div>
-      <div class="agent-role">ORCHESTRATOR</div>
-    </div>
-
-    <!-- REX DALLAS — REAL ESTATE (left-center) -->
-    <div class="workstation idle" id="ws-rex" data-agent="rex" style="left:18%;top:50px">
-      <div class="bubble" id="bubble-rex">Scanning markets...</div>
-      <div class="char-wrap">
-        <div class="desk-item" style="left:8px">🗺️</div>
-        <div class="char-sprite">🏠</div>
-        <div class="desk-item-right">📋</div>
-      </div>
-      <div class="desk-surface"></div>
-      <div class="agent-tag">REX DALLAS</div>
-      <div class="agent-role">REAL ESTATE</div>
-    </div>
-
-    <!-- STUYZA JR — VIDEO DIRECTOR (left, lower) -->
-    <div class="workstation idle" id="ws-stuyza" data-agent="stuyza" style="left:8%;top:48%">
-      <div class="bubble" id="bubble-stuyza">Scene 3 loading...</div>
-      <div class="char-wrap">
-        <div class="desk-item" style="left:6px">🎥</div>
-        <div class="char-sprite">🎬</div>
-      </div>
-      <div class="desk-surface"></div>
-      <div class="agent-tag">STUYZA JR</div>
-      <div class="agent-role">VIDEO DIR</div>
-    </div>
-
-    <!-- ARIA GREY — RESEARCHER (right-center) -->
-    <div class="workstation idle" id="ws-aria" data-agent="aria" style="right:28%;top:40px">
-      <div class="bubble" id="bubble-aria">Reading docs...</div>
-      <div class="char-wrap">
-        <div class="desk-item" style="left:8px">🔬</div>
-        <div class="char-sprite">🦉</div>
-      </div>
-      <div class="desk-surface"></div>
-      <div class="agent-tag">ARIA GREY</div>
-      <div class="agent-role">RESEARCHER</div>
-    </div>
-
-    <!-- PHANTOM — MARKETING (lower center) -->
-    <div class="workstation idle" id="ws-phantom" data-agent="phantom" style="left:38%;top:48%">
-      <div class="bubble" id="bubble-phantom">Running campaigns...</div>
-      <div class="char-wrap">
-        <div class="desk-item" style="left:6px">📡</div>
-        <div class="char-sprite">👻</div>
-      </div>
-      <div class="desk-surface"></div>
-      <div class="agent-tag">PHANTOM</div>
-      <div class="agent-role">MARKETING</div>
-    </div>
-
-    <!-- SURPLUS — MONEY HUNTER (lower right) -->
-    <div class="workstation idle" id="ws-surplus" data-agent="surplus" style="right:20%;top:48%">
-      <div class="bubble" id="bubble-surplus">Hunting overages...</div>
-      <div class="char-wrap">
-        <div class="desk-item" style="left:6px">💹</div>
-        <div class="char-sprite">💰</div>
-      </div>
-      <div class="desk-surface"></div>
-      <div class="agent-tag">SURPLUS</div>
-      <div class="agent-role">MONEY HUNT</div>
-    </div>
-
-    <!-- PROPHET — PREDICTIONS (far right) -->
-    <div class="workstation idle" id="ws-prophet" data-agent="prophet" style="right:6%;top:48%">
-      <div class="bubble" id="bubble-prophet">Analyzing odds...</div>
-      <div class="char-wrap">
-        <div class="desk-item" style="left:6px">📊</div>
-        <div class="char-sprite">🔮</div>
-      </div>
-      <div class="desk-surface"></div>
-      <div class="agent-tag">PROPHET</div>
-      <div class="agent-role">ORACLE</div>
-    </div>
-
-    <!-- Ticker bar -->
-    <div id="ticker-bar">
-      <span>▶ OPS:</span>
-      <div id="ticker-content">⬡ ALL SYSTEMS NOMINAL · HAPDA NETWORK ONLINE · STUYZA PRODUCTIONS ACTIVE · GRAVITY CLAW AI · REAL ESTATE PIPELINE READY ·</div>
-    </div>
-  </section>
-
-  <!-- ── SIDEBAR ── -->
-  <aside id="sidebar">
-    <h2>⬡ AGENT ROSTER</h2>
-
-    <div class="roster-card idle" id="card-hapda" onclick="focusAgent('hapda')">
-      <div class="roster-emoji">🦀</div>
-      <div class="roster-info">
-        <div class="roster-name">HAPDA</div>
-        <div class="roster-role">Orchestrator</div>
-        <div class="roster-status" id="status-hapda">Awaiting commands</div>
-      </div>
-      <div class="roster-badge badge-idle" id="badge-hapda">IDLE</div>
-    </div>
-
-    <div class="roster-card idle" id="card-rex" onclick="focusAgent('rex')">
-      <div class="roster-emoji">🏠</div>
-      <div class="roster-info">
-        <div class="roster-name">REX DALLAS</div>
-        <div class="roster-role">Real Estate Agent</div>
-        <div class="roster-status" id="status-rex">Scanning markets</div>
-      </div>
-      <div class="roster-badge badge-idle" id="badge-rex">IDLE</div>
-    </div>
-
-    <div class="roster-card idle" id="card-stuyza" onclick="focusAgent('stuyza')">
-      <div class="roster-emoji">🎬</div>
-      <div class="roster-info">
-        <div class="roster-name">STUYZA JR</div>
-        <div class="roster-role">Video Director</div>
-        <div class="roster-status" id="status-stuyza">Scene queue empty</div>
-      </div>
-      <div class="roster-badge badge-idle" id="badge-stuyza">IDLE</div>
-    </div>
-
-    <div class="roster-card idle" id="card-aria" onclick="focusAgent('aria')">
-      <div class="roster-emoji">🦉</div>
-      <div class="roster-info">
-        <div class="roster-name">ARIA GREY</div>
-        <div class="roster-role">Researcher</div>
-        <div class="roster-status" id="status-aria">Reading documents</div>
-      </div>
-      <div class="roster-badge badge-idle" id="badge-aria">IDLE</div>
-    </div>
-
-    <div class="roster-card idle" id="card-phantom" onclick="focusAgent('phantom')">
-      <div class="roster-emoji">👻</div>
-      <div class="roster-info">
-        <div class="roster-name">PHANTOM</div>
-        <div class="roster-role">Marketing Operator</div>
-        <div class="roster-status" id="status-phantom">Campaigns ready</div>
-      </div>
-      <div class="roster-badge badge-idle" id="badge-phantom">IDLE</div>
-    </div>
-
-    <div class="roster-card idle" id="card-surplus" onclick="focusAgent('surplus')">
-      <div class="roster-emoji">💰</div>
-      <div class="roster-info">
-        <div class="roster-name">SURPLUS</div>
-        <div class="roster-role">Money Hunter</div>
-        <div class="roster-status" id="status-surplus">Hunting overages</div>
-      </div>
-      <div class="roster-badge badge-idle" id="badge-surplus">IDLE</div>
-    </div>
-
-    <div class="roster-card idle" id="card-prophet" onclick="focusAgent('prophet')">
-      <div class="roster-emoji">🔮</div>
-      <div class="roster-info">
-        <div class="roster-name">PROPHET</div>
-        <div class="roster-role">Market Oracle</div>
-        <div class="roster-status" id="status-prophet">Analyzing odds</div>
-      </div>
-      <div class="roster-badge badge-idle" id="badge-prophet">IDLE</div>
-    </div>
-
-  </aside>
-
-  <!-- ── LOG PANEL ── -->
-  <div id="logPanel">
-    <h3>⬡ OPS LOG STREAM</h3>
-    <div id="logStream"></div>
+    <div class="badge idle" id="bdg-hapda">IDLE</div>
   </div>
 
-  <!-- ── COMMAND BAR ── -->
-  <div id="cmdBar">
-    <label>▶ CMD:</label>
-    <input id="consoleInput" type="text" placeholder="Send a command to Hapda..." autocomplete="off" autofocus />
-    <button id="sendBtn" onclick="sendCommand()">SEND</button>
+  <div class="card idle" id="card-rex" onclick="focusAgent('rex')">
+    <div class="card-ico">🐕</div>
+    <div class="card-info">
+      <div class="card-name">REX DALLAS</div>
+      <div class="card-role">Real Estate</div>
+      <div class="card-msg" id="msg-rex">Scanning markets</div>
+    </div>
+    <div class="badge idle" id="bdg-rex">IDLE</div>
   </div>
+
+  <div class="card idle" id="card-stuyza" onclick="focusAgent('stuyza')">
+    <div class="card-ico">🐱</div>
+    <div class="card-info">
+      <div class="card-name">STUYZA JR</div>
+      <div class="card-role">Video Director</div>
+      <div class="card-msg" id="msg-stuyza">Scene queue empty</div>
+    </div>
+    <div class="badge idle" id="bdg-stuyza">IDLE</div>
+  </div>
+
+  <div class="card idle" id="card-aria" onclick="focusAgent('aria')">
+    <div class="card-ico">🦉</div>
+    <div class="card-info">
+      <div class="card-name">ARIA GREY</div>
+      <div class="card-role">Researcher</div>
+      <div class="card-msg" id="msg-aria">Reading documents</div>
+    </div>
+    <div class="badge idle" id="bdg-aria">IDLE</div>
+  </div>
+
+  <div class="card idle" id="card-phantom" onclick="focusAgent('phantom')">
+    <div class="card-ico">👻</div>
+    <div class="card-info">
+      <div class="card-name">PHANTOM</div>
+      <div class="card-role">Marketing Ops</div>
+      <div class="card-msg" id="msg-phantom">Campaigns ready</div>
+    </div>
+    <div class="badge idle" id="bdg-phantom">IDLE</div>
+  </div>
+
+  <div class="card idle" id="card-surplus" onclick="focusAgent('surplus')">
+    <div class="card-ico">🦝</div>
+    <div class="card-info">
+      <div class="card-name">SURPLUS</div>
+      <div class="card-role">Money Hunter</div>
+      <div class="card-msg" id="msg-surplus">Hunting overages</div>
+    </div>
+    <div class="badge idle" id="bdg-surplus">IDLE</div>
+  </div>
+
+  <div class="card idle" id="card-prophet" onclick="focusAgent('prophet')">
+    <div class="card-ico">🔮</div>
+    <div class="card-info">
+      <div class="card-name">PROPHET</div>
+      <div class="card-role">Market Oracle</div>
+      <div class="card-msg" id="msg-prophet">Analyzing odds</div>
+    </div>
+    <div class="badge idle" id="bdg-prophet">IDLE</div>
+  </div>
+
+  <!-- LOG PANEL -->
+  <div id="log-panel">
+    <h3>⬡ OPS LOG</h3>
+    <div id="log-scroll"></div>
+  </div>
+</aside>
+
+<!-- CMD BAR -->
+<div id="cmd">
+  <label>▶ CMD:</label>
+  <input id="cmdInput" type="text" placeholder="Send a command to Hapda..." autocomplete="off" autofocus />
+  <button id="cmdBtn">SEND</button>
+</div>
 
 </div>
 
 <script>
-// ─── AGENT NAME → INTERNAL KEY MAPPING ──────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// CANVAS RENDERER — pixel art office room
+// Follows Star-Office-UI LAYOUT coordinates (1280×720 virtual)
+// ═══════════════════════════════════════════════════════════════════
+const canvas = document.getElementById('room-canvas');
+const ctx = canvas.getContext('2d');
+
+// Virtual resolution (matches Star-Office-UI layout.js)
+const VW = 1280, VH = 720;
+
+// ── AGENT DEFINITIONS ────────────────────────────────────────────
+// Positions map to Star-Office-UI layout:
+//   writing/researching area → x:320, y:360 (left desk)
+//   breakroom (idle) → x:640, y:360 (sofa area)
+//   error → x:1066, y:180 (server/bug corner)
+const AGENTS = [
+  { id:'hapda',   label:'HAPDA',      icon:'🦀', color:'#00e5ff', role:'ORCHESTRATOR',
+    areas:{ idle:{x:640,y:280}, active:{x:320,y:320}, error:{x:1066,y:180} } },
+  { id:'rex',     label:'REX DALLAS', icon:'🐕', color:'#ff9f1c', role:'REAL ESTATE',
+    areas:{ idle:{x:580,y:300}, active:{x:220,y:310}, error:{x:1066,y:180} } },
+  { id:'stuyza',  label:'STUYZA JR',  icon:'🐱', color:'#ff6eb4', role:'VIDEO DIR',
+    areas:{ idle:{x:700,y:300}, active:{x:350,y:390}, error:{x:1066,y:180} } },
+  { id:'aria',    label:'ARIA GREY',  icon:'🦉', color:'#b44fff', role:'RESEARCHER',
+    areas:{ idle:{x:660,y:310}, active:{x:260,y:370}, error:{x:1100,y:200} } },
+  { id:'phantom', label:'PHANTOM',    icon:'👻', color:'#39ff14', role:'MARKETING',
+    areas:{ idle:{x:620,y:330}, active:{x:380,y:330}, error:{x:1066,y:180} } },
+  { id:'surplus', label:'SURPLUS',    icon:'🦝', color:'#ffe066', role:'MONEY HUNT',
+    areas:{ idle:{x:680,y:330}, active:{x:300,y:380}, error:{x:1066,y:180} } },
+  { id:'prophet', label:'PROPHET',    icon:'🔮', color:'#ff3a3a', role:'ORACLE',
+    areas:{ idle:{x:700,y:280}, active:{x:240,y:340}, error:{x:1100,y:210} } },
+];
+
+// Agent runtime state
+const agentState = {};
+AGENTS.forEach(a => {
+  agentState[a.id] = {
+    state: 'idle',           // idle | active | error
+    x: a.areas.idle.x,
+    y: a.areas.idle.y,
+    targetX: a.areas.idle.x,
+    targetY: a.areas.idle.y,
+    bobOffset: Math.random() * Math.PI * 2,
+    bobSpeed: 0.7 + Math.random() * 0.4,
+    message: '',
+    bubbleTimer: 0,
+    focused: false,
+  };
+});
+
+// ── LOAD BACKGROUND IMAGE ────────────────────────────────────────
+const bgImg = new Image();
+bgImg.src = '/assets/room.png';
+let bgLoaded = false;
+bgImg.onload = () => { bgLoaded = true; };
+
+// ── DRAW LOOP ───────────────────────────────────────────────────
+let lastTime = 0;
+function draw(ts) {
+  requestAnimationFrame(draw);
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  // Scale canvas to fill container
+  const wrap = canvas.parentElement;
+  const scaleX = wrap.clientWidth / VW;
+  const scaleY = wrap.clientHeight / VH;
+  const scale = Math.min(scaleX, scaleY);
+  const dw = Math.round(VW * scale), dh = Math.round(VH * scale);
+  if (canvas.width !== dw || canvas.height !== dh) {
+    canvas.width = dw; canvas.height = dh;
+    canvas.style.position = 'absolute';
+    canvas.style.left = Math.round((wrap.clientWidth - dw) / 2) + 'px';
+    canvas.style.top  = Math.round((wrap.clientHeight - dh) / 2) + 'px';
+    canvas.style.width = dw + 'px'; canvas.style.height = dh + 'px';
+  }
+
+  ctx.clearRect(0, 0, dw, dh);
+  ctx.save();
+  ctx.scale(scale, scale);
+
+  // ── BACKGROUND ──────────────────────────────────────────────
+  if (bgLoaded) {
+    ctx.drawImage(bgImg, 0, 0, VW, VH);
+  } else {
+    drawFallbackRoom();
+  }
+
+  // ── AGENTS ──────────────────────────────────────────────────
+  const now = ts / 1000;
+  AGENTS.forEach(agent => {
+    const s = agentState[agent.id];
+
+    // Smooth walk toward target
+    const dx = s.targetX - s.x, dy = s.targetY - s.y;
+    const speed = 120;
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      s.x += (dx/dist) * Math.min(speed * dt, dist);
+      s.y += (dy/dist) * Math.min(speed * dt, dist);
+    }
+
+    // Bob animation
+    const bob = Math.sin(now * s.bobSpeed + s.bobOffset) * (s.state === 'idle' ? 3 : 5);
+
+    // Draw shadow
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(s.x, s.y + 2, 18, 6, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // Glow for active agents
+    if (s.state === 'active') {
+      ctx.save();
+      ctx.globalAlpha = 0.3 + 0.2 * Math.sin(now * 4);
+      ctx.fillStyle = agent.color;
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y - 20 + bob, 22, 22, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // Draw emoji character (large)
+    const sz = s.state === 'active' ? 38 : (s.state === 'error' ? 32 : 34);
+    ctx.save();
+    ctx.font = `${sz}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+
+    if (s.state === 'error') {
+      // Red shake
+      const shk = (Math.random() - 0.5) * 4;
+      ctx.drawImage(createGlowCanvas(agent.icon, sz, '#ff3a3a'), s.x - sz/2 + shk, s.y - sz*1.1 + bob);
+    } else {
+      ctx.fillText(agent.icon, s.x, s.y - 4 + bob);
+    }
+    ctx.restore();
+
+    // Name tag
+    ctx.save();
+    const tagW = agent.label.length * 5.5 + 12;
+    const tagX = s.x - tagW/2, tagY = s.y + 6 + bob;
+    ctx.fillStyle = agent.color + '33';
+    ctx.strokeStyle = agent.color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(tagX, tagY, tagW, 14, 2);
+    ctx.fill(); ctx.stroke();
+    ctx.font = '7px "Press Start 2P"';
+    ctx.fillStyle = agent.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(agent.label, s.x, tagY + 7);
+    ctx.restore();
+
+    // Update bubble timer
+    if (s.bubbleTimer > 0) s.bubbleTimer -= dt;
+    else positionBubble(agent.id, s.x, s.y, scale, false);
+
+    if (s.bubbleTimer > 0) positionBubble(agent.id, s.x, s.y, scale, true);
+  });
+
+  // ── AREA LABELS ──────────────────────────────────────────────
+  drawAreaLabel(ctx, 'WORKSPACE', 220, 440, '#5a6a9a');
+  drawAreaLabel(ctx, 'BREAKROOM', 640, 370, '#4a5a7a');
+  drawAreaLabel(ctx, 'BUG CORNER', 1030, 240, '#7a3a3a');
+
+  ctx.restore();
+}
+
+function drawAreaLabel(ctx, text, x, y, color) {
+  ctx.save();
+  ctx.font = '6px "Press Start 2P"';
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.globalAlpha = 0.6;
+  ctx.fillText(text, x, y);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function positionBubble(id, vx, vy, scale, show) {
+  const el = document.getElementById('b-' + id);
+  if (!el) return;
+  const wrap = canvas.parentElement;
+  const dw = canvas.width, dh = canvas.height;
+  const offX = parseFloat(canvas.style.left) || 0;
+  const offY = parseFloat(canvas.style.top) || 0;
+  const px = offX + vx * scale;
+  const py = offY + vy * scale;
+  const bw = el.offsetWidth || 120;
+  el.style.left = Math.max(4, Math.min(wrap.clientWidth - bw - 4, px - bw/2)) + 'px';
+  el.style.top  = Math.max(4, py - 80 * scale) + 'px';
+  el.classList.toggle('show', show);
+}
+
+// Fallback room (no image)
+function drawFallbackRoom() {
+  // Deep navy background
+  ctx.fillStyle = '#0a0a1e';
+  ctx.fillRect(0, 0, VW, VH);
+  // Floor teal water
+  for (let y = 380; y < VH; y += 32) {
+    const alpha = 0.15 + (y - 380) / (VH - 380) * 0.25;
+    ctx.fillStyle = `rgba(0,100,120,${alpha})`;
+    ctx.fillRect(0, y, VW, 32);
+  }
+  // Grid
+  ctx.strokeStyle = 'rgba(42,42,80,0.3)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < VW; x += 48) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,VH); ctx.stroke(); }
+  for (let y = 0; y < VH; y += 48) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(VW,y); ctx.stroke(); }
+  // Desk zone indicator
+  ctx.fillStyle = 'rgba(0,80,120,0.2)';
+  ctx.strokeStyle = 'rgba(0,180,255,0.15)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(100, 240, 420, 240, 8); ctx.fill(); ctx.stroke();
+  // Sofa zone
+  ctx.fillStyle = 'rgba(80,50,120,0.2)';
+  ctx.strokeStyle = 'rgba(150,80,255,0.15)';
+  ctx.beginPath(); ctx.roundRect(500, 240, 280, 200, 8); ctx.fill(); ctx.stroke();
+  // Server zone
+  ctx.fillStyle = 'rgba(120,20,20,0.2)';
+  ctx.strokeStyle = 'rgba(255,60,60,0.15)';
+  ctx.beginPath(); ctx.roundRect(900, 80, 340, 300, 8); ctx.fill(); ctx.stroke();
+
+  // Decorations
+  ctx.font = '40px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('📚', 160, 160);
+  ctx.fillText('🖥️', 220, 300);
+  ctx.fillText('☕', 640, 340);
+  ctx.fillText('🛋️', 660, 320);
+  ctx.fillText('🖥️', 1020, 120);
+  ctx.fillText('⚠️', 1100, 160);
+  ctx.fillText('🐱', 90, 560);
+  ctx.fillText('🌸', 550, 170);
+  ctx.fillText('🌿', 230, 180);
+}
+
+function createGlowCanvas(emoji, sz, color) {
+  const c = document.createElement('canvas');
+  c.width = sz + 20; c.height = sz + 20;
+  const x = c.getContext('2d');
+  x.shadowColor = color; x.shadowBlur = 10;
+  x.font = `${sz}px serif`;
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(emoji, c.width/2, c.height/2);
+  return c;
+}
+
+requestAnimationFrame(draw);
+
+// ═══════════════════════════════════════════════════════════════════
+// AGENT MAP — raw name → internal key
+// ═══════════════════════════════════════════════════════════════════
 const AGENT_MAP = {
-  'orchestrator': 'hapda', 'hapdabot': 'hapda', 'hapda': 'hapda', 'claw': 'hapda',
-  'real_estate': 'rex', 'realestate': 'rex', 'rex': 'rex', 'property': 'rex',
-  'stuyza': 'stuyza', 'cinema': 'stuyza', 'video': 'stuyza', 'stuyzavideoagent': 'stuyza',
-  'researcher': 'aria', 'aria': 'aria', 'research': 'aria',
-  'marketer': 'phantom', 'phantom': 'phantom', 'ads': 'phantom', 'marketing': 'phantom',
-  'surplus': 'surplus', 'money': 'surplus',
-  'prediction': 'prophet', 'prophet': 'prophet', 'market': 'prophet',
+  orchestrator:'hapda', hapdabot:'hapda', hapda:'hapda', claw:'hapda', system:'hapda',
+  real_estate:'rex', realestate:'rex', rex:'rex', property:'rex', realestateagent:'rex',
+  stuyza:'stuyza', stuyzavideoagent:'stuyza', cinema:'stuyza', video:'stuyza', cinemaagent:'stuyza',
+  researcher:'aria', aria:'aria', research:'aria', researcheragent:'aria',
+  marketer:'phantom', phantom:'phantom', ads:'phantom', marketing:'phantom',
+  surplus:'surplus', money:'surplus', surplusagent:'surplus',
+  prediction:'prophet', prophet:'prophet', market:'prophet', predictionmarketagent:'prophet',
 };
-
-const AGENT_COLORS = {
-  hapda: 'var(--cyan)', rex: 'var(--orange)', stuyza: 'var(--pink)',
-  aria: 'var(--purple)', phantom: 'var(--green)', surplus: 'var(--yellow)', prophet: 'var(--red)',
-};
-
-// Bubble timers per agent
-const bubbleTimers = {};
 
 function resolveAgent(raw) {
   if (!raw) return null;
-  const key = raw.toLowerCase().replace(/[_\[\]\s]/g, '');
-  for (const [k, v] of Object.entries(AGENT_MAP)) {
-    if (key.includes(k.replace(/_/g, ''))) return v;
+  const k = raw.toLowerCase().replace(/[_\s\[\]]/g,'');
+  for (const [key, val] of Object.entries(AGENT_MAP)) {
+    if (k.includes(key.replace(/_/g,''))) return val;
   }
   return null;
 }
 
-function setAgentState(agentKey, state, message) {
-  const ws  = document.getElementById(`ws-${agentKey}`);
-  const card= document.getElementById(`card-${agentKey}`);
-  const badge=document.getElementById(`badge-${agentKey}`);
-  const status=document.getElementById(`status-${agentKey}`);
-  const bubble=document.getElementById(`bubble-${agentKey}`);
+// ═══════════════════════════════════════════════════════════════════
+// SET AGENT STATE — update canvas + sidebar + speech bubble
+// ═══════════════════════════════════════════════════════════════════
+const bubbleTimers = {};
 
-  if (!ws) return;
+function setAgent(id, newState, message) {
+  const agentDef = AGENTS.find(a => a.id === id);
+  if (!agentDef) return;
+  const s = agentState[id];
+  s.state = newState;
 
-  // Clear previous state classes
-  ws.classList.remove('active','idle','error');
-  card?.classList.remove('active','idle','error');
+  // Move to area
+  const area = agentDef.areas[newState] || agentDef.areas.idle;
+  // Scatter nearby agents slightly
+  s.targetX = area.x + (Math.random() - 0.5) * 40;
+  s.targetY = area.y + (Math.random() - 0.5) * 20;
 
-  if (state === 'active') {
-    ws.classList.add('active'); card?.classList.add('active');
-    if (badge) { badge.textContent = 'ACTIVE'; badge.className = 'roster-badge badge-active'; }
-  } else if (state === 'error') {
-    ws.classList.add('error'); card?.classList.add('error');
-    if (badge) { badge.textContent = 'ERROR'; badge.className = 'roster-badge badge-error'; }
-  } else {
-    ws.classList.add('idle'); card?.classList.add('idle');
-    if (badge) { badge.textContent = 'IDLE'; badge.className = 'roster-badge badge-idle'; }
-  }
-
+  // Speech bubble
   if (message) {
-    const short = message.length > 40 ? message.substring(0, 38) + '…' : message;
-    if (status) status.textContent = short;
-    // Show speech bubble
-    if (bubble) {
-      bubble.textContent = short;
-      bubble.classList.add('visible');
-      clearTimeout(bubbleTimers[agentKey]);
-      bubbleTimers[agentKey] = setTimeout(() => bubble.classList.remove('visible'), 5000);
-    }
+    const short = message.length > 50 ? message.slice(0, 48) + '…' : message;
+    const el = document.getElementById('b-' + id);
+    if (el) { el.textContent = short; s.message = short; s.bubbleTimer = 5; }
+    const msgEl = document.getElementById('msg-' + id);
+    if (msgEl) msgEl.textContent = short;
   }
 
-  // Return to idle after 8s of inactivity
-  clearTimeout(ws._idleTimer);
-  if (state === 'active') {
-    ws._idleTimer = setTimeout(() => setAgentState(agentKey, 'idle'), 8000);
+  // Sidebar card
+  const card = document.getElementById('card-' + id);
+  const badge = document.getElementById('bdg-' + id);
+  if (card) {
+    card.className = 'card ' + newState;
+    if (newState === 'active') card.className = 'card active';
+  }
+  if (badge) {
+    if (newState === 'active') { badge.textContent = 'ACTIVE'; badge.className = 'badge active'; }
+    else if (newState === 'error') { badge.textContent = 'ERROR'; badge.className = 'badge error'; }
+    else { badge.textContent = 'IDLE'; badge.className = 'badge idle'; }
+  }
+
+  // Auto-return to idle after 9s
+  clearTimeout(bubbleTimers[id]);
+  if (newState === 'active') {
+    bubbleTimers[id] = setTimeout(() => setAgent(id, 'idle'), 9000);
   }
 }
 
-// ─── APPEND LOG ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// LOG
+// ═══════════════════════════════════════════════════════════════════
 function appendLog(agent, message, type = 'status') {
-  const stream = document.getElementById('logStream');
-  const entry = document.createElement('div');
-  entry.className = `log-entry log-type-${type}`;
-  const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  const scroll = document.getElementById('log-scroll');
+  const row = document.createElement('div');
+  row.className = 'log-row lt-' + type;
+  const t = new Date().toLocaleTimeString('en-GB',{hour12:false});
+  const name = agent.toUpperCase().replace(/OPS_|STRATEGIC_|GROWTH_|CODE_/g,'');
+  row.innerHTML = `<span class="log-t">[${t}]</span><span class="log-a">${name}</span><span class="log-m">${message}</span>`;
+  scroll.appendChild(row);
+  scroll.scrollTop = scroll.scrollHeight;
 
-  const color = AGENT_COLORS[resolveAgent(agent)] || 'var(--dim)';
-  const displayName = agent.toUpperCase().replace(/OPS_|STRATEGIC_|GROWTH_|CODE_/g, '');
-
-  entry.innerHTML = `
-    <span class="log-time">[${time}]</span>
-    <span class="log-agent">${displayName}</span>
-    <span class="log-msg">${message}</span>
-  `;
-  stream.appendChild(entry);
-  stream.scrollTop = stream.scrollHeight;
-
-  // Visual activate agent
-  const agentKey = resolveAgent(agent);
-  if (agentKey) {
-    const stateType = type === 'error' ? 'error' : 'active';
-    setAgentState(agentKey, stateType, message);
-  }
+  // Activate agent on canvas
+  const key = resolveAgent(agent);
+  if (key) setAgent(key, type === 'error' ? 'error' : 'active', message);
 
   // Update ticker
-  document.getElementById('ticker-content').textContent =
-    `⬡ ${displayName}: ${message.substring(0, 80)} ·`;
+  document.getElementById('ticker-txt').textContent =
+    `⬡ ${name}: ${message.slice(0,90)} ·`;
 }
 
-// ─── SEND COMMAND ────────────────────────────────────────────────────────
-async function sendCommand() {
-  const input = document.getElementById('consoleInput');
+// ═══════════════════════════════════════════════════════════════════
+// WEBSOCKET
+// ═══════════════════════════════════════════════════════════════════
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}`);
+  const label = document.getElementById('ws-label');
+  const dot   = document.getElementById('live-dot');
+
+  ws.onopen = () => {
+    label.textContent = 'LIVE_SYNC'; label.className = 'on';
+    dot.className = 'dot green';
+    appendLog('SYSTEM','Gravity Claw network online. All agents connected.','status');
+  };
+  ws.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.type === 'heartbeat') {
+        // Pulse all idle agents
+        AGENTS.forEach(a => { if (agentState[a.id].state === 'idle') agentState[a.id].bobOffset += 0.3; });
+        return;
+      }
+      appendLog(d.agent || 'SYSTEM', d.message || '', d.type || 'status');
+    } catch {}
+  };
+  ws.onclose = () => {
+    label.textContent = 'OFFLINE'; label.className = 'off';
+    dot.className = 'dot red';
+    appendLog('SYSTEM','WebSocket dropped. Reconnecting in 5s…','error');
+    setTimeout(connect, 5000);
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMMAND
+// ═══════════════════════════════════════════════════════════════════
+async function sendCmd() {
+  const input = document.getElementById('cmdInput');
   const cmd = input.value.trim();
   if (!cmd) return;
   appendLog('YOU', cmd, 'chat');
   input.value = '';
   try {
-    const res = await fetch('/api/command', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: cmd }),
+    const r = await fetch('/api/command', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({message: cmd})
     });
-    const d = await res.json();
+    const d = await r.json();
     if (d.success) appendLog('SYSTEM', d.message, 'think');
-  } catch {
-    appendLog('SYSTEM', 'Bridge Error: Server unreachable.', 'error');
+  } catch { appendLog('SYSTEM','Bridge error: server unreachable.','error'); }
+}
+
+document.getElementById('cmdBtn').onclick = sendCmd;
+document.getElementById('cmdInput').addEventListener('keydown', e => { if(e.key==='Enter') sendCmd(); });
+
+function focusAgent(id) {
+  const s = agentState[id];
+  if (s) {
+    // Jump camera to agent — just briefly pulse bubble
+    const agent = AGENTS.find(a => a.id === id);
+    if (agent) {
+      const el = document.getElementById('b-' + id);
+      if (el && !el.textContent) el.textContent = agent.role + ' — ' + (agentState[id].message || 'Standing by');
+      s.bubbleTimer = 3;
+    }
   }
 }
 
-// ─── FOCUS AGENT ────────────────────────────────────────────────────────
-function focusAgent(key) {
-  const ws = document.getElementById(`ws-${key}`);
-  if (ws) {
-    ws.style.transition = 'transform 0.4s';
-    ws.style.transform = (ws.dataset.focused === '1')
-      ? ws.style.transform.replace(' scale(1.15)','')
-      : (ws.style.transform || '') + ' scale(1.15)';
-    ws.dataset.focused = ws.dataset.focused === '1' ? '0' : '1';
-  }
-}
-
-// ─── CLOCK ───────────────────────────────────────────────────────────────
-function updateClock() {
+// ═══════════════════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════════════════
+setInterval(() => {
   document.getElementById('clock').textContent =
-    new Date().toLocaleTimeString('en-US', { hour12: false });
-}
-setInterval(updateClock, 1000);
-updateClock();
+    new Date().toLocaleTimeString('en-US',{hour12:false});
+}, 1000);
 
-// ─── WEBSOCKET ───────────────────────────────────────────────────────────
-function connect() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(`${proto}//${location.host}`);
-  const statusEl = document.getElementById('conn-status');
-
-  ws.onopen = () => {
-    statusEl.textContent = '◉ LIVE_SYNC';
-    statusEl.className = 'online';
-    appendLog('SYSTEM', 'Gravity Claw network synchronized. All agents online.', 'status');
-  };
-
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      if (data.type === 'heartbeat') {
-        // All agents pulse green briefly
-        document.querySelectorAll('.roster-card').forEach(c => {
-          c.style.borderColor = 'var(--green)';
-          setTimeout(() => c.style.borderColor = '', 500);
-        });
-        return;
-      }
-      appendLog(data.agent || 'SYSTEM', data.message || '', data.type || 'status');
-    } catch {}
-  };
-
-  ws.onclose = () => {
-    statusEl.textContent = '◉ OFFLINE';
-    statusEl.className = 'offline';
-    appendLog('SYSTEM', 'WebSocket disconnected. Retrying in 5s...', 'error');
-    setTimeout(connect, 5000);
-  };
-
-  ws.onerror = () => {
-    statusEl.textContent = '◉ ERROR';
-    statusEl.className = 'offline';
-  };
-}
-
-// ─── INIT ────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
 async function init() {
   try {
-    const res = await fetch('/api/status');
-    const data = await res.json();
-    if (data.success && data.state) {
-      appendLog('SYSTEM', `Mission: ${data.state.active_mission || 'STANDBY'}`, 'status');
-    }
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    if (d.success && d.state)
+      appendLog('SYSTEM', `Active mission: ${d.state.active_mission || 'STANDBY'}`, 'status');
   } catch {}
   connect();
 
-  // Warm up animation — stagger agent idle wobbles
-  const agents = ['hapda','rex','stuyza','aria','phantom','surplus','prophet'];
-  agents.forEach((a, i) => {
-    const ws = document.getElementById(`ws-${a}`);
-    if (ws) ws.querySelector('.char-sprite').style.animationDelay = `${i * 0.35}s`;
-  });
+  // Stagger initial bobs
+  AGENTS.forEach((a, i) => { agentState[a.id].bobOffset = i * (Math.PI * 2 / AGENTS.length); });
 }
-
-document.getElementById('consoleInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') sendCommand();
-});
 
 init();
 </script>
