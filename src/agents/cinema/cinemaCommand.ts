@@ -71,7 +71,7 @@ export function registerCinemaCommands(bot: Telegraf) {
 
       if (result.status === "complete") {
         const url = result.lipSyncUrl ?? result.videoUrl ?? result.imageUrl;
-        await ctx.reply(`✅ *Scene ${sceneId} complete!*\n🎬 ${url}`, { parse_mode: "Markdown" });
+        await ctx.reply(`✅ *Scene ${sceneId} complete!*\n[🎬 View Cinematic Render](${url})`, { parse_mode: "Markdown" });
       } else {
         await ctx.reply(`❌ Scene ${sceneId} failed:\n${result.error ?? "unknown error"}`);
       }
