@@ -42,7 +42,7 @@ export const config = {
     deepseekModel: env.DEEPSEEK_MODEL || "deepseek-chat",
     aiProvider: env.AI_PROVIDER || "groq",
     braveApiKey: env.BRAVE_API_KEY || "",
-    elevenKey: env.ELEVEN_API_KEY || "",
+    elevenKey: env.ELEVENLABS_API_KEY || env.ELEVEN_API_KEY || "",
     elevenVoiceId: env.ELEVEN_VOICE_ID || "pNInz6obpgmqnzPCWZZf", // Adam
     githubToken: env.GITHUB_TOKEN || "",
     apifyToken: env.APIFY_TOKEN || "",
