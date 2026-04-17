@@ -19,20 +19,11 @@ const MUAPI_BASE       = "https://api.muapi.ai/api/v1";
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLLS        = 90;
 
-// Verified correct endpoint slugs from live OpenAPI spec - April 2026
+// Muapi.ai - Only used for Video Animation and LipSync
 const ENDPOINTS = {
-  T2I_FAST:    "flux-schnell-image",     // FIXED: was "flux-schnell" -> 404
-  T2I_QUALITY: "flux-dev-image",         // confirmed in spec
-  T2I_PRO:     "flux-kontext-max-t2i",   // confirmed in spec
-
-  I2V_FAST:    "wan2.1-image-to-video",  // FIXED: was "wan2.5-image-to-video" -> 404 (only 2.1/2.2 exist)
-  I2V_QUALITY: "kling-v2.1-pro-i2v",    // FIXED: was "kling-v2.6-pro-i2v" -> 404 (only v2.1 in spec)
-
-  T2V_FAST:    "wan2.1-text-to-video",   // FIXED: was "wan2.5-text-to-video" -> 404
-  T2V_QUALITY: "wan2.2-text-to-video",   // wan2.2 confirmed in spec
-
-  LIPSYNC:     "sync-lipsync",           // FIXED: was "ltx-lipsync" -> 404
-  UPSCALE:     "ai-image-upscale",       // confirmed in spec
+  I2V_QUALITY: "kling-v2.1-pro-i2v",
+  I2V_FAST:    "wan2.1-image-to-video",
+  LIPSYNC:     "gen-v1-lip-sync",
 } as const;
 
 export interface CameraSettings {
@@ -186,8 +177,8 @@ export class CinemaAgent {
     try {
       return await this.muapi.run(ENDPOINTS.LIPSYNC, { video_url: videoUrl, text: s.dialogue });
     } catch (err: any) {
-      console.warn("[Cinema] LipSync skipped: " + err.message);
-      return videoUrl; // non-fatal — return the video without lip sync
+      console.warn("[Cinema] LipSync failed (likely credit exhaustion): " + err.message);
+      return videoUrl; // non-fatal fallback
     }
   }
 
