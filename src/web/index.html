@@ -1,435 +1,784 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STUYZA AGENCY | AI Revenue Systems for Modern Business</title>
-    
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="Deploy autonomous AI voice agents, chatbots, and revenue-focused automation in 14 days. STUYZA AGENCY builds the systems that print revenue for your business.">
-    <meta name="keywords" content="AI Agency, AI Voice Agents, Business Automation, Revenue Systems, STUYZA">
-    <meta name="author" content="STUYZA AGENCY">
-    
-    <!-- Open Graph -->
-    <meta property="og:title" content="STUYZA AGENCY | AI Revenue Systems">
-    <meta property="og:description" content="Build high-performance AI systems designed to scale your revenue.">
-    <meta property="og:type" content="website">
-    
-    <!-- Styling -->
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STUYZA COMMAND CENTER</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* ─── RESET & BASE ────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #07070f;
+  --room:     #0d0d1e;
+  --desk:     #141428;
+  --border:   #2a2a5a;
+  --text:     #c8d8ff;
+  --dim:      #5a6a9a;
+  --green:    #39ff14;
+  --cyan:     #00e5ff;
+  --purple:   #b44fff;
+  --orange:   #ff9f1c;
+  --red:      #ff3a3a;
+  --yellow:   #ffe066;
+  --pink:     #ff6eb4;
+  --pixel:    'Press Start 2P', monospace;
+  --mono:     'Share Tech Mono', monospace;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--mono); overflow: hidden; }
+
+/* ─── SCANLINE CRT OVERLAY ────────────────────────────────────────────── */
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 3px);
+  animation: scanroll 10s linear infinite;
+}
+@keyframes scanroll { to { background-position: 0 100%; } }
+
+/* ─── LAYOUT ──────────────────────────────────────────────────────────── */
+#app {
+  display: grid;
+  grid-template-rows: 48px 1fr 200px 44px;
+  grid-template-columns: 1fr 300px;
+  height: 100vh;
+  gap: 0;
+}
+
+/* ─── HEADER ──────────────────────────────────────────────────────────── */
+#header {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  background: var(--desk);
+  border-bottom: 2px solid var(--border);
+  image-rendering: pixelated;
+}
+#header h1 {
+  font-family: var(--pixel); font-size: 10px; color: var(--cyan);
+  text-shadow: 0 0 8px var(--cyan), 0 0 20px var(--cyan);
+  letter-spacing: 2px;
+}
+#header-right { display: flex; align-items: center; gap: 16px; font-size: 11px; }
+.live-badge {
+  display: flex; align-items: center; gap: 6px; color: var(--green);
+  font-family: var(--pixel); font-size: 7px;
+}
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: blink 1.2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
+#clock { color: var(--dim); font-size: 11px; font-family: var(--pixel); font-size: 7px; }
+#conn-status { font-size: 9px; font-family: var(--pixel); }
+#conn-status.online { color: var(--green); }
+#conn-status.offline { color: var(--red); }
+
+/* ─── PIXEL ROOM SCENE ────────────────────────────────────────────────── */
+#scene {
+  grid-column: 1; grid-row: 2;
+  background: var(--room);
+  position: relative; overflow: hidden;
+  border-right: 2px solid var(--border);
+  border-bottom: 2px solid var(--border);
+}
+
+/* Water / floor */
+#scene::before {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 60px;
+  background: linear-gradient(180deg, transparent, rgba(0,60,120,0.3));
+}
+
+/* Pixel grid overlay */
+#scene::after {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(rgba(42,42,90,0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42,42,90,0.15) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Lily pads decoration */
+.lily { position: absolute; pointer-events: none; z-index: 1; }
+.lily::before { content: '🌿'; font-size: 18px; filter: brightness(0.6) hue-rotate(80deg); }
+.lily::after  { content: '🌸'; font-size: 10px; position: absolute; top: -8px; left: 6px; }
+
+/* ─── AGENT WORKSTATION ───────────────────────────────────────────────── */
+.workstation {
+  position: absolute; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  cursor: pointer; transition: transform 0.2s;
+}
+.workstation:hover { transform: scale(1.04); }
+
+/* Desk surface */
+.desk-surface {
+  width: 88px; height: 10px;
+  background: linear-gradient(180deg, #4a3a28, #2a210f);
+  border: 2px solid #6a5a38;
+  border-radius: 1px;
+  box-shadow: 0 4px 0 #1a120c, 0 4px 0 1px #100c06;
+}
+
+/* Character sprite container */
+.char-wrap {
+  position: relative;
+  width: 40px; height: 48px;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.char-sprite {
+  font-size: 28px;
+  line-height: 1;
+  animation: bob 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 0 4px currentColor);
+  image-rendering: pixelated;
+}
+@keyframes bob {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.workstation.active .char-sprite { animation: active-pulse 0.4s ease-in-out infinite; filter: brightness(1.3) drop-shadow(0 0 8px var(--cyan)); }
+@keyframes active-pulse {
+  0%,100% { transform: translateY(-1px) scale(1.05); }
+  50%      { transform: translateY(-4px) scale(1.08); }
+}
+.workstation.error .char-sprite { animation: error-shake 0.3s linear infinite; filter: drop-shadow(0 0 8px var(--red)) brightness(1.2); }
+@keyframes error-shake {
+  0%,100% { transform: translateX(0); }
+  25%      { transform: translateX(-3px); }
+  75%      { transform: translateX(3px); }
+}
+.workstation.idle .char-sprite { animation: bob 4s ease-in-out infinite; filter: brightness(0.7); }
+
+/* Computer / tool on desk */
+.desk-item { font-size: 18px; position: absolute; bottom: 8px; }
+.desk-item-right { font-size: 14px; position: absolute; right: -12px; bottom: 4px; }
+
+/* Name tag */
+.agent-tag {
+  margin-top: 4px;
+  padding: 2px 6px;
+  font-family: var(--pixel); font-size: 5px;
+  color: #fff;
+  border-radius: 2px;
+  white-space: nowrap;
+  text-align: center;
+}
+.agent-role { font-size: 4px; color: var(--dim); font-family: var(--pixel); margin-top: 2px; text-align: center; }
+
+/* ─── SPEECH BUBBLE ───────────────────────────────────────────────────── */
+.bubble {
+  position: absolute; top: -64px; left: 50%; transform: translateX(-50%);
+  background: rgba(15,10,35,0.95);
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 7px; font-family: var(--pixel);
+  color: var(--text);
+  white-space: nowrap;
+  max-width: 180px; white-space: normal; text-align: center;
+  pointer-events: none;
+  opacity: 0; transition: opacity 0.3s;
+  z-index: 100;
+  box-shadow: 0 0 10px rgba(0,200,255,0.2);
+}
+.bubble.visible { opacity: 1; }
+.bubble::after {
+  content: '';
+  position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%);
+  border: 7px solid transparent; border-top-color: var(--border);
+  border-bottom: none; width: 0; height: 0;
+}
+
+/* ─── DECORATIVE PROPS ────────────────────────────────────────────────── */
+.prop { position: absolute; z-index: 5; pointer-events: none; }
+.server-rack {
+  position: absolute; right: 8px; top: 20px; z-index: 5;
+  width: 72px; background: #0e0e20;
+  border: 2px solid #3a3a7a;
+  border-radius: 2px; padding: 4px;
+  font-family: var(--pixel); font-size: 5px; color: var(--green);
+}
+.server-line {
+  display: flex; align-items: center; gap: 4px; margin: 3px 0;
+  border-bottom: 1px solid #1a1a3a; padding-bottom: 3px;
+}
+.server-light { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; animation: blink 1.8s infinite; }
+.server-light.g { background: var(--green); box-shadow: 0 0 3px var(--green); }
+.server-light.y { background: var(--yellow); box-shadow: 0 0 3px var(--yellow); animation-delay: 0.3s; }
+.server-light.r { background: var(--red); box-shadow: 0 0 3px var(--red); animation-delay: 0.6s; }
+
+.bookshelf {
+  position: absolute; left: 8px; top: 16px; z-index: 5;
+  font-size: 32px; line-height: 1;
+  filter: brightness(0.8) saturate(0.6);
+}
+
+/* ─── SIDEBAR (agent roster) ──────────────────────────────────────────── */
+#sidebar {
+  grid-column: 2; grid-row: 2 / 4;
+  background: #0a0a18;
+  border-left: 2px solid var(--border);
+  border-bottom: 2px solid var(--border);
+  overflow-y: auto; padding: 8px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+#sidebar h2 { font-family: var(--pixel); font-size: 7px; color: var(--dim); padding: 4px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+
+.roster-card {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  background: var(--desk);
+  border: 1px solid var(--border); border-radius: 2px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+}
+.roster-card.active { border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,230,255,0.2); }
+.roster-card.error  { border-color: var(--red);  box-shadow: 0 0 8px rgba(255,58,58,0.2); animation: error-shake 0.3s linear infinite; }
+.roster-card.idle   { opacity: 0.6; }
+.roster-emoji { font-size: 20px; width: 28px; text-align: center; }
+.roster-info { flex: 1; min-width: 0; }
+.roster-name { font-family: var(--pixel); font-size: 6px; color: #fff; }
+.roster-role { font-size: 9px; color: var(--dim); margin-top: 2px; }
+.roster-status { font-size: 8px; margin-top: 2px; color: var(--cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.roster-badge {
+  font-family: var(--pixel); font-size: 5px; padding: 2px 4px;
+  border-radius: 2px; white-space: nowrap;
+}
+.badge-active  { background: rgba(0,230,255,0.15); color: var(--cyan); border: 1px solid var(--cyan); }
+.badge-idle    { background: rgba(90,106,154,0.2); color: var(--dim);  border: 1px solid var(--border); }
+.badge-error   { background: rgba(255,58,58,0.2);  color: var(--red);  border: 1px solid var(--red); }
+.badge-working { background: rgba(57,255,20,0.15); color: var(--green); border: 1px solid var(--green); }
+
+/* ─── LOG STREAM ──────────────────────────────────────────────────────── */
+#logPanel {
+  grid-column: 1; grid-row: 3;
+  background: #060610;
+  border-top: 2px solid var(--border);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+#logPanel h3 { font-family: var(--pixel); font-size: 7px; color: var(--dim); padding: 6px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+#logStream {
+  flex: 1; overflow-y: auto; padding: 6px 12px;
+  font-size: 11px; font-family: var(--mono);
+  scroll-behavior: smooth;
+}
+#logStream::-webkit-scrollbar { width: 4px; }
+#logStream::-webkit-scrollbar-track { background: transparent; }
+#logStream::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.log-entry { display: flex; gap: 8px; padding: 2px 0; border-bottom: 1px solid rgba(42,42,90,0.3); align-items: flex-start; }
+.log-time  { color: var(--dim); flex-shrink: 0; font-size: 10px; }
+.log-agent { font-family: var(--pixel); font-size: 6px; padding: 1px 4px; border-radius: 2px; flex-shrink: 0; align-self: center; white-space: nowrap; }
+.log-msg   { color: var(--text); flex: 1; font-size: 11px; line-height: 1.4; word-break: break-word; }
+.log-type-think  .log-agent { background: rgba(180,79,255,0.2); color: var(--purple); border: 1px solid var(--purple); }
+.log-type-tool   .log-agent { background: rgba(0,230,255,0.15); color: var(--cyan); border: 1px solid var(--cyan); }
+.log-type-error  .log-agent { background: rgba(255,58,58,0.2); color: var(--red); border: 1px solid var(--red); }
+.log-type-error  .log-msg   { color: var(--red); }
+.log-type-chat   .log-agent { background: rgba(57,255,20,0.15); color: var(--green); border: 1px solid var(--green); }
+.log-type-status .log-agent { background: rgba(255,159,28,0.15); color: var(--orange); border: 1px solid var(--orange); }
+
+/* ─── COMMAND BAR ─────────────────────────────────────────────────────── */
+#cmdBar {
+  grid-column: 1 / -1; grid-row: 4;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px;
+  background: var(--desk);
+  border-top: 2px solid var(--border);
+}
+#cmdBar label { font-family: var(--pixel); font-size: 7px; color: var(--cyan); white-space: nowrap; }
+#consoleInput {
+  flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  padding: 6px 10px; font-family: var(--mono); font-size: 12px;
+  border-radius: 2px; outline: none;
+  transition: border-color 0.2s;
+}
+#consoleInput:focus { border-color: var(--cyan); box-shadow: 0 0 6px rgba(0,230,255,0.2); }
+#sendBtn {
+  background: var(--cyan); color: #000; border: none; cursor: pointer;
+  padding: 6px 14px; font-family: var(--pixel); font-size: 7px;
+  border-radius: 2px; transition: filter 0.2s;
+}
+#sendBtn:hover { filter: brightness(1.2); }
+
+/* ─── ACCENT BARS PER AGENT ───────────────────────────────────────────── */
+.workstation[data-agent="hapda"]    .desk-surface { border-color: var(--cyan);   box-shadow: 0 4px 0 #001520, 0 0 6px rgba(0,230,255,0.4); }
+.workstation[data-agent="rex"]      .desk-surface { border-color: var(--orange);  box-shadow: 0 4px 0 #1a0c00, 0 0 6px rgba(255,159,28,0.4); }
+.workstation[data-agent="stuyza"]   .desk-surface { border-color: var(--pink);    box-shadow: 0 4px 0 #1a0010, 0 0 6px rgba(255,110,180,0.4); }
+.workstation[data-agent="aria"]     .desk-surface { border-color: var(--purple);  box-shadow: 0 4px 0 #0d0020, 0 0 6px rgba(180,79,255,0.4); }
+.workstation[data-agent="phantom"]  .desk-surface { border-color: var(--green);   box-shadow: 0 4px 0 #001500, 0 0 6px rgba(57,255,20,0.4); }
+.workstation[data-agent="surplus"]  .desk-surface { border-color: var(--yellow);  box-shadow: 0 4px 0 #1a1500, 0 0 6px rgba(255,224,102,0.4); }
+.workstation[data-agent="prophet"]  .desk-surface { border-color: var(--red);     box-shadow: 0 4px 0 #1a0000, 0 0 6px rgba(255,58,58,0.4); }
+
+[data-agent="hapda"]   .agent-tag { background: rgba(0,230,255,0.2);   color: var(--cyan);   border: 1px solid var(--cyan); }
+[data-agent="rex"]     .agent-tag { background: rgba(255,159,28,0.2);  color: var(--orange); border: 1px solid var(--orange); }
+[data-agent="stuyza"]  .agent-tag { background: rgba(255,110,180,0.2); color: var(--pink);   border: 1px solid var(--pink); }
+[data-agent="aria"]    .agent-tag { background: rgba(180,79,255,0.2);  color: var(--purple); border: 1px solid var(--purple); }
+[data-agent="phantom"] .agent-tag { background: rgba(57,255,20,0.2);   color: var(--green);  border: 1px solid var(--green); }
+[data-agent="surplus"] .agent-tag { background: rgba(255,224,102,0.2); color: var(--yellow); border: 1px solid var(--yellow); }
+[data-agent="prophet"] .agent-tag { background: rgba(255,58,58,0.2);   color: var(--red);    border: 1px solid var(--red); }
+
+/* ─── MISSION TICKER ──────────────────────────────────────────────────── */
+#ticker-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
+  background: rgba(7,7,15,0.85); border-top: 1px solid var(--border);
+  padding: 4px 8px; overflow: hidden; height: 24px;
+  display: flex; align-items: center; gap: 12px;
+}
+#ticker-bar span { font-size: 9px; color: var(--dim); font-family: var(--pixel); flex-shrink:0; }
+#ticker-content {
+  color: var(--cyan); font-size: 9px; font-family: var(--pixel);
+  white-space: nowrap;
+  animation: marquee 30s linear infinite;
+}
+@keyframes marquee { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+
+/* ─── TOOLTIPS ────────────────────────────────────────────────────────── */
+.tooltip-badge {
+  position: absolute; top: -8px; right: -8px;
+  background: var(--red); color: #fff;
+  width: 14px; height: 14px; border-radius: 50%;
+  font-size: 8px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--pixel); animation: blink 1s infinite;
+  z-index: 100;
+}
+</style>
 </head>
 <body>
+<div id="app">
 
-    <!-- Custom Cursor -->
-    <div class="cursor-dot" id="cursor-dot"></div>
-    <div class="cursor-outline" id="cursor-outline"></div>
+  <!-- ── HEADER ── -->
+  <header id="header">
+    <h1>⬡ STUYZA COMMAND CENTER</h1>
+    <div id="header-right">
+      <div class="live-badge"><div class="live-dot"></div> LIVE_OPS</div>
+      <span id="conn-status" class="offline">◉ CONNECTING</span>
+      <span id="clock">--:--:--</span>
+    </div>
+  </header>
 
-    <!-- ═══ BOOKING MODAL ═══ -->
-    <div class="modal-overlay" id="bookingModal">
-        <div class="modal-box glass">
-            <div class="modal-header">
-                <h3>BOOK YOUR FREE AUDIT</h3>
-                <button class="modal-close" id="closeModal">✕</button>
-            </div>
-            <div class="modal-body">
-                <form class="booking-form" id="bookingForm">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>First Name</label>
-                            <input type="text" id="fname" placeholder="John" required />
-                        </div>
-                        <div class="form-group">
-                            <label>Last Name</label>
-                            <input type="text" id="lname" placeholder="Smith" required />
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Business Email</label>
-                            <input type="email" id="email" placeholder="john@company.com" required />
-                        </div>
-                        <div class="form-group">
-                            <label>Phone Number</label>
-                            <input type="tel" id="phone" placeholder="+1 (555) 000-0000" required />
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Business Type</label>
-                        <select id="btype" required>
-                            <option value="" disabled selected>Select your industry</option>
-                            <option>Real Estate</option>
-                            <option>Medical / Dental / Med Spa</option>
-                            <option>Legal / Law Firm</option>
-                            <option>HVAC / Plumbing / Trades</option>
-                            <option>E-Commerce</option>
-                            <option>Insurance / Finance</option>
-                            <option>Fitness / Wellness</option>
-                            <option>Agency / Marketing</option>
-                            <option>Restaurant / Hospitality</option>
-                            <option>Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Select Your System(s)</label>
-                        <div class="service-selector-grid" id="serviceSelector">
-                            <div class="service-tile" data-value="AI Voice Agent">
-                                <div class="tile-icon">◎</div>
-                                <span>Voice Agent</span>
-                            </div>
-                            <div class="service-tile" data-value="AI Chatbot">
-                                <div class="tile-icon">◫</div>
-                                <span>AI Chatbot</span>
-                            </div>
-                            <div class="service-tile" data-value="Automation Workflow">
-                                <div class="tile-icon">⬡</div>
-                                <span>Workflow</span>
-                            </div>
-                            <div class="service-tile" data-value="AI-Powered CRM">
-                                <div class="tile-icon">◈</div>
-                                <span>AI CRM</span>
-                            </div>
-                        </div>
-                        <input type="hidden" id="service_interest" name="service_interest" value="" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Anything else we should know?</label>
-                        <textarea id="notes" placeholder="Tell us about your current challenges, revenue goals, or tools you're already using..."></textarea>
-                    </div>
-                    <div class="form-submit-row">
-                        <span class="form-note">✓ Free 30-min call &nbsp;·&nbsp; No pitch, no pressure</span>
-                        <button type="submit" class="btn btn-primary" id="submitForm">Book My Audit →</button>
-                    </div>
-                </form>
-                
-                <!-- SUCCESS STATE -->
-                <div class="form-success" id="formSuccess">
-                    <div class="success-icon">✓</div>
-                    <h4>YOU'RE BOOKED</h4>
-                    <p>We'll email you a confirmation with the call link within 15 minutes. Check your spam just in case.</p>
-                    <button class="btn btn-secondary" id="closeSuccess" style="margin-top:8px;">Close</button>
-                </div>
-            </div>
-        </div>
+  <!-- ── PIXEL ART SCENE ── -->
+  <section id="scene">
+
+    <!-- Decorative Elements -->
+    <div class="bookshelf prop" style="left:8px;top:12px">📚</div>
+    <div class="prop" style="left:8px;top:48px;font-size:20px">🪴</div>
+    <div class="prop" style="left:36px;top:60px;font-size:14px">☕</div>
+    <div class="lily" style="left:50px;bottom:40px"></div>
+    <div class="lily" style="left:140px;bottom:20px"></div>
+    <div class="lily" style="left:320px;bottom:35px"></div>
+    <div class="lily" style="left:490px;bottom:15px"></div>
+    <div class="prop" style="left:50%;top:8px;transform:translateX(-50%);font-size:11px;color:#5a6a9a;font-family:var(--pixel);font-size:6px;letter-spacing:1px">⬡ GRAVITY CLAW AI SYSTEMS ⬡</div>
+
+    <!-- SERVER RACK (right side) -->
+    <div class="server-rack">
+      <div style="font-size:5px;margin-bottom:4px;color:var(--cyan)">▶ SRV RACK</div>
+      <div class="server-line"><div class="server-light g"></div><span>BRAIN_01</span></div>
+      <div class="server-line"><div class="server-light g" style="animation-delay:0.2s"></div><span>AI_CORE</span></div>
+      <div class="server-line"><div class="server-light y"></div><span>RENDER</span></div>
+      <div class="server-line"><div class="server-light g" style="animation-delay:0.5s"></div><span>SUPABASE</span></div>
+      <div class="server-line"><div class="server-light r"></div><span>QUEUE</span></div>
     </div>
 
-    <!-- Navigation -->
-    <nav>
-        <a href="#" class="logo">STUYZA<span>AGENCY</span></a>
-        <ul class="nav-links">
-            <li><a href="#services">Services</a></li>
-            <li><a href="#process">Process</a></li>
-            <li><a href="#pricing">Pricing</a></li>
-            <li><a href="#faq">FAQ</a></li>
-        </ul>
-        <button class="btn btn-primary nav-cta" style="padding: 10px 24px;" onclick="document.getElementById('bookingModal').classList.add('open')">Book Audit</button>
-    </nav>
+    <!-- Decorative right-side -->
+    <div class="prop" style="right:90px;top:12px;font-size:22px">🖥️</div>
+    <div class="prop" style="right:90px;top:40px;font-size:12px;color:var(--green);font-family:var(--pixel);font-size:5px">SYSTEM OK</div>
 
-    <main>
-        <!-- Hero Section -->
-        <section class="hero" id="home">
-            <div class="hero-background">
-                <div class="hero-grid"></div>
-                <div class="hero-glow"></div>
-            </div>
-            
-            <div class="container">
-                <div class="hero-badge reveal">
-                    <span class="dot"></span>
-                    Accepting Luxury Clients — Q2 2025
-                </div>
-                
-                <h1 class="reveal">
-                    WE BUILD AI <span class="outline">SYSTEMS</span><br>
-                    THAT <span class="accent">PRINT REVENUE</span>
-                </h1>
-                
-                <p class="reveal">
-                    Voice agents, chatbots, automation workflows & AI CRMs —<br>
-                    <strong>deployed in your business in 14 days or less.</strong>
-                </p>
-                
-                <div class="hero-actions reveal">
-                    <button class="btn btn-primary" onclick="document.getElementById('bookingModal').classList.add('open')">Get Your Free Audit →</button>
-                    <a href="#services" class="btn btn-secondary">See What We Build</a>
-                </div>
-            </div>
-        </section>
+    <!-- ── AGENT WORKSTATIONS ── -->
 
-        <!-- Stats Ticker -->
-        <div class="ticker">
-            <div class="ticker-track">
-                <div class="ticker-item"><b>$2.4M+</b> Revenue Generated</div>
-                <div class="ticker-item"><b>47</b> AI Systems Deployed</div>
-                <div class="ticker-item"><b>14 Days</b> Avg. Build Time</div>
-                <div class="ticker-item"><b>3-10X</b> ROI Guarantees</div>
-                <div class="ticker-item"><b>24/7</b> Autonomous Operation</div>
-                <div class="ticker-item"><b>92%</b> Client Retention Rate</div>
-                <!-- Duplicate for seamless loop -->
-                <div class="ticker-item"><b>$2.4M+</b> Revenue Generated</div>
-                <div class="ticker-item"><b>47</b> AI Systems Deployed</div>
-                <div class="ticker-item"><b>14 Days</b> Avg. Build Time</div>
-                <div class="ticker-item"><b>3-10X</b> ROI Guarantees</div>
-                <div class="ticker-item"><b>24/7</b> Autonomous Operation</div>
-                <div class="ticker-item"><b>92%</b> Client Retention Rate</div>
-            </div>
-        </div>
+    <!-- HAPDA — THE ORCHESTRATOR (center, back) -->
+    <div class="workstation idle" id="ws-hapda" data-agent="hapda" style="left:50%;top:30px;transform:translateX(-50%)">
+      <div class="bubble" id="bubble-hapda">Standing by...</div>
+      <div class="char-wrap">
+        <div class="desk-item" style="left:10px">🖥️</div>
+        <div class="char-sprite">🦀</div>
+      </div>
+      <div class="desk-surface"></div>
+      <div class="agent-tag">HAPDA</div>
+      <div class="agent-role">ORCHESTRATOR</div>
+    </div>
 
-        <!-- Services Section -->
-        <section id="services" class="container">
-            <span class="section-label">// Capabilities</span>
-            <h2 class="section-title reveal">FOUR SYSTEMS.<br>INFINITE LEVERAGE.</h2>
-            
-            <div class="card-grid">
-                <div class="card reveal">
-                    <span class="service-num font-mono" style="color: var(--text-dim); font-size: 11px; display: block; margin-bottom: 20px;">01 — VOICE</span>
-                    <div class="card-icon">◎</div>
-                    <h3>AI VOICE AGENTS</h3>
-                    <p>An AI that makes and receives phone calls 24/7. Books appointments, qualifies leads, follows up with prospects — sounds human, never sleeps.</p>
-                    <div class="tags">
-                        <span class="tag">Appointment Booking</span> <span class="tag">Lead Qualification</span> <span class="tag">Cold Outreach</span> <span class="tag">Follow-Up</span>
-                    </div>
-                    <div style="margin-top: 25px; color: var(--accent-primary); font-family: var(--font-mono); font-size: 13px;">Starting at $2,500 / build + retainer</div>
-                </div>
-                
-                <div class="card reveal">
-                    <span class="service-num font-mono" style="color: var(--text-dim); font-size: 11px; display: block; margin-bottom: 20px;">02 — CHAT</span>
-                    <div class="card-icon">◫</div>
-                    <h3>AI CHATBOTS</h3>
-                    <p>Intelligent chatbots trained on your business that capture leads, answer questions, and book calls via Web, SMS, or Social DMs.</p>
-                    <div class="tags">
-                        <span class="tag">Lead Capture</span> <span class="tag">Customer Support</span> <span class="tag">SMS / Web / DM</span> <span class="tag">Booking</span>
-                    </div>
-                    <div style="margin-top: 25px; color: var(--accent-primary); font-family: var(--font-mono); font-size: 13px;">Starting at $1,500 / build + retainer</div>
-                </div>
-                
-                <div class="card reveal">
-                    <span class="service-num font-mono" style="color: var(--text-dim); font-size: 11px; display: block; margin-bottom: 20px;">03 — WORKFLOW</span>
-                    <div class="card-icon">⬡</div>
-                    <h3>AUTOMATION WORKFLOWS</h3>
-                    <p>End-to-end business pipelines that eliminate manual tasks — from lead intake to follow-up to reporting. Built with n8n and custom APIs.</p>
-                    <div class="tags">
-                        <span class="tag">Lead Routing</span> <span class="tag">Auto Follow-Up</span> <span class="tag">CRM Sync</span> <span class="tag">Reporting</span>
-                    </div>
-                    <div style="margin-top: 25px; color: var(--accent-primary); font-family: var(--font-mono); font-size: 13px;">Starting at $1,800 / build + retainer</div>
-                </div>
-                
-                <div class="card reveal">
-                    <span class="service-num font-mono" style="color: var(--text-dim); font-size: 11px; display: block; margin-bottom: 20px;">04 — CRM</span>
-                    <div class="card-icon">◈</div>
-                    <h3>AI-POWERED CRM</h3>
-                    <p>A smart CRM that automatically nurtures leads, scores contacts, triggers follow-ups, and surfaces hot opportunities instantly.</p>
-                    <div class="tags">
-                        <span class="tag">Lead Scoring</span> <span class="tag">Auto Nurture</span> <span class="tag">Deal Tracking</span> <span class="tag">Forecasting</span>
-                    </div>
-                    <div style="margin-top: 25px; color: var(--accent-primary); font-family: var(--font-mono); font-size: 13px;">Starting at $2,000 / build + retainer</div>
-                </div>
-            </div>
-        </section>
+    <!-- REX DALLAS — REAL ESTATE (left-center) -->
+    <div class="workstation idle" id="ws-rex" data-agent="rex" style="left:18%;top:50px">
+      <div class="bubble" id="bubble-rex">Scanning markets...</div>
+      <div class="char-wrap">
+        <div class="desk-item" style="left:8px">🗺️</div>
+        <div class="char-sprite">🏠</div>
+        <div class="desk-item-right">📋</div>
+      </div>
+      <div class="desk-surface"></div>
+      <div class="agent-tag">REX DALLAS</div>
+      <div class="agent-role">REAL ESTATE</div>
+    </div>
 
-        <!-- Process Section -->
-        <section id="process" class="container glass" style="margin: 80px auto; padding: 100px 60px;">
-            <div style="margin-bottom: 60px;">
-                <span class="section-label">// How It Works</span>
-                <h2 class="section-title reveal">FROM ZERO TO<br>LIVE IN 14 DAYS</h2>
-            </div>
-            <div class="card-grid">
-                <div class="reveal">
-                    <div class="step-num font-heading" style="font-size: 80px; color: var(--border-bright); opacity: 0.3; line-height: 1;">01</div>
-                    <h3 style="font-family: var(--font-heading); font-size: 24px; margin: 20px 0;">DISCOVERY CALL</h3>
-                    <p style="color: var(--text-muted); font-size: 14px;">We audit your operations, identify high-ROI automation opportunities, and map out the fastest systems to move the needle.</p>
-                </div>
-                <div class="reveal">
-                    <div class="step-num font-heading" style="font-size: 80px; color: var(--border-bright); opacity: 0.3; line-height: 1;">02</div>
-                    <h3 style="font-family: var(--font-heading); font-size: 24px; margin: 20px 0;">CUSTOM BUILD</h3>
-                    <p style="color: var(--text-muted); font-size: 14px;">Our team builds your AI from the ground up — trained on your business, integrated with your stack, and tested with real scenarios.</p>
-                </div>
-                <div class="reveal">
-                    <div class="step-num font-heading" style="font-size: 80px; color: var(--border-bright); opacity: 0.3; line-height: 1;">03</div>
-                    <h3 style="font-family: var(--font-heading); font-size: 24px; margin: 20px 0;">DEPLOY & SCALE</h3>
-                    <p style="color: var(--text-muted); font-size: 14px;">We deploy, monitor, and continuously optimize. Monthly reporting shows exactly how much revenue your AI is generating.</p>
-                </div>
-                <div class="reveal">
-                    <div class="step-num font-heading" style="font-size: 80px; color: var(--border-bright); opacity: 0.3; line-height: 1;">04</div>
-                    <h3 style="font-family: var(--font-heading); font-size: 24px; margin: 20px 0;">ONGOING SUPPORT</h3>
-                    <p style="color: var(--text-muted); font-size: 14px;">Every client gets a dedicated Slack channel, monthly strategy calls, and unlimited updates. We're a long-term partner.</p>
-                </div>
-            </div>
-        </section>
+    <!-- STUYZA JR — VIDEO DIRECTOR (left, lower) -->
+    <div class="workstation idle" id="ws-stuyza" data-agent="stuyza" style="left:8%;top:48%">
+      <div class="bubble" id="bubble-stuyza">Scene 3 loading...</div>
+      <div class="char-wrap">
+        <div class="desk-item" style="left:6px">🎥</div>
+        <div class="char-sprite">🎬</div>
+      </div>
+      <div class="desk-surface"></div>
+      <div class="agent-tag">STUYZA JR</div>
+      <div class="agent-role">VIDEO DIR</div>
+    </div>
 
-        <!-- Results Section -->
-        <section id="results" class="container">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center;">
-                <div>
-                    <span class="section-label">// Results That Matter</span>
-                    <h2 class="section-title reveal">AI THAT<br>PAYS FOR ITSELF</h2>
-                    <p style="color: var(--text-muted); font-size: 18px; margin-bottom: 40px;">
-                        Our clients don't buy technology. They buy outcomes — more leads captured, more deals closed, less time wasted.
-                    </p>
-                    <ul class="results-list" style="list-style: none; display: flex; flex-direction: column; gap: 20px;">
-                        <li style="color: var(--text-muted); display: flex; gap: 15px;">
-                            <span style="color: var(--accent-primary); font-family: var(--font-mono);">→</span>
-                            Real estate team books 3× more showings using our voice agent — same headcount
-                        </li>
-                        <li style="color: var(--text-muted); display: flex; gap: 15px;">
-                            <span style="color: var(--accent-primary); font-family: var(--font-mono);">→</span>
-                            HVAC company recovers $12K/month in missed after-hours calls with AI phone agent
-                        </li>
-                        <li style="color: var(--text-muted); display: flex; gap: 15px;">
-                            <span style="color: var(--accent-primary); font-family: var(--font-mono);">→</span>
-                            Med spa increases consultation bookings by 280% with a 24/7 AI chatbot
-                        </li>
-                        <li style="color: var(--text-muted); display: flex; gap: 15px;">
-                            <span style="color: var(--accent-primary); font-family: var(--font-mono);">→</span>
-                            Law firm cuts admin work by 18 hrs/week with automated intake workflow
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="stats-grid reveal">
-                    <div class="stat-item">
-                        <div class="stat-num">$48K</div>
-                        <div class="stat-title">Avg. Annual Savings</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-num">340%</div>
-                        <div class="stat-title">Response Rate Inc.</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-num">24H</div>
-                        <div class="stat-title">Time to First Result</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-num">9.1X</div>
-                        <div class="stat-title">Avg. Initial ROI</div>
-                    </div>
-                </div>
-            </div>
-        </section>
+    <!-- ARIA GREY — RESEARCHER (right-center) -->
+    <div class="workstation idle" id="ws-aria" data-agent="aria" style="right:28%;top:40px">
+      <div class="bubble" id="bubble-aria">Reading docs...</div>
+      <div class="char-wrap">
+        <div class="desk-item" style="left:8px">🔬</div>
+        <div class="char-sprite">🦉</div>
+      </div>
+      <div class="desk-surface"></div>
+      <div class="agent-tag">ARIA GREY</div>
+      <div class="agent-role">RESEARCHER</div>
+    </div>
 
-        <!-- Pricing Section -->
-        <section id="pricing" class="container">
-            <div style="text-align: center; margin-bottom: 80px;">
-                <span class="section-label">// Investment</span>
-                <h2 class="section-title reveal">FLAT PRICING.<br>CLEAR RESULTS.</h2>
-                <p style="color: var(--text-muted); max-width: 500px; margin: 20px auto;">One system or all four — pick the package that fits your business today.</p>
-            </div>
-            
-            <div class="card-grid">
-                <div class="card price-card reveal">
-                    <span class="section-label">Starter</span>
-                    <div class="price-value">$1,500<sub>/mo</sub></div>
-                    <p style="font-family: var(--font-mono); font-size: 13px; color: var(--text-dim); margin-bottom: 25px;">one-time setup: $997</p>
-                    <div style="height: 1px; background: var(--border-subtle); margin-bottom: 25px;"></div>
-                    <ul style="list-style: none; text-align: left; display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; font-size: 14px; color: var(--text-muted);">
-                        <li>✓ 1 AI System of your choice</li>
-                        <li>✓ Custom build & integration</li>
-                        <li>✓ Monthly performance report</li>
-                        <li>✓ Email & chat support</li>
-                        <li>✓ 14-day deployment SLA</li>
-                    </ul>
-                    <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="document.getElementById('bookingModal').classList.add('open')">Get Started</button>
-                </div>
-                
-                <div class="card price-card popular reveal">
-                    <span class="section-label" style="color: var(--bg-dark); background: var(--accent-primary); border-radius: 100px; padding: 4px 12px; font-size: 10px; position: absolute; top: 20px; left: 50%; transform: translateX(-50%);">Most Popular</span>
-                    <span class="section-label" style="display: block; margin-top: 15px;">Growth</span>
-                    <div class="price-value">$3,500<sub>/mo</sub></div>
-                    <p style="font-family: var(--font-mono); font-size: 13px; color: var(--text-dim); margin-bottom: 25px;">one-time setup: $1,997</p>
-                    <div style="height: 1px; background: var(--border-bright); margin-bottom: 25px;"></div>
-                    <ul style="list-style: none; text-align: left; display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; font-size: 14px; color: var(--text-muted);">
-                        <li>✓ 3 AI Systems bundled</li>
-                        <li>✓ Full stack integration</li>
-                        <li>✓ Weekly optimization</li>
-                        <li>✓ Dedicated Slack channel</li>
-                        <li>✓ Monthly strategy call</li>
-                        <li>✓ Unlimited updates</li>
-                    </ul>
-                    <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="document.getElementById('bookingModal').classList.add('open')">Get Started</button>
-                </div>
-                
-                <div class="card price-card reveal">
-                    <span class="section-label">Enterprise</span>
-                    <div class="price-value">Custom</div>
-                    <p style="font-family: var(--font-mono); font-size: 13px; color: var(--text-dim); margin-bottom: 25px;">book a call for pricing</p>
-                    <div style="height: 1px; background: var(--border-subtle); margin-bottom: 25px;"></div>
-                    <ul style="list-style: none; text-align: left; display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; font-size: 14px; color: var(--text-muted);">
-                        <li>✓ All 4 systems + custom builds</li>
-                        <li>✓ White-glove onboarding</li>
-                        <li>✓ Dedicated account manager</li>
-                        <li>✓ SLA guarantees</li>
-                        <li>✓ API & white-label options</li>
-                        <li>✓ Priority 24/7 support</li>
-                    </ul>
-                    <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="document.getElementById('bookingModal').classList.add('open')">Contact Us</button>
-                </div>
-            </div>
-        </section>
+    <!-- PHANTOM — MARKETING (lower center) -->
+    <div class="workstation idle" id="ws-phantom" data-agent="phantom" style="left:38%;top:48%">
+      <div class="bubble" id="bubble-phantom">Running campaigns...</div>
+      <div class="char-wrap">
+        <div class="desk-item" style="left:6px">📡</div>
+        <div class="char-sprite">👻</div>
+      </div>
+      <div class="desk-surface"></div>
+      <div class="agent-tag">PHANTOM</div>
+      <div class="agent-role">MARKETING</div>
+    </div>
 
-        <!-- FAQ Section -->
-        <section id="faq" class="container">
-            <div style="margin-bottom: 64px;">
-                <span class="section-label">// FAQ</span>
-                <h2 class="section-title reveal">COMMON QUESTIONS</h2>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px 80px;">
-                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
-                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">Do I need technical knowledge?</h4>
-                    <p style="color: var(--text-muted); font-size: 14px;">None. We handle everything from build to deployment. You just tell us your business goals and we build the system around them.</p>
-                </div>
-                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
-                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">How does the AI learn my business?</h4>
-                    <p style="color: var(--text-muted); font-size: 14px;">We train each system on your FAQs, SOPs, product catalog, and past conversations. The more context you give us, the smarter it gets.</p>
-                </div>
-                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
-                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">What tools do you integrate with?</h4>
-                    <p style="color: var(--text-muted); font-size: 14px;">GoHighLevel, HubSpot, Salesforce, Twilio, Calendly, Stripe, and 200+ more via API and webhook.</p>
-                </div>
-                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
-                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">What if I'm not happy with results?</h4>
-                    <p style="color: var(--text-muted); font-size: 14px;">We offer a 30-day money-back guarantee on all build fees. If the system isn't delivering value, we'll rebuild it or refund you.</p>
-                </div>
-                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
-                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">How quickly will I see ROI?</h4>
-                    <p style="color: var(--text-muted); font-size: 14px;">Most clients see measurable results within 24–48 hours of go-live. Full payback typically happens within 60–90 days.</p>
-                </div>
-                <div class="reveal" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 30px;">
-                    <h4 style="font-size: 16px; margin-bottom: 15px; color: var(--text-main);">Can I cancel the monthly retainer?</h4>
-                    <p style="color: var(--text-muted); font-size: 14px;">Yes — month-to-month, no contracts. You own the system you paid to build. Cancel anytime and take it with you.</p>
-                </div>
-            </div>
-        </section>
+    <!-- SURPLUS — MONEY HUNTER (lower right) -->
+    <div class="workstation idle" id="ws-surplus" data-agent="surplus" style="right:20%;top:48%">
+      <div class="bubble" id="bubble-surplus">Hunting overages...</div>
+      <div class="char-wrap">
+        <div class="desk-item" style="left:6px">💹</div>
+        <div class="char-sprite">💰</div>
+      </div>
+      <div class="desk-surface"></div>
+      <div class="agent-tag">SURPLUS</div>
+      <div class="agent-role">MONEY HUNT</div>
+    </div>
 
-        <!-- CTA Section -->
-        <section id="contact" class="container" style="text-align: center;">
-            <div class="glass" style="padding: 100px 40px; position: relative; overflow: hidden;">
-                <div style="position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);"></div>
-                <span class="section-label">// Get Started Today</span>
-                <h2 class="section-title reveal">READY TO<br>AUTOMATE?</h2>
-                <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto 50px;">
-                    Book a free 30-minute audit call. We'll map out exactly which AI system will generate the most revenue for your business — no pitch, no pressure.
-                </p>
-                <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-                    <button class="btn btn-primary reveal" onclick="document.getElementById('bookingModal').classList.add('open')">Book My Free Audit →</button>
-                    <a href="mailto:hello@stuyza.com" class="btn btn-secondary reveal">Email Us Instead</a>
-                </div>
-            </div>
-        </section>
-    </main>
+    <!-- PROPHET — PREDICTIONS (far right) -->
+    <div class="workstation idle" id="ws-prophet" data-agent="prophet" style="right:6%;top:48%">
+      <div class="bubble" id="bubble-prophet">Analyzing odds...</div>
+      <div class="char-wrap">
+        <div class="desk-item" style="left:6px">📊</div>
+        <div class="char-sprite">🔮</div>
+      </div>
+      <div class="desk-surface"></div>
+      <div class="agent-tag">PROPHET</div>
+      <div class="agent-role">ORACLE</div>
+    </div>
 
-    <footer class="container">
-        <a href="#" class="logo">STUYZA<span>AGENCY</span></a>
-        <ul class="footer-links">
-            <li><a href="#services">Services</a></li>
-            <li><a href="#pricing">Pricing</a></li>
-            <li><a href="#contact">Contact</a></li>
-            <li><a href="#">Privacy Policy</a></li>
-        </ul>
-        <div class="copyright">© 2025 STUYZA AGENCY. ALL RIGHTS RESERVED.</div>
-    </footer>
+    <!-- Ticker bar -->
+    <div id="ticker-bar">
+      <span>▶ OPS:</span>
+      <div id="ticker-content">⬡ ALL SYSTEMS NOMINAL · HAPDA NETWORK ONLINE · STUYZA PRODUCTIONS ACTIVE · GRAVITY CLAW AI · REAL ESTATE PIPELINE READY ·</div>
+    </div>
+  </section>
 
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
-    <script src="app.js"></script>
+  <!-- ── SIDEBAR ── -->
+  <aside id="sidebar">
+    <h2>⬡ AGENT ROSTER</h2>
+
+    <div class="roster-card idle" id="card-hapda" onclick="focusAgent('hapda')">
+      <div class="roster-emoji">🦀</div>
+      <div class="roster-info">
+        <div class="roster-name">HAPDA</div>
+        <div class="roster-role">Orchestrator</div>
+        <div class="roster-status" id="status-hapda">Awaiting commands</div>
+      </div>
+      <div class="roster-badge badge-idle" id="badge-hapda">IDLE</div>
+    </div>
+
+    <div class="roster-card idle" id="card-rex" onclick="focusAgent('rex')">
+      <div class="roster-emoji">🏠</div>
+      <div class="roster-info">
+        <div class="roster-name">REX DALLAS</div>
+        <div class="roster-role">Real Estate Agent</div>
+        <div class="roster-status" id="status-rex">Scanning markets</div>
+      </div>
+      <div class="roster-badge badge-idle" id="badge-rex">IDLE</div>
+    </div>
+
+    <div class="roster-card idle" id="card-stuyza" onclick="focusAgent('stuyza')">
+      <div class="roster-emoji">🎬</div>
+      <div class="roster-info">
+        <div class="roster-name">STUYZA JR</div>
+        <div class="roster-role">Video Director</div>
+        <div class="roster-status" id="status-stuyza">Scene queue empty</div>
+      </div>
+      <div class="roster-badge badge-idle" id="badge-stuyza">IDLE</div>
+    </div>
+
+    <div class="roster-card idle" id="card-aria" onclick="focusAgent('aria')">
+      <div class="roster-emoji">🦉</div>
+      <div class="roster-info">
+        <div class="roster-name">ARIA GREY</div>
+        <div class="roster-role">Researcher</div>
+        <div class="roster-status" id="status-aria">Reading documents</div>
+      </div>
+      <div class="roster-badge badge-idle" id="badge-aria">IDLE</div>
+    </div>
+
+    <div class="roster-card idle" id="card-phantom" onclick="focusAgent('phantom')">
+      <div class="roster-emoji">👻</div>
+      <div class="roster-info">
+        <div class="roster-name">PHANTOM</div>
+        <div class="roster-role">Marketing Operator</div>
+        <div class="roster-status" id="status-phantom">Campaigns ready</div>
+      </div>
+      <div class="roster-badge badge-idle" id="badge-phantom">IDLE</div>
+    </div>
+
+    <div class="roster-card idle" id="card-surplus" onclick="focusAgent('surplus')">
+      <div class="roster-emoji">💰</div>
+      <div class="roster-info">
+        <div class="roster-name">SURPLUS</div>
+        <div class="roster-role">Money Hunter</div>
+        <div class="roster-status" id="status-surplus">Hunting overages</div>
+      </div>
+      <div class="roster-badge badge-idle" id="badge-surplus">IDLE</div>
+    </div>
+
+    <div class="roster-card idle" id="card-prophet" onclick="focusAgent('prophet')">
+      <div class="roster-emoji">🔮</div>
+      <div class="roster-info">
+        <div class="roster-name">PROPHET</div>
+        <div class="roster-role">Market Oracle</div>
+        <div class="roster-status" id="status-prophet">Analyzing odds</div>
+      </div>
+      <div class="roster-badge badge-idle" id="badge-prophet">IDLE</div>
+    </div>
+
+  </aside>
+
+  <!-- ── LOG PANEL ── -->
+  <div id="logPanel">
+    <h3>⬡ OPS LOG STREAM</h3>
+    <div id="logStream"></div>
+  </div>
+
+  <!-- ── COMMAND BAR ── -->
+  <div id="cmdBar">
+    <label>▶ CMD:</label>
+    <input id="consoleInput" type="text" placeholder="Send a command to Hapda..." autocomplete="off" autofocus />
+    <button id="sendBtn" onclick="sendCommand()">SEND</button>
+  </div>
+
+</div>
+
+<script>
+// ─── AGENT NAME → INTERNAL KEY MAPPING ──────────────────────────────────
+const AGENT_MAP = {
+  'orchestrator': 'hapda', 'hapdabot': 'hapda', 'hapda': 'hapda', 'claw': 'hapda',
+  'real_estate': 'rex', 'realestate': 'rex', 'rex': 'rex', 'property': 'rex',
+  'stuyza': 'stuyza', 'cinema': 'stuyza', 'video': 'stuyza', 'stuyzavideoagent': 'stuyza',
+  'researcher': 'aria', 'aria': 'aria', 'research': 'aria',
+  'marketer': 'phantom', 'phantom': 'phantom', 'ads': 'phantom', 'marketing': 'phantom',
+  'surplus': 'surplus', 'money': 'surplus',
+  'prediction': 'prophet', 'prophet': 'prophet', 'market': 'prophet',
+};
+
+const AGENT_COLORS = {
+  hapda: 'var(--cyan)', rex: 'var(--orange)', stuyza: 'var(--pink)',
+  aria: 'var(--purple)', phantom: 'var(--green)', surplus: 'var(--yellow)', prophet: 'var(--red)',
+};
+
+// Bubble timers per agent
+const bubbleTimers = {};
+
+function resolveAgent(raw) {
+  if (!raw) return null;
+  const key = raw.toLowerCase().replace(/[_\[\]\s]/g, '');
+  for (const [k, v] of Object.entries(AGENT_MAP)) {
+    if (key.includes(k.replace(/_/g, ''))) return v;
+  }
+  return null;
+}
+
+function setAgentState(agentKey, state, message) {
+  const ws  = document.getElementById(`ws-${agentKey}`);
+  const card= document.getElementById(`card-${agentKey}`);
+  const badge=document.getElementById(`badge-${agentKey}`);
+  const status=document.getElementById(`status-${agentKey}`);
+  const bubble=document.getElementById(`bubble-${agentKey}`);
+
+  if (!ws) return;
+
+  // Clear previous state classes
+  ws.classList.remove('active','idle','error');
+  card?.classList.remove('active','idle','error');
+
+  if (state === 'active') {
+    ws.classList.add('active'); card?.classList.add('active');
+    if (badge) { badge.textContent = 'ACTIVE'; badge.className = 'roster-badge badge-active'; }
+  } else if (state === 'error') {
+    ws.classList.add('error'); card?.classList.add('error');
+    if (badge) { badge.textContent = 'ERROR'; badge.className = 'roster-badge badge-error'; }
+  } else {
+    ws.classList.add('idle'); card?.classList.add('idle');
+    if (badge) { badge.textContent = 'IDLE'; badge.className = 'roster-badge badge-idle'; }
+  }
+
+  if (message) {
+    const short = message.length > 40 ? message.substring(0, 38) + '…' : message;
+    if (status) status.textContent = short;
+    // Show speech bubble
+    if (bubble) {
+      bubble.textContent = short;
+      bubble.classList.add('visible');
+      clearTimeout(bubbleTimers[agentKey]);
+      bubbleTimers[agentKey] = setTimeout(() => bubble.classList.remove('visible'), 5000);
+    }
+  }
+
+  // Return to idle after 8s of inactivity
+  clearTimeout(ws._idleTimer);
+  if (state === 'active') {
+    ws._idleTimer = setTimeout(() => setAgentState(agentKey, 'idle'), 8000);
+  }
+}
+
+// ─── APPEND LOG ─────────────────────────────────────────────────────────
+function appendLog(agent, message, type = 'status') {
+  const stream = document.getElementById('logStream');
+  const entry = document.createElement('div');
+  entry.className = `log-entry log-type-${type}`;
+  const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
+
+  const color = AGENT_COLORS[resolveAgent(agent)] || 'var(--dim)';
+  const displayName = agent.toUpperCase().replace(/OPS_|STRATEGIC_|GROWTH_|CODE_/g, '');
+
+  entry.innerHTML = `
+    <span class="log-time">[${time}]</span>
+    <span class="log-agent">${displayName}</span>
+    <span class="log-msg">${message}</span>
+  `;
+  stream.appendChild(entry);
+  stream.scrollTop = stream.scrollHeight;
+
+  // Visual activate agent
+  const agentKey = resolveAgent(agent);
+  if (agentKey) {
+    const stateType = type === 'error' ? 'error' : 'active';
+    setAgentState(agentKey, stateType, message);
+  }
+
+  // Update ticker
+  document.getElementById('ticker-content').textContent =
+    `⬡ ${displayName}: ${message.substring(0, 80)} ·`;
+}
+
+// ─── SEND COMMAND ────────────────────────────────────────────────────────
+async function sendCommand() {
+  const input = document.getElementById('consoleInput');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  appendLog('YOU', cmd, 'chat');
+  input.value = '';
+  try {
+    const res = await fetch('/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: cmd }),
+    });
+    const d = await res.json();
+    if (d.success) appendLog('SYSTEM', d.message, 'think');
+  } catch {
+    appendLog('SYSTEM', 'Bridge Error: Server unreachable.', 'error');
+  }
+}
+
+// ─── FOCUS AGENT ────────────────────────────────────────────────────────
+function focusAgent(key) {
+  const ws = document.getElementById(`ws-${key}`);
+  if (ws) {
+    ws.style.transition = 'transform 0.4s';
+    ws.style.transform = (ws.dataset.focused === '1')
+      ? ws.style.transform.replace(' scale(1.15)','')
+      : (ws.style.transform || '') + ' scale(1.15)';
+    ws.dataset.focused = ws.dataset.focused === '1' ? '0' : '1';
+  }
+}
+
+// ─── CLOCK ───────────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── WEBSOCKET ───────────────────────────────────────────────────────────
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}`);
+  const statusEl = document.getElementById('conn-status');
+
+  ws.onopen = () => {
+    statusEl.textContent = '◉ LIVE_SYNC';
+    statusEl.className = 'online';
+    appendLog('SYSTEM', 'Gravity Claw network synchronized. All agents online.', 'status');
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'heartbeat') {
+        // All agents pulse green briefly
+        document.querySelectorAll('.roster-card').forEach(c => {
+          c.style.borderColor = 'var(--green)';
+          setTimeout(() => c.style.borderColor = '', 500);
+        });
+        return;
+      }
+      appendLog(data.agent || 'SYSTEM', data.message || '', data.type || 'status');
+    } catch {}
+  };
+
+  ws.onclose = () => {
+    statusEl.textContent = '◉ OFFLINE';
+    statusEl.className = 'offline';
+    appendLog('SYSTEM', 'WebSocket disconnected. Retrying in 5s...', 'error');
+    setTimeout(connect, 5000);
+  };
+
+  ws.onerror = () => {
+    statusEl.textContent = '◉ ERROR';
+    statusEl.className = 'offline';
+  };
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    if (data.success && data.state) {
+      appendLog('SYSTEM', `Mission: ${data.state.active_mission || 'STANDBY'}`, 'status');
+    }
+  } catch {}
+  connect();
+
+  // Warm up animation — stagger agent idle wobbles
+  const agents = ['hapda','rex','stuyza','aria','phantom','surplus','prophet'];
+  agents.forEach((a, i) => {
+    const ws = document.getElementById(`ws-${a}`);
+    if (ws) ws.querySelector('.char-sprite').style.animationDelay = `${i * 0.35}s`;
+  });
+}
+
+document.getElementById('consoleInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendCommand();
+});
+
+init();
+</script>
 </body>
 </html>
