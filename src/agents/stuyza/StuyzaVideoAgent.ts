@@ -147,27 +147,14 @@ Return ONLY valid JSON array, no markdown fences.`,
     const beat = beats[i];
     const beatDur = Math.min(5, Math.max(3, beat.duration || 4));
 
-    // Try Pollinations AI (100% Free, NO API KEY)
-    let imageSrc: string | null = null;
-    try {
-      const encodedPrompt = encodeURIComponent(`${beat.imagePrompt}. Cinematic, dramatic lighting, no text, no watermarks, photorealistic, 8k resolution.`);
-      const imageWidth = isVertical ? 1024 : 1792;
-      const imageHeight = isVertical ? 1792 : 1024;
-      const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${imageWidth}&height=${imageHeight}&nologo=true`;
-      
-      const buf = await fetch(url).then(r => r.arrayBuffer());
-      if (buf && buf.byteLength > 1000) {
-        const imgPath = path.join(assetPath, `scene-${i}.jpeg`);
-        fs.writeFileSync(imgPath, Buffer.from(buf));
-        imageSrc = `file:///${imgPath.replace(/\\/g, "/")}`;
-        log(`[StuyzaVideoAgent] ✅ Image ${i + 1}/${beats.length} generated via Pollinations`);
-        await onProgress?.(`📸 Generating images... (${i + 1}/${beats.length})`);
-      } else {
-        throw new Error("Invalid image buffer returned");
-      }
-    } catch (imgErr: any) {
-      log(`[StuyzaVideoAgent] Image gen failed for beat ${i}: ${imgErr.message}`, "warn");
-    }
+    // Use Direct Pollinations URL (100% Free, NO API KEY, bypasses Railway filesystem issues)
+    const encodedPrompt = encodeURIComponent(`${beat.imagePrompt}. Cinematic, detailed, photorealistic, 8k resolution, no text, no watermarks, urban aesthetic.`);
+    const imageWidth = isVertical ? 1024 : 1792;
+    const imageHeight = isVertical ? 1792 : 1024;
+    const imageSrc = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${imageWidth}&height=${imageHeight}&nologo=true&seed=${Math.floor(Math.random()*100000)}`;
+    
+    log(`[StuyzaVideoAgent] ✅ Scene ${i + 1}/${beats.length} visuals mapped: ${imageSrc.substring(0, 60)}...`);
+    await onProgress?.(`📸 Visualizing scenes... (${i+1}/${beats.length})`);
 
     // Image scene (if we got one)
     if (imageSrc) {
