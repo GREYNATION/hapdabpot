@@ -16,6 +16,7 @@ import { askAI } from "../../core/ai.js";
 const execAsync = promisify(exec);
 
 const OPENMONTAGE_DIR = path.join(process.cwd(), "src", "agents", "stuyza", "openmontage");
+const REMOTION_GEN_DIR = path.join(OPENMONTAGE_DIR, "remotion-composer", "public", "generated");
 
 // ─── Multi-Scene Props Builder ────────────────────────────────────────────────
 
@@ -147,14 +148,30 @@ Return ONLY valid JSON array, no markdown fences.`,
     const beat = beats[i];
     const beatDur = Math.min(5, Math.max(3, beat.duration || 4));
 
-    // Use Direct Pollinations URL (100% Free, NO API KEY, bypasses Railway filesystem issues)
+    // Use Direct Pollinations URL
     const encodedPrompt = encodeURIComponent(`${beat.imagePrompt}. Cinematic, detailed, photorealistic, 8k resolution, no text, no watermarks, urban aesthetic.`);
     const imageWidth = isVertical ? 1024 : 1792;
     const imageHeight = isVertical ? 1792 : 1024;
-    const imageSrc = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${imageWidth}&height=${imageHeight}&nologo=true&seed=${Math.floor(Math.random()*100000)}`;
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${imageWidth}&height=${imageHeight}&nologo=true&seed=${Math.floor(Math.random()*100000)}`;
     
-    log(`[StuyzaVideoAgent] ✅ Scene ${i + 1}/${beats.length} visuals mapped: ${imageSrc.substring(0, 60)}...`);
-    await onProgress?.(`📸 Visualizing scenes... (${i+1}/${beats.length})`);
+    // Download image locally to ensure Remotion can load it instantly
+    let imageSrc: string | null = null;
+    try {
+      if (!fs.existsSync(REMOTION_GEN_DIR)) fs.mkdirSync(REMOTION_GEN_DIR, { recursive: true });
+      const localFilename = `scene-${i}-${Date.now()}.jpeg`;
+      const localPath = path.join(REMOTION_GEN_DIR, localFilename);
+      
+      const buf = await fetch(url).then(r => r.arrayBuffer());
+      if (buf && buf.byteLength > 1000) {
+        fs.writeFileSync(localPath, Buffer.from(buf));
+        imageSrc = `generated/${localFilename}`; // Relative path for staticFile()
+        log(`[StuyzaVideoAgent] ✅ Scene ${i + 1}/${beats.length} cached locally: ${imageSrc}`);
+        await onProgress?.(`📸 Generating visuals... (${i+1}/${beats.length})`);
+      }
+    } catch (err: any) {
+      log(`[StuyzaVideoAgent] Local cache failed, falling back to URL: ${err.message}`, "warn");
+      imageSrc = url; // Fallback to URL if local write fails
+    }
 
     // Image scene (if we got one)
     if (imageSrc) {
