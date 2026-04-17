@@ -15,7 +15,8 @@ import { DataIngestionService } from './services/dataIngestionService.js';
 import { createLeadsRouter } from './routes/leads.js';
 import { CouncilOrchestrator } from './core/orchestrator/councilOrchestrator.js';
 import fs from 'fs';
-import { WebSocketServer, WebSocket } from 'ws';
+import ws from 'ws';
+const { WebSocketServer, WebSocket } = ws as any;
 import { getSupabase } from './core/supabase.js';
 const orchestrator = new CouncilOrchestrator();
 
@@ -381,11 +382,10 @@ app.get("/tiktokIfxgUQYQCixpunReOoWQpEWQnqhTD32r.txt", (req: Request, res: Respo
   res.send("tiktok-developers-site-verification=IFxgUOYQCixpunRe0oWOpEW0nqhTD32r");
 });
 
-// Configure Static Serving for the Landing Page / Dashboard
+// Configure Static Serving — Stuyza Command Center
 const possibleStaticPaths = [
-  path.join(process.cwd(), 'dashboard', 'dist'), // 3D Command Center (Primary)
-  path.join(__dirname, 'web'),                   // Legacy/Fallback Console
-  path.join(process.cwd(), 'src', 'web'),
+  path.join(process.cwd(), 'src', 'web'),   // ★ Stuyza Command Center
+  path.join(__dirname, 'web'),               // Compiled fallback
   path.join(process.cwd(), 'dist', 'web')
 ];
 
