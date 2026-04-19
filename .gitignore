@@ -17,6 +17,18 @@ scratch/
 .claude/
 .firecrawl/
 
+# Supabase & Scripts
+supabase/.temp/
+scripts/*.env
+scripts/verify-env.ts
+scripts/check-env.ts
+
+# Media Temp
+temp_*
+*.mp3
+*.mp4
+*.ogg
+
 # diagnostic scripts
 test_*.ts
 temp_*.ts

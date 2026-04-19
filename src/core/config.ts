@@ -40,7 +40,7 @@ export const config = {
     groqModel: env.GROQ_MODEL || "llama-3.3-70b-versatile",
     anthropicModel: env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
     deepseekModel: env.DEEPSEEK_MODEL || "deepseek-chat",
-    aiProvider: env.AI_PROVIDER || "groq",
+    aiProvider: env.AI_PROVIDER || (env.OPENAI_API_KEY ? "openai" : "groq"),
     braveApiKey: env.BRAVE_API_KEY || "",
     elevenKey: env.ELEVENLABS_API_KEY || env.ELEVEN_API_KEY || "",
     elevenVoiceId: env.ELEVEN_VOICE_ID || "pNInz6obpgmqnzPCWZZf", // Adam

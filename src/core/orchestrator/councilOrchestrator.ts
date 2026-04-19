@@ -38,18 +38,22 @@ export class CouncilOrchestrator {
 
         log(`[council] Goal identified: ${goal}. Triggering ${tasks.length} tasks.`);
 
-        // 2. Execute tasks in parallel
-        const responses = await Promise.all(tasks.map(async (task) => {
+        // 2. Execute tasks sequentially (to avoid 429 rate limits)
+        const responses: string[] = [];
+        for (const task of tasks) {
             try {
                 const agent = this.instantiateAgent(task.agent);
                 log(`[council] Executing ${task.agent}...`);
                 const result = await agent.ask(task.task);
                 const agentName = agent.getName ? agent.getName() : task.agent;
-                return `**[${agentName}]**: ${result.content || result}`;
+                responses.push(`**[${agentName}]**: ${result.content || result}`);
+                
+                // Small delay between tasks to stay under provider rate limits
+                await new Promise(r => setTimeout(r, 1000));
             } catch (err: any) {
-                return `**[${task.agent}]** Error: ${err.message}`;
+                responses.push(`**[${task.agent}]** Error: ${err.message}`);
             }
-        }));
+        }
 
         const finalOutput = responses.join("\n\n");
 
