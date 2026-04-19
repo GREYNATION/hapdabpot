@@ -9,12 +9,9 @@
  *   daily_streak  → +100 XP  +1 token
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase } from "../core/supabase.js";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
+const supabase = getSupabase();
 
 // ── XP tables per event type ──────────────────────────────────────────────────
 
@@ -52,6 +49,7 @@ export async function awardXP(
   if (!reward) throw new Error(`Unknown event type: ${eventType}`);
 
   // Get current stats
+  if (!supabase) throw new Error("Supabase client not initialized.");
   const { data: agent, error } = await supabase
     .from('agent_stats')
     .select('*')
@@ -99,6 +97,7 @@ export async function upgradeTier(agentId: string): Promise<{
   error?: string;
 }> {
 
+  if (!supabase) return { success: false, error: 'Supabase client not initialized.' };
   const { data: agent } = await supabase
     .from('agent_stats')
     .select('*')
@@ -124,6 +123,8 @@ export async function upgradeTier(agentId: string): Promise<{
     ...TIER_SKILLS[newTier]
   ];
 
+  if (!supabase) return { success: false, error: "Supabase client not initialized." };
+
   // Apply upgrade
   await supabase.from('agent_stats').update({
     tier:          newTier,
@@ -146,6 +147,7 @@ export async function upgradeTier(agentId: string): Promise<{
 // ── Daily Streak Check ────────────────────────────────────────────────────────
 
 export async function checkDailyStreak(agentId: string): Promise<void> {
+  if (!supabase) return;
   const { data: agent } = await supabase
     .from('agent_stats')
     .select('last_active, streak_days')
@@ -175,6 +177,7 @@ export async function checkDailyStreak(agentId: string): Promise<void> {
 // ── Get All Agent Stats (for dashboard) ──────────────────────────────────────
 
 export async function getAllStats() {
+  if (!supabase) return [];
   const { data } = await supabase
     .from('agent_stats')
     .select('*')
@@ -184,6 +187,7 @@ export async function getAllStats() {
 }
 
 export async function getAgentStats(agentId: string) {
+  if (!supabase) return null;
   const { data } = await supabase
     .from('agent_stats')
     .select('*')
