@@ -5,6 +5,7 @@ import { askAI } from "../core/ai.js";
 import axios from "axios";
 import { agentMail } from "../services/agentmail.js";
 import { HiveMind } from "../core/hiveMind.js";
+import { ApifyService } from "../services/apifyService.js";
 
 export interface AgentResponse {
     content: string;
@@ -16,8 +17,17 @@ export abstract class BaseAgent {
     protected systemPrompt: string;
 
     constructor(name: string, systemPrompt: string) {
-        this.model = config.openaiModel;
-        this.systemPrompt = systemPrompt;
+        this.model = config.aiProvider === "groq" ? config.groqModel : config.openaiModel;
+        
+        // Inject Superpower Rules globally
+        const superpowerRules = `
+# Superpower Skills Rules
+1. **Brainstorming (Design Gate)**: ALWAYS brainstorm before starting new features. Ask ONE question at a time.
+2. **Systematic Debugging**: Gather evidence, trace data, and test hypotheses. Never guess.
+3. **Test-Driven Development**: Create reproduction scripts before fixes.
+4. **Autonomous Skills**: You have access to specialized skills in brainstorming, systematic-debugging, writing-plans, and test-driven-development.
+`;
+        this.systemPrompt = `${systemPrompt}\n\n${superpowerRules}`;
     }
 
     abstract getName(): string;
@@ -117,6 +127,19 @@ export abstract class BaseAgent {
                 // For simplicity, we assume immediate result for now.
                 return JSON.stringify(res.data.data || res.data);
             }
+            if (name === "tiktok_scrape") {
+                return await ApifyService.scrapeTikTok(args.url);
+            }
+            if (name === "generate_video") {
+                const { ContentAgent } = await import("./ContentAgent.js");
+                const agent = new ContentAgent();
+                return await agent.createVideo(args.topic, true); // true = preview/dryRun
+            }
+            if (name === "post_to_social") {
+                const { ContentAgent } = await import("./ContentAgent.js");
+                const agent = new ContentAgent();
+                return await agent.createVideo(args.topic, false); // false = actual post
+            }
             return "Unknown tool";
         } catch (e: any) {
             return `Error executing tool: ${e.message}`;
@@ -191,6 +214,48 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
+                    name: "tiktok_scrape",
+                    description: "Scrape and analyze a TikTok video for metadata and content using Apify.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            url: { type: "string", description: "The TikTok video URL to analyze" }
+                        },
+                        required: ["url"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "generate_video",
+                    description: "Generate a cinematic preview video for a specific topic or deal.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            topic: { type: "string", description: "The subject of the video (e.g. 'real estate wholesale tips')" }
+                        },
+                        required: ["topic"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "post_to_social",
+                    description: "Generate and AUTOMATICALLY post a video to TikTok and Instagram.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            topic: { type: "string", description: "The content topic to produce and publish" }
+                        },
+                        required: ["topic"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
                     name: "update_hive_mind",
                     description: "Update the shared mission state (active_mission, objectives, agent_handoffs).",
                     parameters: {
@@ -256,8 +321,11 @@ export abstract class BaseAgent {
         systemPrompt += hive.getContextString();
         systemPrompt += `\n\n--- COUNCIL OPERATIONAL PROTOCOL ---
 1. You are PART OF A COUNCIL. Focus on your specific role within the larger mission.
-2. ALWAYS start your high-level insight with your signature tag like: [${this.getName()}].
-3. Updates to the mission state or objectives MUST be done using 'update_hive_mind'.
+2. Updates to the mission state or objectives MUST be done using 'update_hive_mind'.
+3. STRICT TOOL CALLING: You MUST use the provide tool-calling schema. 
+   - DO NOT use XML tags like <function> or <tool_call>.
+   - DO NOT wrap arguments in anything other than the standard JSON structure.
+   - Failure to follow the JSON schema will cause a system disconnect.
 -------------------------------------`;
 
         const tools = this.getTools();
@@ -274,10 +342,6 @@ export abstract class BaseAgent {
                 });
 
                 if (!aiResponse.tool_calls) {
-                    // Ensure [Name] prefix if missing
-                    if (aiResponse.content && !aiResponse.content.includes(`[${name}]`)) {
-                        aiResponse.content = `**[${name}]**: ${aiResponse.content}`;
-                    }
                     await logToOpsConsole(name, "Response delivered.", "chat");
                     return aiResponse;
                 }

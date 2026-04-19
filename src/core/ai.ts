@@ -243,7 +243,7 @@ export async function askAI(
                 options.model = config.groqModel || GROQ_MODEL;
             }
             const systemWithProtocol = systemPrompt + "\n\nSTRICT PROTOCOL: You MUST use JSON tools. DO NOT use XML <function> tags. Stay in character.";
-            return await withTimeout(callGroq(messages, { ...options, systemPrompt: systemWithProtocol }), timeoutMs, "askAI:groq");
+            return await withTimeout(callGroq(messages, { ...options }), timeoutMs, "askAI:groq");
         } catch (err: any) {
             log(`[ai] Groq call failed: ${err.message}. ${config.openaiApiKey ? "Attempting OpenRouter fallback..." : "No fallback available."}`, "warn");
             if (!config.openaiApiKey) throw err;

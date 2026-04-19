@@ -14,6 +14,7 @@ import { aiNegotiate } from './core/negotiation/aiCloser.js';
 import { DataIngestionService } from './services/dataIngestionService.js';
 import { createLeadsRouter } from './routes/leads.js';
 import { CouncilOrchestrator } from './core/orchestrator/councilOrchestrator.js';
+import cors from 'cors';
 import fs from 'fs';
 import * as wsModule from 'ws';
 const WebSocketServer = wsModule.WebSocketServer || (wsModule as any).Server;
@@ -26,6 +27,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.set('trust proxy', 1);  // trust first proxy (Railway/Render)
+app.use(cors());            // allow Phaser Game UI to communicate with this backend
 app.use(express.json());     // parse JSON request bodies
 app.use(express.urlencoded({ extended: true }));  // parse form data
 const PORT = parseInt(process.env.PORT || '8080', 10);
@@ -99,6 +101,13 @@ app.post('/api/command', async (req: Request, res: Response) => {
 
   return res.json({ success: true, message: 'Command accepted for processing.' });
 });
+
+import { createAgentRouter } from './routes/agent.js';
+import gamificationRouter from './web/routes/gamification.js';
+
+// ── Game API Integration (Modularized via Architectual Plan) ───────────────
+app.use('/api', createAgentRouter());
+app.use('/api/gamification', gamificationRouter);
 
 // api/voice POST is already handled by uploadAudioAndGetUrl in some places, 
 // but we need a specific bridge for the dashboard's manual calls

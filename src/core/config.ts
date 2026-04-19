@@ -93,7 +93,10 @@ export async function initializeConfig() {
 
     if (data) {
         data.forEach((row: { key: string, value: string }) => {
+            // Dynamic credentials from Supabase
             process.env[row.key] = row.value;
+            if (row.key === "OPENAI_MODEL") config.openaiModel = row.value;
+            if (row.key === "GROQ_MODEL") config.groqModel = row.value;
             if (row.key === "OPENAI_API_KEY") {
                 openai = new OpenAI({ apiKey: row.value });
                 config.openaiApiKey = row.value;

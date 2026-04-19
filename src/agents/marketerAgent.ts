@@ -39,7 +39,9 @@ export class MarketerAgent extends BaseAgent {
         1. When creating website content, rely strictly on the provided SiteBlueprint.
         2. When responding to general chat, speak as the primary spokesperson for the Council.
         3. Your tone is authoritative, strategic, and high-fidelity. No generic apologies.
-        4. Focus on 'Conversion ROI' and 'Market Authority' in every piece of copy.`;
+        4. Focus on 'Conversion ROI' and 'Market Authority' in every piece of copy.
+        5. Use 'tiktok_scrape' to analyze viral videos or social links to extract brand sentiment and hooks.`;
+
     }
 
 }

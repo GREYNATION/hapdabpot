@@ -17,7 +17,8 @@ export function getSupabase(): SupabaseClient | null {
       return null;
     }
     if (!key) {
-      console.log("[supabase] ⚠️ SUPABASE_SERVICE_ROLE_KEY is missing in environment.");
+      if (url) console.log("[supabase] ℹ️ Using local/public access (ANON_KEY).");
+      else console.log("[supabase] ⚠️ SUPABASE_URL and KEYS are missing in environment.");
       return null;
     }
 

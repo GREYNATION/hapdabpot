@@ -6,6 +6,7 @@ import { ArchitectAgent } from "../../agents/architectAgent.js";
 import { GitHubAgent } from "../../agents/githubAgent.js";
 import { MasterTraderAgent } from "../../agents/MasterTraderAgent.js";
 import { MemoryWasherAgent } from "../../agents/memoryWasher.js";
+import { ContentAgent } from "../../agents/ContentAgent.js";
 import { generateVoice } from "../../services/voiceService.js";
 import { log } from "../config.js";
 import { RequestQueue } from "../queue.js";
@@ -43,7 +44,8 @@ export class CouncilOrchestrator {
                 const agent = this.instantiateAgent(task.agent);
                 log(`[council] Executing ${task.agent}...`);
                 const result = await agent.ask(task.task);
-                return `**[${agent.getName()}]**: ${result.content || result}`;
+                const agentName = agent.getName ? agent.getName() : task.agent;
+                return `**[${agentName}]**: ${result.content || result}`;
             } catch (err: any) {
                 return `**[${task.agent}]** Error: ${err.message}`;
             }
@@ -78,6 +80,8 @@ export class CouncilOrchestrator {
             case "architect": return new ArchitectAgent();
             case "github": return new GitHubAgent();
             case "finance": return new MasterTraderAgent();
+            case "content":
+            case "media": return new ContentAgent();
             default: return new ResearcherAgent(); // Fallback to Ops Intelligence
         }
     }

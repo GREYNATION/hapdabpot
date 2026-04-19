@@ -56,6 +56,10 @@ export class MasterTraderAgent {
     };
   }
 
+  getName(): string {
+    return "Strategic Finance";
+  }
+
   getSystemPrompt(): string {
     return `You are MasterTrader, an advanced AI trading agent specializing in:
 

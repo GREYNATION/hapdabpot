@@ -1,3 +1,4 @@
+import { BaseAgent } from "./baseAgent.js";
 import { log } from "../core/config.js";
 import { askAI } from "../core/ai.js";
 import { CinemaAgent, runOutTheWayEpisode } from "./cinema/CinemaAgent.js";
@@ -154,31 +155,30 @@ const VIDEO_PROMPTS = {
 
 // ── ContentAgent ──────────────────────────────────────────────────────────────
 
-export class ContentAgent {
+export class ContentAgent extends BaseAgent {
+  constructor() {
+    super("Media", "You are the Media and Content Spirit of the Council. You specialize in high-fidelity video production (LTX Video 2.3), cinematic drama (Muapi), and social media publishing across TikTok and Instagram.");
+  }
+
+  getName(): string {
+    return "Media";
+  }
+
+  getSystemPrompt(): string {
+    return `You are the Content Intelligence Spirit. 
+    Your mandate is to transform the Council's intelligence into high-fidelity visual assets.
+    
+    CRITICAL INSTRUCTIONS:
+    1. Use 'generate_video' to create cinematic previews using LTX Video 2.3 via fal.ai.
+    2. Use 'post_to_social' to produce AND publish content to TikTok and Instagram.
+    3. Use 'tiktok_scrape' to analyze trends before producing.
+    4. You coordinate with the Marketer and Researcher to ensure visual alignment.`;
+  }
+
   async execute(task: string, userId: string): Promise<string> {
-    log(`[ContentAgent] Task: ${task}`);
-
-    // Parse task for video generation
-    const lower = task.toLowerCase();
-
-    if (lower.includes("video") || lower.includes("tiktok") || lower.includes("reel") || lower.includes("post")) {
-      const topic = task.replace(/make|create|generate|a|video|for|tiktok|instagram|youtube|post|reel/gi, "").trim() || "real estate wholesaling tips";
-      return await this.createVideo(topic);
-    }
-
-    if (lower.includes("caption") || lower.includes("caption for")) {
-      const topic = task.replace(/write|create|caption|for/gi, "").trim();
-      const caption = await generateCaption(topic, "tiktok");
-      return `📝 Caption:\n\n${caption}`;
-    }
-
-    if (lower.includes("ideas") || lower.includes("content ideas")) {
-      return await this.suggestTopics();
-    }
-
-    // Fallback: general content strategy question
-    const response = await askAI(task, "You are a real estate wholesaling content strategist for TikTok, Instagram, and YouTube.");
-    return response.content;
+    // Legacy support for direct execution
+    const res = await this.ask(task);
+    return res.content;
   }
 
   async createVideo(topic: string, dryRun = false): Promise<string> {
