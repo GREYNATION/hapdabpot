@@ -7,8 +7,22 @@ import { getSupabase } from "./supabase.js";
 
 // ─── Database Initialization ───────────────────────────────────────────
 
-// Initialize common operational database (moved below imports to ensure config is ready)
-export const db = new Database(config.dbPath);
+// Ensure directory exists for SQLite
+// Resolve path RELATIVE TO RUNTIME (important)
+const dbPath = path.resolve(process.env.DB_PATH || './data/memory.db');
+
+// Ensure directory exists
+const dir = path.dirname(dbPath);
+
+if (!fs.existsSync(dir)) {
+  console.log('Creating DB directory:', dir);
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+// Create DB
+export const db = new Database(dbPath);
+console.log('DB connected at:', dbPath);
+console.log('CWD:', process.cwd());
 
 /**
  * Returns the singleton database instance.

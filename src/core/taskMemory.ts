@@ -1,13 +1,21 @@
-﻿import Database from "better-sqlite3";
+import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
 // Use the project's standard data directory if possible, otherwise default to user's "data.db"
-const dbPath = "./data/tasks.db";
+// Resolve path RELATIVE TO RUNTIME (important)
+const dbPath = path.resolve("./data/tasks.db");
 const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+
+// Ensure directory exists
+if (!fs.existsSync(dbDir)) {
+    console.log('Creating DB directory:', dbDir);
+    fs.mkdirSync(dbDir, { recursive: true });
+}
 
 const db = new Database(dbPath);
+console.log('Task DB connected at:', dbPath);
+console.log('CWD:', process.cwd());
 
 // Ensure the table exists in this specific DB if we are using a separate one
 db.exec(`

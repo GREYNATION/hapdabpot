@@ -1,7 +1,5 @@
 import { openrouter } from "./src/core/config.js";
-import dotenv from "dotenv";
-
-dotenv.config();
+import "dotenv/config";
 
 async function testOpenRouter() {
     try {

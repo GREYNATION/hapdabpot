@@ -1,19 +1,21 @@
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
-import dotenv from "dotenv";
+import "dotenv/config";
 
-dotenv.config();
-
-const dbPath = process.env.DB_PATH || "./data/gravity-claw.db";
+// Resolve path RELATIVE TO RUNTIME (important)
+const dbPath = path.resolve(process.env.DB_PATH || "./data/gravity-claw.db");
 const dbDir = path.dirname(dbPath);
 
 // Ensure the directory exists
 if (!fs.existsSync(dbDir)) {
+    console.log('Creating DB directory:', dbDir);
     fs.mkdirSync(dbDir, { recursive: true });
 }
 
 export const db = new Database(dbPath);
+console.log('DB connected at:', dbPath);
+console.log('CWD:', process.cwd());
 
 // Enable WAL for better performance
 db.pragma("journal_mode = WAL");

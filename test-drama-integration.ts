@@ -1,5 +1,4 @@
-import dotenv from "dotenv";
-dotenv.config();
+import "dotenv/config";
 
 import { handle } from "./src/agents/drama/DramaAgent.js";
 import { initDb } from "./src/core/memory.js";

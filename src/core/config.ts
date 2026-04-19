@@ -1,11 +1,11 @@
-import dotenv from "dotenv";
+import "dotenv/config";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import path from "path";
 import { getSupabase } from "./supabase.js";
 
-dotenv.config();
+
 
 export function log(msg: string, level: "info" | "warn" | "error" = "info") {
     const time = new Date().toLocaleTimeString();
@@ -58,7 +58,7 @@ export const config = {
     runwayApiKey: env.RUNWAY_API_KEY || "",
     ownerId: parseInt(env.OWNER_ID || "0"),
     allowedUserIds: (env.ALLOWED_USER_IDS || "").split(",").map(id => parseInt(id.trim())).filter(id => !isNaN(id)),
-    dbPath: path.join(process.cwd(), "data", "bot.db"),
+    dbPath: process.env.DB_PATH || path.join(process.cwd(), "data", "memory.db"),
     brainDir: path.join(process.cwd(), "data", "brain"),
     anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
     visionModel: process.env.VISION_MODEL ?? "gpt-4-vision-preview",

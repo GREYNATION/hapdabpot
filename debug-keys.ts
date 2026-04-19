@@ -1,6 +1,5 @@
 import { config } from "./src/core/config.js";
-import dotenv from "dotenv";
-dotenv.config();
+import "dotenv/config";
 
 console.log("GROQ_API_KEY present:", !!process.env.GROQ_API_KEY);
 if (process.env.GROQ_API_KEY) {

@@ -1,6 +1,5 @@
 import { developerAgent } from "./src/agents/developer.js";
-import dotenv from "dotenv";
-dotenv.config();
+import "dotenv/config";
 
 async function test() {
   console.log("🧪 Testing Developer Agent...");

@@ -1,3 +1,4 @@
+import "./core/init.js";
 import "dotenv/config";
 import { processUserInput } from "./taskOrchestrator.js";
 import { PropertyScraper } from "./services/PropertyScraper.js";

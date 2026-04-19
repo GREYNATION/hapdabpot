@@ -1,8 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { getEmbedding } from "./embeddingService.js";
-import dotenv from "dotenv";
-
-dotenv.config();
+import "dotenv/config";
 
 export interface Credential {
   key: string;

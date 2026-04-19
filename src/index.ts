@@ -1,3 +1,5 @@
+import "./core/init.js";
+import 'dotenv/config';
 import { log, config } from "./core/config.js";
 import { startupSequence } from "./core/startup.js";
 import { TelegramBot } from "./bot/telegram.js";

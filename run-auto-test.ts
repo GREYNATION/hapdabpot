@@ -1,7 +1,6 @@
-import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
-dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+import "dotenv/config";
+import path from "path";
+import fs from "fs";
 console.log("Key Prefix loaded:", process.env.OPENROUTER_API_KEY ? process.env.OPENROUTER_API_KEY.substring(0, 10) : "MISSING");
 
 async function main() {

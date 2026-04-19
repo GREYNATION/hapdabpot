@@ -1,10 +1,7 @@
+import "dotenv/config";
 import { memoryManager } from "../src/memory/memoryManager.js";
-import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
-
-// Load .env from the root
-dotenv.config({ path: path.join(process.cwd(), ".env") });
 
 async function migrate() {
   const keysToMigrate = [

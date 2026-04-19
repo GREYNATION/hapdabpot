@@ -1,9 +1,7 @@
 import { DeveloperAgent } from "../src/agents/developerAgent.js";
 import { GitHubAgent } from "../src/agents/githubAgent.js";
 import { log } from "../src/core/config.js";
-import dotenv from "dotenv";
-
-dotenv.config();
+import "dotenv/config";
 
 async function testAgents() {
     try {
