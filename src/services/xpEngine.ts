@@ -12,8 +12,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
+  process.env.SUPABASE_URL=https://yvjelzhzuhtxiyfrnzlm.supabase.co
+  process.env.SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2amVsemh6dWh0eGl5ZnJuemxtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzA3Nzc2MSwiZXhwIjoyMDg4NjUzNzYxfQ.vVgNTTxGjaWloe_LfvBSxjfs_5oQ3psjYEFMOj9JCH4
 );
 
 // ── XP tables per event type ──────────────────────────────────────────────────
