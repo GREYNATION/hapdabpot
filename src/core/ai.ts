@@ -12,6 +12,8 @@ import { withTimeout, getErrorMessage } from "./timeout.js";
 // ── Clients (Re-initialized via initializeClients) ───────────────────────────
 import * as cfg from "./config.js";
 
+const GROQ_MODEL = "llama-3.3-70b-versatile"; // keep this exact string
+
 export let openai = cfg.openai;
 let groqClient = cfg.groq;
 let openRouterClient: OpenAI;
@@ -111,29 +113,27 @@ export function buildTool(
     };
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Groq ──────────────────────────────────────────────────────────────────────
 
 function cleanForGroq(
     messages: OpenAI.ChatCompletionMessageParam[]
 ): OpenAI.ChatCompletionMessageParam[] {
-    return messages
-        .filter((m) => m.role !== "tool")
-        .map((m) => {
-            if (m.role === "assistant") {
-                const { tool_calls, ...rest } = m as any;
-                return rest;
-            }
-            return m;
-        });
+    // OLD: was filtering out 'tool' role entirely.
+    // NEW: We preserve tool history so agents remember their findings.
+    // However, some older Groq-SDK versions prefer assistant content to be non-null if tool_calls exist.
+    return messages.map((m) => {
+        if (m.role === "assistant" && (m as any).tool_calls && !m.content) {
+            return { ...m, content: "Executing functions..." };
+        }
+        return m;
+    });
 }
-
-// ── Groq ──────────────────────────────────────────────────────────────────────
 
 async function callGroq(
     messages: OpenAI.ChatCompletionMessageParam[],
     options: AIOptions
 ): Promise<AIResponse> {
-    const model = options.model || config.groqModel || "llama-3.3-70b-versatile";
+    const model = options.model || config.groqModel || GROQ_MODEL;
     const cleaned = cleanForGroq(messages);
 
     try {
@@ -160,8 +160,8 @@ async function callGroq(
         const completion = await groqClient.chat.completions.create({
             model,
             messages: cleaned as any,
-            temperature: options.temperature ?? 0.7,
-            max_tokens: options.maxTokens || 1000,
+            temperature: Math.min(options.temperature ?? 0.7, 2.0), // REMOVE if above 2.0
+            max_tokens: options.maxTokens || 1024, // Optimized for versatile
             tools: options.tools as any,
             tool_choice: (options.toolChoice ?? "auto") as any,
             response_format: options.jsonMode ? { type: "json_object" } : undefined,
@@ -198,7 +198,7 @@ async function callOpenRouter(
     const isMultimodal = messages.some(m => Array.isArray(m.content));
     const model = isMultimodal 
         ? "openai/gpt-4o" 
-        : (options.model || "meta-llama/llama-3.3-70b-instruct:free");
+        : ("meta-llama/llama-3.3-70b-instruct:free");
 
     const completion = await openRouterClient.chat.completions.create({
         model,
@@ -238,15 +238,17 @@ export async function askAI(
     if (isGroqMode && !isExplicitCloud) {
         try {
             const timeoutMs = options.tools?.length ? 120_000 : 60_000;
-            // Override openai-style model names with the Groq default if in Groq mode
-            if (model.includes("gpt-") || !model) {
-                options.model = config.groqModel || "llama-3.3-70b-versatile";
+            // Use the versatile model for standard Council calls
+            if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
+                options.model = config.groqModel || GROQ_MODEL;
             }
-            return await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
+            const systemWithProtocol = systemPrompt + "\n\nSTRICT PROTOCOL: You MUST use JSON tools. DO NOT use XML <function> tags. Stay in character.";
+            return await withTimeout(callGroq(messages, { ...options, systemPrompt: systemWithProtocol }), timeoutMs, "askAI:groq");
         } catch (err: any) {
             log(`[ai] Groq call failed: ${err.message}. ${config.openaiApiKey ? "Attempting OpenRouter fallback..." : "No fallback available."}`, "warn");
             if (!config.openaiApiKey) throw err;
-            return await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
+            // PRESERVE TOOLS in fallback
+            return await withTimeout(callOpenRouter(messages, { ...options, tools: options.tools }), 90_000, "askAI:openrouter");
         }
     }
 
