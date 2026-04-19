@@ -31,7 +31,7 @@ export class MemoryManager {
 
   async setCredential(cred: Credential) {
     const { data, error } = await this.supabase
-      .from("credentials")
+      .from("hapda_credentials")
       .upsert(cred, { onConflict: "key" });
 
     if (error) throw error;
@@ -40,7 +40,7 @@ export class MemoryManager {
 
   async getCredential(key: string): Promise<string | null> {
     const { data, error } = await this.supabase
-      .from("credentials")
+      .from("hapda_credentials")
       .select("value")
       .eq("key", key)
       .maybeSingle();
