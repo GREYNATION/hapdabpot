@@ -48,8 +48,8 @@ export class CouncilOrchestrator {
                 const agentName = agent.getName ? agent.getName() : task.agent;
                 responses.push(`**[${agentName}]**: ${result.content || result}`);
                 
-                // Small delay between tasks to stay under provider rate limits
-                await new Promise(r => setTimeout(r, 1000));
+                // Increased delay between tasks to stay under provider rate limits
+                await new Promise(r => setTimeout(r, 3000));
             } catch (err: any) {
                 responses.push(`**[${task.agent}]** Error: ${err.message}`);
             }

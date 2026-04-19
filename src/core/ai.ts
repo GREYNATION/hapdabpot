@@ -36,6 +36,37 @@ export function initializeClients() {
     });
 }
 
+// ── State for Circuit Breaker ────────────────────────────────────────────────
+let circuitBreakerOpen = false;
+let consecutiveFailures = 0;
+const BREAKER_THRESHOLD = 3;
+const BREAKER_COOLDOWN = 60_000; // 60 seconds
+
+function checkBreaker() {
+    if (circuitBreakerOpen) {
+        throw new Error("AI Circuit Breaker is OPEN. Cooling down to avoid 429 penalties.");
+    }
+}
+
+function handleFailure(err: any) {
+    if (err.status === 429) {
+        consecutiveFailures++;
+        if (consecutiveFailures >= BREAKER_THRESHOLD) {
+            log(`[ai] Circuit Breaker TRIPPED due to consecutive 429s. Pausing for ${BREAKER_COOLDOWN/1000}s.`, "error");
+            circuitBreakerOpen = true;
+            setTimeout(() => {
+                circuitBreakerOpen = false;
+                consecutiveFailures = 0;
+                log(`[ai] Circuit Breaker RESET. Resuming operations.`, "info");
+            }, BREAKER_COOLDOWN);
+        }
+    }
+}
+
+function resetFailure() {
+    consecutiveFailures = 0;
+}
+
 // Initial call
 initializeClients();
 
@@ -224,41 +255,59 @@ export async function askAI(
     systemPrompt = "You are a helpful assistant.",
     options: AIOptions = {}
 ): Promise<AIResponse> {
-    const messages: OpenAI.ChatCompletionMessageParam[] = options.messages || [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt },
-    ];
+    checkBreaker();
 
-    // Intelligent Routing:
-    const model = options.model || "";
-    const isExplicitCloud = model.includes("google/") || model.includes("anthropic/");
-    const isGroqMode = config.aiProvider === "groq";
+    const maxRetries = 3;
+    let attempt = 0;
 
-    // If we're in Groq mode, we want to stay in Groq unless it's a model Groq physically CANNOT do (like multimodal)
-    if (isGroqMode && !isExplicitCloud) {
+    const executeWithBackoff = async (): Promise<AIResponse> => {
+        const messages: OpenAI.ChatCompletionMessageParam[] = options.messages || [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt },
+        ];
+
+        const model = options.model || "";
+        const isExplicitCloud = model.includes("google/") || model.includes("anthropic/");
+        const isGroqMode = config.aiProvider === "groq";
+
         try {
-            const timeoutMs = options.tools?.length ? 120_000 : 60_000;
-            // Use the versatile model for standard Council calls
-            if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
-                options.model = config.groqModel || GROQ_MODEL;
+            if (isGroqMode && !isExplicitCloud) {
+                const timeoutMs = options.tools?.length ? 120_000 : 60_000;
+                if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
+                    options.model = config.groqModel || GROQ_MODEL;
+                }
+                const response = await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
+                resetFailure();
+                return response;
             }
-            const systemWithProtocol = systemPrompt + "\n\nSTRICT PROTOCOL: You MUST use JSON tools. DO NOT use XML <function> tags. Stay in character.";
-            return await withTimeout(callGroq(messages, { ...options }), timeoutMs, "askAI:groq");
-        } catch (err: any) {
-            log(`[ai] Groq call failed: ${err.message}. ${config.openaiApiKey ? "Attempting OpenRouter fallback..." : "No fallback available."}`, "warn");
-            if (!config.openaiApiKey) throw err;
-            // PRESERVE TOOLS in fallback
-            return await withTimeout(callOpenRouter(messages, { ...options, tools: options.tools }), 90_000, "askAI:openrouter");
-        }
-    }
 
-    // Default legacy path (OpenRouter/OpenAI)
-    try {
-        return await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
-    } catch (err) {
-        log(`[ai] OpenAI/OpenRouter failed. Error: ${getErrorMessage(err)}`, "error");
-        throw err;
-    }
+            const response = await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
+            resetFailure();
+            return response;
+        } catch (err: any) {
+            if (err.status === 429 && attempt < maxRetries) {
+                attempt++;
+                handleFailure(err);
+                const backoffMs = Math.pow(2, attempt) * 1000;
+                log(`[ai] 429 encountered. Retrying in ${backoffMs}ms (Attempt ${attempt}/${maxRetries})...`, "warn");
+                await new Promise(r => setTimeout(r, backoffMs));
+                return executeWithBackoff();
+            }
+
+            log(`[ai] AI call failed: ${err.message}. ${config.openaiApiKey && isGroqMode ? "Attempting OpenRouter fallback..." : "No fallback available."}`, "error");
+            
+            if (isGroqMode && config.openaiApiKey && !isExplicitCloud) {
+                try {
+                    return await withTimeout(callOpenRouter(messages, { ...options, tools: options.tools }), 90_000, "askAI:openrouter:fallback");
+                } catch (fallbackErr) {
+                    throw fallbackErr;
+                }
+            }
+            throw err;
+        }
+    };
+
+    return executeWithBackoff();
 }
 
 /**
