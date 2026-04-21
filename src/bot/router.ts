@@ -16,31 +16,31 @@ import { CrmManager } from '../core/crm.js';
 import { listApps, stopApp } from '../core/processManager.js';
 import { manager } from '../core/manager.js';
 import { scanMarkets, formatMarketsReport } from '../agents/predictionMarketAgent.js';
-import { 
-    isGoogleEnabled, 
-    driveListFiles, 
-    listEmails, 
-    listEvents 
+import {
+    isGoogleEnabled,
+    driveListFiles,
+    listEmails,
+    listEvents
 } from '../agents/googleWorkspaceAgent.js';
 import { getDb } from '../core/memory.js';
 
 export function setupRouter(bot: Telegraf) {
     log("[router] Initializing Command Router...");
-    
+
     // Global Middleware for Permission Check
     bot.use(async (ctx: any, next) => {
         const allowedIds = (process.env.TELEGRAM_ALLOWED_USER_IDS || "").split(",").map(Number);
         const ownerId = Number(process.env.TELEGRAM_OWNER_ID);
         if (ownerId && !allowedIds.includes(ownerId)) allowedIds.push(ownerId);
-        
+
         const userId = ctx.from?.id;
         if (!userId) return next();
-        
+
         // If it's a command, enforce ownership
         if (ctx.message?.text?.startsWith("/")) {
             // Check if we have actual IDs configured (not just empty or placeholders)
             const hasAuthList = allowedIds.length > 0 && allowedIds.every(id => id > 10000000); // Simple check for likely real IDs
-            
+
             if (allowedIds.length > 0 && !allowedIds.includes(userId)) {
                 log(`[router] Blocking unauthorized command attempt from UID: ${userId}`);
                 return ctx.reply(`❌ **Unauthorized Access**\n\nYour Telegram ID is: \`${userId}\`\n\nPlease add this ID to your \`TELEGRAM_ALLOWED_USER_IDS\` inRailway or the \`.env\` file to activate all commands.`, { parse_mode: 'Markdown' });
@@ -125,7 +125,7 @@ export function setupRouter(bot: Telegraf) {
             await ctx.reply(result).catch(() => ctx.reply(result));
         } else {
             const chunks = result.match(/[\s\S]{1,4000}/g) ?? [result];
-            for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
+            for (const chunk of chunks) await ctx.reply(chunk).catch(() => { });
         }
     });
 
@@ -198,21 +198,21 @@ export function setupRouter(bot: Telegraf) {
     bot.command('goal', async (ctx: any) => {
         const text = ctx.message.text.trim();
         const userId = String(ctx.from?.id || 'default');
-        
+
         if (text === '/goal') {
             return ctx.reply("🚀 **Autonomous Goal Mode**\n\nUsage: `/goal [your objective]`\nExample: `/goal Find motivated sellers with >$50k equity in Houston`", { parse_mode: 'Markdown' });
         }
 
         await ctx.reply("🧠 **Claw Architecture Initialized.**\nRunning autonomous pipeline. This may take a few minutes...");
-        
+
         try {
             const result = await handleHapdaCommand(text, userId);
-            
+
             if (result.length <= 4096) {
                 await ctx.reply(result, { parse_mode: 'Markdown' }).catch(() => ctx.reply(result));
             } else {
                 const chunks = result.match(/[\s\S]{1,4000}/g) ?? [result];
-                for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
+                for (const chunk of chunks) await ctx.reply(chunk).catch(() => { });
             }
         } catch (err: any) {
             ctx.reply(`❌ **Goal Failed**: ${err.message}`, { parse_mode: 'Markdown' });
@@ -228,7 +228,7 @@ export function setupRouter(bot: Telegraf) {
                 await ctx.reply(report, { parse_mode: 'Markdown' });
             } else {
                 const chunks = report.match(/[\s\S]{1,4000}/g) ?? [report];
-                for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => {});
+                for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => { });
             }
         } catch (err: any) {
             ctx.reply(`❌ **Briefing failed**: ${err.message}`);
@@ -238,11 +238,11 @@ export function setupRouter(bot: Telegraf) {
     bot.command('decision', async (ctx: any) => {
         const text = ctx.message.text.replace('/decision', '').trim();
         const matches = text.match(/"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
-        
+
         if (!matches) {
             return ctx.reply("📂 **Usage**: `/decision \"title\" \"outcome\" \"logic\"`", { parse_mode: 'Markdown' });
         }
-        
+
         const [_, title, outcome, logic] = matches;
         const res = ExecutiveManager.logDecision(title, logic, outcome);
         ctx.reply(res);

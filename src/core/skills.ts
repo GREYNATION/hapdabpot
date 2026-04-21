@@ -18,8 +18,6 @@ export const SKILLS: Skill[] = [
         primaryAgent: "developer",
         systemPrompt: "You are a Meta-Agent Skill Architect. Your goal is to help the user define, refine, and document new specialized AI skills. Focus on clear objective setting, tool requirements, and persona constraints. Use SKILL.md format and frontmatter."
     },
-    ...SKILLS_DATA, // This is just a conceptual placeholder if I were to split it, but I'll update the array directly.
-];
     {
         id: "data-exploration",
         name: "Data Exploration",
