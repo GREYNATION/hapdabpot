@@ -1,6 +1,6 @@
 import { Telegraf } from "telegraf";
-import { CrmManager } from "../core/crm.js";
 import { log, config } from "../core/config.js";
+import { ExecutiveManager } from "../core/executive/executiveManager.js";
 
 export function startMorningBriefing(bot: Telegraf) {
     const briefingHour = parseInt(process.env.BRIEFING_HOUR || "7");
@@ -17,9 +17,9 @@ export function startMorningBriefing(bot: Telegraf) {
         // Run if it's the right hour AND we haven't run today yet
         if (currentHour === briefingHour && lastRunDate !== currentDate) {
             try {
-                await sendMorningBriefing(bot);
+                await sendExecutiveBriefing(bot);
                 lastRunDate = currentDate;
-                log(`[cron] Morning briefing sent for ${currentDate}`);
+                log(`[cron] Executive morning briefing sent for ${currentDate}`);
             } catch (err: any) {
                 log(`[cron] Failed to send morning briefing: ${err.message}`, "error");
             }
@@ -27,53 +27,26 @@ export function startMorningBriefing(bot: Telegraf) {
     }, 60 * 1000); // Check every minute
 }
 
-async function sendMorningBriefing(bot: Telegraf) {
+async function sendExecutiveBriefing(bot: Telegraf) {
     const ownerId = config.ownerId;
     if (!ownerId) {
         log("[cron] Skip briefing: OWNER_CHAT_ID not set", "warn");
         return;
     }
 
-    const stats = CrmManager.getStats();
-    const hottest = CrmManager.getHottestDeal();
-    const revenue = CrmManager.getTotalRevenue();
-    const followUps = CrmManager.getFollowUpsDueToday();
+    // 1. Generate the sophisticated report
+    const report = await ExecutiveManager.generateMorningBriefing();
 
-    const today = new Date().toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric"
-    });
+    // 2. Wrap and send to Telegram
+    let message = `☀️ **Executive Briefing Initialized**\n\n`;
+    message += report;
 
-    let message = `☀️ **Good morning, Hap!**\n📅 ${today}\n\n`;
-
-    message += `🏗️ **Pipeline Snapshot**\n`;
-    message += `🔵 Leads: ${stats.leads}\n`;
-    message += `📞 Contacted: ${stats.contacted}\n`;
-    message += `✍️ Under Contract: ${stats.contracts || 0}\n\n`;
-
-    message += `⏰ **Follow-Ups Due TODAY: ${followUps.length}**\n`;
-    followUps.forEach(f => {
-        message += `- ${f.address} (${f.seller_name || 'Prospect'}) — 3d+ silent\n`;
-    });
-    message += `\n`;
-
-    if (hottest) {
-        message += `🔥 **Hottest Deal**\n`;
-        message += `📍 ${hottest.address} — $${(hottest.profit || 0).toLocaleString()} profit\n\n`;
-    }
-
-    message += `💰 **Revenue**\n`;
-    message += `Month: $${(revenue.month || 0).toLocaleString()}\n`;
-    message += `All Time: $${(revenue.allTime || 0).toLocaleString()}\n\n`;
-
-    if (followUps.length > 0) {
-        message += `🎯 **Today's Priority**\n`;
-        const p = followUps[0];
-        message += `Call ${p.seller_name || 'Prospect'} at ${p.seller_phone || 'No phone'}\n`;
+    if (message.length <= 4096) {
+        await bot.telegram.sendMessage(ownerId, message, { parse_mode: "Markdown" });
     } else {
-        message += `🎯 **Today's Priority**\nNo urgent follow-ups. Focus on finding new leads!\n`;
+        const chunks = message.match(/[\s\S]{1,4000}/g) ?? [message];
+        for (const chunk of chunks) {
+            await bot.telegram.sendMessage(ownerId, chunk, { parse_mode: "Markdown" }).catch(() => {});
+        }
     }
-
-    await bot.telegram.sendMessage(ownerId, message, { parse_mode: "Markdown" });
 }

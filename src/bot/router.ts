@@ -10,6 +10,7 @@ import { registerCinemaCommands } from '../agents/cinema/cinemaCommand.js';
 import { registerStuyzaCommands } from '../agents/stuyza/stuyzaCommand.js';
 import { PropertyScraper } from '../services/PropertyScraper.js';
 import { handleHapdaCommand } from '../hapda_bot.js';
+import { ExecutiveManager } from '../core/executive/executiveManager.js';
 import { findMotivatedSellers } from '../services/universalLeadScraper.js';
 import { CrmManager } from '../core/crm.js';
 import { listApps, stopApp } from '../core/processManager.js';
@@ -63,7 +64,10 @@ export function setupRouter(bot: Telegraf) {
         "/buildsite <desc> - Website Factory\n" +
         "/leads - CRM management\n" +
         "/stuyza - Video production studio\n" +
-        "/goal <task> - High-performance autonomous goal"
+        "/goal <task> - High-performance autonomous goal\n" +
+        "/brief - Executive Morning Command Center\n" +
+        "/decision \"title\" \"outcome\" \"logic\" - Log decision\n" +
+        "/triage - Manual email/task triage"
     ));
 
     // 3. Real Estate Commands
@@ -215,7 +219,46 @@ export function setupRouter(bot: Telegraf) {
         }
     });
 
-    // 14. Markets & Intelligence
+    // 14. Executive Commands
+    bot.command('brief', async (ctx: any) => {
+        await ctx.reply("🌅 **Generating Executive Briefing...**");
+        try {
+            const report = await ExecutiveManager.generateMorningBriefing();
+            if (report.length <= 4096) {
+                await ctx.reply(report, { parse_mode: 'Markdown' });
+            } else {
+                const chunks = report.match(/[\s\S]{1,4000}/g) ?? [report];
+                for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => {});
+            }
+        } catch (err: any) {
+            ctx.reply(`❌ **Briefing failed**: ${err.message}`);
+        }
+    });
+
+    bot.command('decision', async (ctx: any) => {
+        const text = ctx.message.text.replace('/decision', '').trim();
+        const matches = text.match(/"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
+        
+        if (!matches) {
+            return ctx.reply("📂 **Usage**: `/decision \"title\" \"outcome\" \"logic\"`", { parse_mode: 'Markdown' });
+        }
+        
+        const [_, title, outcome, logic] = matches;
+        const res = ExecutiveManager.logDecision(title, logic, outcome);
+        ctx.reply(res);
+    });
+
+    bot.command('triage', async (ctx: any) => {
+        await ctx.reply("📩 **Running manual email triage...**");
+        try {
+            const pulse = await ExecutiveManager.runTriagePulse();
+            ctx.reply(pulse || "✅ **Inbox Clean**: No high-priority items found.");
+        } catch (err: any) {
+            ctx.reply(`⚠️ **Triage failed**: ${err.message}`);
+        }
+    });
+
+    // 15. Markets & Intelligence
     bot.command('markets', async (ctx: any) => {
         await ctx.reply("📡 Scanning prediction markets...");
         try {

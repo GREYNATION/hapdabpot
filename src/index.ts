@@ -5,6 +5,7 @@ import { startupSequence } from "./core/startup.js";
 import { TelegramBot } from "./bot/telegram.js";
 import { setupRouter } from "./bot/router.js";
 import { initMarketScans } from "./cron/marketScans.js";
+import { startHeartbeat } from "./cron/heartbeat.js";
 import { startWebServer } from "./webServer.js";
 
 // Global crash handlers to catch silent Railway deaths
@@ -42,7 +43,8 @@ async function main() {
         } else {
             log("[index] Step 2: Initializing Market Scans...");
             initMarketScans(bot);
-            log("[index] Step 2 Complete: Market Scans.");
+            startHeartbeat(bot);
+            log("[index] Step 2 Complete: Market Scans & Heartbeat.");
         }
 
         log("[index] Step 3: Starting Web Server...");
