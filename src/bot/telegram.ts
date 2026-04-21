@@ -26,7 +26,7 @@ import {
     listEvents 
 } from '../agents/googleWorkspaceAgent.js';
 import ffmpeg from 'fluent-ffmpeg';
-import { VoiceService } from '../services/voiceService.js';
+import { VoiceService } from '../services/voiceService';
 
 export class TelegramBot {
     private bot: Telegraf;

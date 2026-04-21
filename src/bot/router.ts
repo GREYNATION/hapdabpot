@@ -208,6 +208,10 @@ export function setupRouter(bot: Telegraf) {
         try {
             const result = await handleHapdaCommand(text, userId);
 
+            if (!result) {
+                return ctx.reply("⚠️ **Hapda Algorithm**: No actionable result generated.");
+            }
+
             if (result.length <= 4096) {
                 await ctx.reply(result, { parse_mode: 'Markdown' }).catch(() => ctx.reply(result));
             } else {
@@ -224,6 +228,11 @@ export function setupRouter(bot: Telegraf) {
         await ctx.reply("🌅 **Generating Executive Briefing...**");
         try {
             const report = await ExecutiveManager.generateMorningBriefing();
+            
+            if (!report) {
+                return ctx.reply("📅 **Morning Command Center**: No updates found for today.");
+            }
+
             if (report.length <= 4096) {
                 await ctx.reply(report, { parse_mode: 'Markdown' });
             } else {
@@ -292,6 +301,11 @@ export function setupRouter(bot: Telegraf) {
         // This will be handled by the orchestrator via the intent detection, 
         // but we can provide a quicker response or trigger the agent directly.
         const res = await handleHapdaCommand(`Analyze this request using AgentHub: ${text}`, String(ctx.from?.id));
+        
+        if (!res) {
+            return ctx.reply("⚠️ **AgentHub**: Search returned no matching skills or agents.");
+        }
+
         ctx.reply(res, { parse_mode: 'Markdown' });
     });
 

@@ -8,7 +8,7 @@ import { HiveMind } from './core/hiveMind.js';
 import { CouncilOrchestrator } from './core/orchestrator/councilOrchestrator.js';
 import fs from 'fs';
 import path from 'path';
-import { uploadAudioAndGetUrl, generateVoice } from './services/voiceService.js';
+import { uploadAudioAndGetUrl, generateVoice } from './services/voiceService';
 
 import { serveStatic } from '@hono/node-server/serve-static';
 

@@ -7,7 +7,7 @@ import { GitHubAgent } from "../../agents/githubAgent.js";
 import { MasterTraderAgent } from "../../agents/MasterTraderAgent.js";
 import { MemoryWasherAgent } from "../../agents/memoryWasher.js";
 import { ContentAgent } from "../../agents/ContentAgent.js";
-import { generateVoice } from "../../services/voiceService.js";
+import { generateVoice } from "../../services/voiceService";
 import { log } from "../config.js";
 import { RequestQueue } from "../queue.js";
 

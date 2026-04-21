@@ -8,7 +8,7 @@ import { CrmManager } from './core/crm.js';
 import { SupabaseCrm } from './core/supabaseCrm.js';
 import { sendTelegram, sendSms, generateContract, triggerAICall } from './services/outreachService.js';
 import { classifyLead } from './services/leadFilter.js';
-import { generateVoice, uploadAudioAndGetUrl } from './services/voiceService.js';
+import { generateVoice, uploadAudioAndGetUrl } from './services/voiceService';
 import { getDb } from './core/memory.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
