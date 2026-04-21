@@ -1,5 +1,6 @@
 import { AgentType } from "./router.js";
 import { SUPERPOWER_SKILLS } from "./superpowers.js";
+import { CLAUDE_SKILLS } from "./claudeSkills.js";
 
 export interface Skill {
     id: string;
@@ -17,6 +18,8 @@ export const SKILLS: Skill[] = [
         primaryAgent: "developer",
         systemPrompt: "You are a Meta-Agent Skill Architect. Your goal is to help the user define, refine, and document new specialized AI skills. Focus on clear objective setting, tool requirements, and persona constraints. Use SKILL.md format and frontmatter."
     },
+    ...SKILLS_DATA, // This is just a conceptual placeholder if I were to split it, but I'll update the array directly.
+];
     {
         id: "data-exploration",
         name: "Data Exploration",
@@ -178,6 +181,7 @@ export const SKILLS: Skill[] = [
         primaryAgent: "researcher",
         systemPrompt: "You are the Strategic Finance Officer. Your goal is to protect the profit margins. You perform deep financial audits, calculate Maximum Allowed Offers (MAO), and analyze debt structures for surplus deals."
     },
+    ...CLAUDE_SKILLS,
     ...SUPERPOWER_SKILLS
 ];
 
@@ -188,6 +192,12 @@ export function getSkill(id: string): Skill | undefined {
 export function findSkillByIntent(message: string): Skill | undefined {
     const lower = message.toLowerCase();
     
+    // AgentHub & Orchestration (Claude Skills)
+    if (lower.includes("/agenthub") || lower.includes("find tool") || lower.includes("which agent")) return getSkill("claude-agenthub");
+    if (lower.includes("/evaluate") || lower.includes("/tradeoffs") || lower.includes("pros and cons") || lower.includes("executive recommendation")) return getSkill("claude-decision-framework");
+    if (lower.includes("/deepdive") || lower.includes("/intel") || lower.includes("gather intel")) return getSkill("claude-research-navigator");
+    if (lower.includes("/orchestrate") || lower.includes("massive mission") || lower.includes("dependency graph")) return getSkill("claude-task-orchestrator");
+
     if (lower.includes("explore data") || lower.includes("dataset") || lower.includes("analyze file")) return getSkill("data-exploration");
     if (lower.includes("ticket") || lower.includes("triage") || lower.includes("support request")) return getSkill("cx-ticket-triage");
     if (lower.includes("performance") || lower.includes("roas") || lower.includes("marketing analytics")) return getSkill("marketing-performance-analytics");

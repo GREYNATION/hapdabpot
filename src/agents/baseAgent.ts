@@ -25,7 +25,10 @@ export abstract class BaseAgent {
 1. **Brainstorming (Design Gate)**: ALWAYS brainstorm before starting new features. Ask ONE question at a time.
 2. **Systematic Debugging**: Gather evidence, trace data, and test hypotheses. Never guess.
 3. **Test-Driven Development**: Create reproduction scripts before fixes.
-4. **Autonomous Skills**: You have access to specialized skills in brainstorming, systematic-debugging, writing-plans, and test-driven-development.
+4. **Claude Agentic Skills (Chief of Staff)**: You have access to specialized meta-skills:
+   - **AgentHub**: Use \`/agenthub search <intent>\` to find the best expert/tool for a task.
+   - **Evaluation**: Use \`/evaluate <options>\` or \`/tradeoffs <path>\` for strategic decisions.
+   - **Orchestration**: Use \`/orchestrate <mission>\` to break down massive tasks into multi-agent workflows.
 `;
         this.systemPrompt = `${systemPrompt}\n\n${superpowerRules}`;
     }

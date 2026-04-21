@@ -282,5 +282,18 @@ export function setupRouter(bot: Telegraf) {
         } catch (err: any) { ctx.reply(`⚠️ Google error: ${err.message}`); }
     });
 
+    // 16. Agentic Skills & AgentHub
+    bot.command('agenthub', async (ctx: any) => {
+        const text = ctx.message.text.replace('/agenthub', '').trim();
+        if (!text) {
+            return ctx.reply("🔍 **AgentHub Explorer**\n\nUsage: `/agenthub search <intent>`\nExample: `/agenthub search best agent for mauby audit`", { parse_mode: 'Markdown' });
+        }
+        await ctx.reply("🧠 **Searching AgentHub registry...**");
+        // This will be handled by the orchestrator via the intent detection, 
+        // but we can provide a quicker response or trigger the agent directly.
+        const res = await handleHapdaCommand(`Analyze this request using AgentHub: ${text}`, String(ctx.from?.id));
+        ctx.reply(res, { parse_mode: 'Markdown' });
+    });
+
     log("[router] Routes configured.");
 }
