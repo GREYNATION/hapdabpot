@@ -26,6 +26,7 @@ import {
     listEvents 
 } from '../agents/googleWorkspaceAgent.js';
 import ffmpeg from 'fluent-ffmpeg';
+import { VoiceService } from '../services/voiceService.js';
 
 export class TelegramBot {
     private bot: Telegraf;
@@ -156,15 +157,8 @@ export class TelegramBot {
             try {
                 if ("voice" in msg) {
                     const fileLink = await ctx.telegram.getFileLink(msg.voice.file_id);
-                    const voiceResponse = await axios.get(fileLink.toString(), { responseType: "arraybuffer" });
-                    const voicePath = path.join(process.cwd(), `temp_voice_${chatId}.ogg`);
-                    fs.writeFileSync(voicePath, Buffer.from(voiceResponse.data));
-                    const transcription = await openai.audio.transcriptions.create({
-                        file: fs.createReadStream(voicePath),
-                        model: "whisper-1",
-                    });
-                    userText = transcription.text;
-                    fs.unlinkSync(voicePath);
+                    const buffer = await VoiceService.downloadTelegramFile(fileLink.toString());
+                    userText = await VoiceService.transcribe(buffer, '.oga');
                 } else if ("video" in msg || "video_note" in msg || "photo" in msg) {
                     const media = await this.handleMediaMessage(ctx);
                     userText = media.text;
@@ -186,16 +180,10 @@ export class TelegramBot {
                 if (userText || attachments.length > 0) {
                     await ctx.sendChatAction("typing");
                     
-                    if ("voice" in msg || "audio" in msg) {
-                        // Handle voice-to-voice council session
-                        const { text, voiceBuffer } = await this.council.chatWithVoice(userText, chatId);
-                        await this.safeReply(ctx, `🤖 **Hapdabot Council**\n\n${text}`);
-                        return await ctx.replyWithVoice({ source: voiceBuffer });
-                    } else {
-                        // Standard chat
-                        const response = await this.council.chat(userText, chatId);
-                        return this.safeReply(ctx, `🤖 **Hapdabot Council**\n\n${response}`);
-                    }
+                    // User requested ALWAYS reply with voice onyx
+                    const { text, voiceBuffer } = await this.council.chatWithVoice(userText, chatId);
+                    await this.safeReply(ctx, `🤖 **Hapdabot Council**\n\n${text}`);
+                    return await ctx.replyWithVoice({ source: voiceBuffer });
                 }
             } catch (err: any) { await this.safeReply(ctx, `⚠️ Error: ${err.message}`); }
         });

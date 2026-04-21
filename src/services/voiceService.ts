@@ -1,78 +1,89 @@
-import { config, log } from "../core/config.js";
-import fetch from "node-fetch";
-import { getSupabase } from "../core/supabase.js";
-import { openai } from "../core/ai.js";
-import crypto from "crypto";
+import fs from 'fs';
+import path from 'path';
+import { log } from '../core/config.js';
+import { openai } from '../core/ai.js';
+import ffmpeg from 'fluent-ffmpeg';
+import { promisify } from 'util';
+import fetch from 'node-fetch';
 
 /**
- * Generates high-fidelity human voice audio buffer via ElevenLabs
+ * VoiceService — Handles STT (Whisper) and TTS (OpenAI)
  */
-export async function generateVoice(text: string): Promise<Buffer> {
-    log(`[voice] 🎙️ Generating realistic speech via OpenAI TTS: "${text.substring(0, 30)}..."`);
+export class VoiceService {
+    private static TEMP_DIR = path.resolve('./temp/voice');
 
-    try {
+    static init() {
+        if (!fs.existsSync(this.TEMP_DIR)) {
+            fs.mkdirSync(this.TEMP_DIR, { recursive: true });
+        }
+    }
+
+    /**
+     * STT: Transcribe Audio Buffer
+     */
+    static async transcribe(buffer: Buffer, originalExt: string = '.oga'): Promise<string> {
+        this.init();
+        const inputPath = path.join(this.TEMP_DIR, `input_${Date.now()}${originalExt}`);
+        const outputPath = path.join(this.TEMP_DIR, `output_${Date.now()}.mp3`);
+
+        fs.writeFileSync(inputPath, buffer);
+
+        try {
+            // Convert to MP3 if needed (OpenAI likes mp3/m4a/wav)
+            await this.convertToMp3(inputPath, outputPath);
+
+            const transcription = await openai.audio.transcriptions.create({
+                file: fs.createReadStream(outputPath),
+                model: "whisper-1",
+            });
+
+            return transcription.text;
+        } finally {
+            // Cleanup
+            if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+        }
+    }
+
+    /**
+     * TTS: Synthesize Speech
+     */
+    static async synthesize(text: string, voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" = "onyx"): Promise<Buffer> {
+        log(`[voice] Synthesizing speech with voice: ${voice}`);
         const mp3 = await openai.audio.speech.create({
             model: "tts-1",
-            voice: "onyx",
+            voice: voice,
             input: text,
         });
 
         const buffer = Buffer.from(await mp3.arrayBuffer());
         return buffer;
-    } catch (err: any) {
-        log(`[voice] ❌ OpenAI TTS failed: ${err.message}`, "error");
-        throw err;
+    }
+
+    /**
+     * Helper: Convert audio to MP3 using fluent-ffmpeg
+     */
+    private static convertToMp3(input: string, output: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            ffmpeg(input)
+                .toFormat('mp3')
+                .on('end', () => resolve())
+                .on('error', (err) => reject(err))
+                .save(output);
+        });
+    }
+
+    /**
+     * Download file from Telegram URL
+     */
+    static async downloadTelegramFile(url: string): Promise<Buffer> {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Failed to download file from ${url}`);
+        return Buffer.from(await res.arrayBuffer());
     }
 }
 
 /**
- * Generates voice, uploads to Supabase, and returns a public URL.
- * Uses MD5 of text+voiceId for persistent caching.
+ * Global Export for compatibility 
  */
-export async function uploadAudioAndGetUrl(text: string): Promise<string> {
-    const hash = crypto.createHash("md5").update(text + "openai-onyx").digest("hex");
-    const fileName = `${hash}.mp3`;
-    const bucketName = "voice-cache";
-
-    const supabaseInstance = getSupabase();
-    if (!supabaseInstance) {
-        log("[voice] ❌ Supabase not connected. Using fallback URL.", "warn");
-        return `${process.env.BASE_URL}/api/voice/audio?text=${encodeURIComponent(text)}`;
-    }
-
-    try {
-        // 1. Check if file already exists in Supabase
-        const { data: existingFile } = await supabaseInstance.storage.from(bucketName).list("", {
-            search: fileName
-        });
-
-        if (existingFile && existingFile.length > 0) {
-            log(`[voice] 🚀 Cache hit! Found existing audio for hash ${hash}`);
-            const { data } = supabaseInstance.storage.from(bucketName).getPublicUrl(fileName);
-            return data.publicUrl;
-        }
-
-        // 2. Generate new voice audio
-        const buffer = await generateVoice(text);
-
-        // 3. Upload to Supabase Storage
-        log(`[voice] 📤 Uploading new audio to Supabase: ${fileName}`);
-        const { error: uploadError } = await supabaseInstance.storage
-            .from(bucketName)
-            .upload(fileName, buffer, {
-                contentType: "audio/mpeg",
-                cacheControl: "3600",
-                upsert: false
-            });
-
-        if (uploadError) throw uploadError;
-
-        // 4. Get and return Public URL
-        const { data } = supabaseInstance.storage.from(bucketName).getPublicUrl(fileName);
-        return data.publicUrl;
-    } catch (err: any) {
-        log(`[voice] ❌ Upload/GetUrl failed: ${err.message}`, "error");
-        // Fallback to the old streaming URL route if upload fails
-        return `/api/voice/audio?text=${encodeURIComponent(text)}`;
-    }
-}
+export const generateVoice = (text: string) => VoiceService.synthesize(text, "onyx");
