@@ -9,6 +9,7 @@ import { registerLeadCommands } from '../commands/leads.js';
 import { registerCinemaCommands } from '../agents/cinema/cinemaCommand.js';
 import { registerStuyzaCommands } from '../agents/stuyza/stuyzaCommand.js';
 import { PropertyScraper } from '../services/PropertyScraper.js';
+import { handleHapdaCommand } from '../hapda_bot.js';
 import { findMotivatedSellers } from '../services/universalLeadScraper.js';
 import { CrmManager } from '../core/crm.js';
 import { listApps, stopApp } from '../core/processManager.js';
@@ -61,7 +62,8 @@ export function setupRouter(bot: Telegraf) {
         "/ads <skill> - Global Outreach strategy\n" +
         "/buildsite <desc> - Website Factory\n" +
         "/leads - CRM management\n" +
-        "/stuyza - Video production studio"
+        "/stuyza - Video production studio\n" +
+        "/goal <task> - High-performance autonomous goal"
     ));
 
     // 3. Real Estate Commands
@@ -188,7 +190,32 @@ export function setupRouter(bot: Telegraf) {
         // but we trigger the intent here.
     });
 
-    // 13. Markets & Intelligence
+    // 13. High-Performance Autonomous Goal (Hapda Engine)
+    bot.command('goal', async (ctx: any) => {
+        const text = ctx.message.text.trim();
+        const userId = String(ctx.from?.id || 'default');
+        
+        if (text === '/goal') {
+            return ctx.reply("🚀 **Autonomous Goal Mode**\n\nUsage: `/goal [your objective]`\nExample: `/goal Find motivated sellers with >$50k equity in Houston`", { parse_mode: 'Markdown' });
+        }
+
+        await ctx.reply("🧠 **Claw Architecture Initialized.**\nRunning autonomous pipeline. This may take a few minutes...");
+        
+        try {
+            const result = await handleHapdaCommand(text, userId);
+            
+            if (result.length <= 4096) {
+                await ctx.reply(result, { parse_mode: 'Markdown' }).catch(() => ctx.reply(result));
+            } else {
+                const chunks = result.match(/[\s\S]{1,4000}/g) ?? [result];
+                for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
+            }
+        } catch (err: any) {
+            ctx.reply(`❌ **Goal Failed**: ${err.message}`, { parse_mode: 'Markdown' });
+        }
+    });
+
+    // 14. Markets & Intelligence
     bot.command('markets', async (ctx: any) => {
         await ctx.reply("📡 Scanning prediction markets...");
         try {

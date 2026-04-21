@@ -201,6 +201,7 @@ async function callGroq(
         const msg = completion.choices[0].message;
         const tool_calls = msg.tool_calls?.map((tc) => ({
             id: tc.id,
+            type: "function" as const,
             function: { name: tc.function.name, arguments: tc.function.arguments },
         }));
 
