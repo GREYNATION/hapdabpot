@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
+import { execSync } from "child_process";
 
 /**
  * 🛠️ DEPRECATION SUPPRESSION
@@ -51,7 +52,21 @@ if (!fs.existsSync(dbDir)) {
     initLog(`✅ Storage directory confirmed: ${dbDir}`);
 }
 
-// 3. Log System Status
+// 3. Clone n8n templates if missing
+const templatesDir = path.resolve("./n8n-templates");
+if (!fs.existsSync(templatesDir)) {
+    try {
+        initLog("Cloning n8n templates repository...");
+        execSync("git clone https://github.com/enescingoz/awesome-n8n-templates.git n8n-templates", { stdio: "inherit" });
+        initLog("✅ n8n templates ready.");
+    } catch (err: any) {
+        initLog(`⚠️ Could not clone n8n templates: ${err.message}`);
+    }
+} else {
+    initLog("✅ n8n templates directory confirmed.");
+}
+
+// 4. Log System Status
 initLog(`CWD: ${process.cwd()}`);
 initLog(`Resolved DB Path: ${dbPath}`);
 
