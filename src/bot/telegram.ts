@@ -26,7 +26,7 @@ import {
     listEvents 
 } from '../agents/googleWorkspaceAgent.js';
 import ffmpeg from 'fluent-ffmpeg';
-import { VoiceService } from '../services/voiceService';
+import { VoiceService } from '../services/voiceService.js';
 
 export class TelegramBot {
     private bot: Telegraf;
@@ -75,7 +75,15 @@ export class TelegramBot {
             return await ctx.reply(text, options);
         } catch (err: any) {
             log(`[bot] Reply failed: ${err.message}`, "error");
-            return await ctx.reply(text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&"));
+            
+            // If it's a markdown error, try regular text with escaping
+            if (err.message?.includes("can't parse entities")) {
+                const escaped = text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
+                return await ctx.reply(escaped).catch(e => log(`[bot] Escaped reply also failed: ${e.message}`, "error"));
+            }
+            
+            // Fallback for connection errors or other generic failures
+            return await ctx.reply("⚠️ I'm having trouble responding right now. Please try again in secondary mode.");
         }
     }
 
@@ -180,12 +188,22 @@ export class TelegramBot {
                 if (userText || attachments.length > 0) {
                     await ctx.sendChatAction("typing");
                     
-                    // User requested ALWAYS reply with voice onyx
-                    const { text, voiceBuffer } = await this.council.chatWithVoice(userText, chatId);
-                    await this.safeReply(ctx, `🤖 **Hapdabot Council**\n\n${text}`);
-                    return await ctx.replyWithVoice({ source: voiceBuffer });
+                    try {
+                        const { text, voiceBuffer } = await this.council.chatWithVoice(userText, chatId);
+                        await this.safeReply(ctx, `🤖 **Hapdabot Council**\n\n${text}`);
+                        return await ctx.replyWithVoice({ source: voiceBuffer });
+                    } catch (councilErr: any) {
+                        log(`[council] Processing failed: ${councilErr.message}`, "error");
+                        if (councilErr.message?.toLowerCase().includes("rate limit") || councilErr.message?.includes("429")) {
+                            return await this.safeReply(ctx, "⏳ **The Council is currently saturated.**\n\nRate limits reached. I'll be back in ~60 seconds once the circuit breaker resets.");
+                        }
+                        return await this.safeReply(ctx, "🤖 **The Council encountered a logic tear.**\n\nI've logged the error. Trying to recover...");
+                    }
                 }
-            } catch (err: any) { await this.safeReply(ctx, `⚠️ Error: ${err.message}`); }
+            } catch (err: any) { 
+                log(`[bot] Top-level handler catch: ${err.message}`, "error");
+                await this.safeReply(ctx, `⚠️ **System Alert**: ${err.message}`); 
+            }
         });
     }
 

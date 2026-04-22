@@ -8,7 +8,7 @@ import { HiveMind } from './core/hiveMind.js';
 import { CouncilOrchestrator } from './core/orchestrator/councilOrchestrator.js';
 import fs from 'fs';
 import path from 'path';
-import { uploadAudioAndGetUrl, generateVoice } from './services/voiceService';
+import { uploadAudioAndGetUrl, generateVoice } from './services/voiceService.js';
 
 import { serveStatic } from '@hono/node-server/serve-static';
 
@@ -56,7 +56,7 @@ app.post('/api/voice', async (c) => {
     if (!text) return c.json({ success: false, error: 'Text required' }, 400);
 
     try {
-        const audioUrl = await uploadAudioAndGetUrl(text);
+        const audioUrl = await uploadAudioAndGetUrl(await generateVoice(text));
         return c.json({ success: true, audioUrl });
     } catch (err: any) {
         return c.json({ success: false, error: err.message }, 500);

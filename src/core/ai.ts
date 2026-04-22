@@ -49,10 +49,14 @@ function checkBreaker() {
 }
 
 function handleFailure(err: any) {
-    if (err.status === 429) {
+    const isRateLimit = err.status === 429 || 
+                       (err.message && err.message.toLowerCase().includes("rate limit")) ||
+                       (err.message && err.message.toLowerCase().includes("429"));
+
+    if (isRateLimit) {
         consecutiveFailures++;
         if (consecutiveFailures >= BREAKER_THRESHOLD) {
-            log(`[ai] Circuit Breaker TRIPPED due to consecutive 429s. Pausing for ${BREAKER_COOLDOWN/1000}s.`, "error");
+            log(`[ai] Circuit Breaker TRIPPED due to consecutive rate limits. Pausing for ${BREAKER_COOLDOWN/1000}s.`, "error");
             circuitBreakerOpen = true;
             setTimeout(() => {
                 circuitBreakerOpen = false;
@@ -286,21 +290,28 @@ export async function askAI(
             resetFailure();
             return response;
         } catch (err: any) {
-            if (err.status === 429 && attempt < maxRetries) {
+            const isRateLimit = err.status === 429 || 
+                               err.message?.toLowerCase().includes("rate limit") ||
+                               err.message?.toLowerCase().includes("429");
+
+            if (isRateLimit && attempt < maxRetries) {
                 attempt++;
                 handleFailure(err);
                 const backoffMs = Math.pow(2, attempt) * 1000;
-                log(`[ai] 429 encountered. Retrying in ${backoffMs}ms (Attempt ${attempt}/${maxRetries})...`, "warn");
+                log(`[ai] Rate limit/429 encountered. Retrying in ${backoffMs}ms (Attempt ${attempt}/${maxRetries})...`, "warn");
                 await new Promise(r => setTimeout(r, backoffMs));
                 return executeWithBackoff();
             }
 
-            log(`[ai] AI call failed: ${err.message}. ${config.openaiApiKey && isGroqMode ? "Attempting OpenRouter fallback..." : "No fallback available."}`, "error");
+            log(`[ai] AI call failed: ${err.message}. ${config.openaiApiKey ? "Attempting OpenRouter fallback..." : "No fallback available."}`, "error");
             
-            if (isGroqMode && config.openaiApiKey && !isExplicitCloud) {
+            // Fallback strategy: If any call fails (not just 429), try OpenRouter as long as we have a token/config
+            if (!model.includes("openrouter")) {
                 try {
+                    log(`[ai] Triggering emergency OpenRouter fallback for intent: ${prompt.substring(0, 30)}...`);
                     return await withTimeout(callOpenRouter(messages, { ...options, tools: options.tools }), 90_000, "askAI:openrouter:fallback");
-                } catch (fallbackErr) {
+                } catch (fallbackErr: any) {
+                    log(`[ai] Fallback also failed: ${fallbackErr.message}`, "error");
                     throw fallbackErr;
                 }
             }

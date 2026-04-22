@@ -7,7 +7,7 @@ import { GitHubAgent } from "../../agents/githubAgent.js";
 import { MasterTraderAgent } from "../../agents/MasterTraderAgent.js";
 import { MemoryWasherAgent } from "../../agents/memoryWasher.js";
 import { ContentAgent } from "../../agents/ContentAgent.js";
-import { generateVoice } from "../../services/voiceService";
+import { generateVoice } from "../../services/voiceService.js";
 import { log } from "../config.js";
 import { RequestQueue } from "../queue.js";
 
@@ -41,21 +41,38 @@ export class CouncilOrchestrator {
         // 2. Execute tasks sequentially (to avoid 429 rate limits)
         const responses: string[] = [];
         for (const task of tasks) {
-            try {
-                const agent = this.instantiateAgent(task.agent);
-                log(`[council] Executing ${task.agent}...`);
-                const result = await agent.ask(task.task);
-                const agentName = agent.getName ? agent.getName() : task.agent;
-                responses.push(`**[${agentName}]**: ${result.content || result}`);
-                
-                // Increased delay between tasks to stay under provider rate limits
-                await new Promise(r => setTimeout(r, 3000));
-            } catch (err: any) {
-                responses.push(`**[${task.agent}]** Error: ${err.message}`);
+            let success = false;
+            let retries = 2;
+            let lastError = "";
+
+            while (!success && retries >= 0) {
+                try {
+                    const agent = this.instantiateAgent(task.agent);
+                    log(`[council] Executing ${task.agent} (Retries left: ${retries})...`);
+                    const result = await agent.ask(task.task);
+                    const agentName = agent.getName ? agent.getName() : task.agent;
+                    responses.push(`**[${agentName}]**: ${result.content || result}`);
+                    success = true;
+                    
+                    // Increased delay between tasks to stay under provider rate limits
+                    await new Promise(r => setTimeout(r, 2000));
+                } catch (err: any) {
+                    lastError = err.message;
+                    retries--;
+                    if (retries >= 0) {
+                        const delay = (2 - retries) * 5000;
+                        log(`[council] Task ${task.agent} failed: ${err.message}. Retrying in ${delay}ms...`, "warn");
+                        await new Promise(r => setTimeout(r, delay));
+                    }
+                }
+            }
+
+            if (!success) {
+                responses.push(`**[${task.agent}]** Error: ${lastError}`);
             }
         }
 
-        const finalOutput = responses.join("\n\n");
+        const finalOutput = responses.join("\n\n") || "I processed your request but didn't generate a specific response. How else can I help?";
 
         // 3. Autonomous Background Wash
         this.washer.wash(chatId).catch(e => 

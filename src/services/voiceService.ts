@@ -28,16 +28,34 @@ export class VoiceService {
 
         fs.writeFileSync(inputPath, buffer);
 
+        let attempt = 0;
+        const maxRetries = 2;
+
+        const attemptTranscription = async (): Promise<string> => {
+            try {
+                // Convert to MP3 if needed (OpenAI likes mp3/m4a/wav)
+                await this.convertToMp3(inputPath, outputPath);
+
+                const transcription = await openai.audio.transcriptions.create({
+                    file: fs.createReadStream(outputPath),
+                    model: "whisper-1",
+                });
+
+                return transcription.text;
+            } catch (err: any) {
+                if (attempt < maxRetries) {
+                    attempt++;
+                    const delay = attempt * 2000;
+                    log(`[voice] Transcription failed: ${err.message}. Retrying in ${delay}ms...`, "warn");
+                    await new Promise(r => setTimeout(r, delay));
+                    return attemptTranscription();
+                }
+                throw err;
+            }
+        };
+
         try {
-            // Convert to MP3 if needed (OpenAI likes mp3/m4a/wav)
-            await this.convertToMp3(inputPath, outputPath);
-
-            const transcription = await openai.audio.transcriptions.create({
-                file: fs.createReadStream(outputPath),
-                model: "whisper-1",
-            });
-
-            return transcription.text;
+            return await attemptTranscription();
         } finally {
             // Cleanup
             if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
@@ -77,9 +95,28 @@ export class VoiceService {
      * Download file from Telegram URL
      */
     static async downloadTelegramFile(url: string): Promise<Buffer> {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Failed to download file from ${url}`);
-        return Buffer.from(await res.arrayBuffer());
+        let attempts = 0;
+        const maxAttempts = 3;
+
+        while (attempts < maxAttempts) {
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 15000);
+                const res = await fetch(url, { signal: controller.signal as any });
+                clearTimeout(timeout);
+                
+                if (!res.ok) throw new Error(`Failed to download file from ${url}`);
+                const arrayBuffer = await res.arrayBuffer();
+                return Buffer.from(arrayBuffer);
+            } catch (err: any) {
+                attempts++;
+                if (attempts >= maxAttempts) throw err;
+                const delay = attempts * 3000;
+                log(`[voice] Telegram download failed: ${err.message}. Retrying in ${delay}ms...`, "warn");
+                await new Promise(r => setTimeout(r, delay));
+            }
+        }
+        throw new Error("Download failed after all retries.");
     }
 }
 
@@ -87,3 +124,8 @@ export class VoiceService {
  * Global Export for compatibility 
  */
 export const generateVoice = (text: string) => VoiceService.synthesize(text, "onyx");
+
+export async function uploadAudioAndGetUrl(file: Buffer): Promise<string> {
+  // TODO: implement upload (S3, Supabase, etc.)
+  return "https://placeholder-url.com/audio.mp3";
+}

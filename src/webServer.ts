@@ -8,7 +8,7 @@ import { CrmManager } from './core/crm.js';
 import { SupabaseCrm } from './core/supabaseCrm.js';
 import { sendTelegram, sendSms, generateContract, triggerAICall } from './services/outreachService.js';
 import { classifyLead } from './services/leadFilter.js';
-import { generateVoice, uploadAudioAndGetUrl } from './services/voiceService';
+import { generateVoice, uploadAudioAndGetUrl } from './services/voiceService.js';
 import { getDb } from './core/memory.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -118,7 +118,7 @@ app.post('/api/voice', async (req: Request, res: Response) => {
   if (!text) return res.status(400).json({ success: false, error: 'Text required' });
 
   try {
-      const audioUrl = await uploadAudioAndGetUrl(text);
+      const audioUrl = await uploadAudioAndGetUrl(await generateVoice(text));
       return res.json({ success: true, audioUrl });
   } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
@@ -200,7 +200,7 @@ app.get('/api/voice/audio', async (req: Request, res: Response) => {
 app.post('/api/voice/surplus', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
   const dealId = req.query.dealId || req.body.dealId;
   const intro = "Hi there, I'm just calling about a property you used to own. It looks like there might be some funds available to you. Are you the owner?";
-  const audioUrl = await uploadAudioAndGetUrl(intro);
+  const audioUrl = await uploadAudioAndGetUrl(await generateVoice(intro));
   
   const twiml = `
 <Response>
@@ -258,7 +258,7 @@ app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: R
   log(`[Twilio Voice] Owner said: "${speech}"`);
 
   const endCall = async (message: string) => {
-    const audioUrl = await uploadAudioAndGetUrl(message);
+    const audioUrl = await uploadAudioAndGetUrl(await generateVoice(message));
     res.setHeader("Content-Type", "text/xml");
     return res.send(`<Response><Play>${audioUrl}</Play><Hangup/></Response>`);
   };
@@ -308,7 +308,7 @@ app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: R
   - Respond briefly to what they just said
   `, "You are Claw, a calm and trustworthy assistant helping homeowners recover funds.");
 
-    const audioUrl = await uploadAudioAndGetUrl(aiResponse.content);
+    const audioUrl = await uploadAudioAndGetUrl(await generateVoice(aiResponse.content));
 
     const twiml = `
 <Response>
