@@ -23,9 +23,11 @@ import {
     listEvents
 } from '../agents/googleWorkspaceAgent.js';
 import { getDb } from '../core/memory.js';
+import { handleN8nCommand } from '../agents/n8nAgent/n8nAgent.js';
 
 export function setupRouter(bot: Telegraf) {
     log("[router] Initializing Command Router...");
+
 
     // Global Middleware for Permission Check
     bot.use(async (ctx: any, next) => {
@@ -67,8 +69,10 @@ export function setupRouter(bot: Telegraf) {
         "/goal <task> - High-performance autonomous goal\n" +
         "/brief - Executive Morning Command Center\n" +
         "/decision \"title\" \"outcome\" \"logic\" - Log decision\n" +
-        "/triage - Manual email/task triage"
+        "/triage - Manual email/task triage\n" +
+        "/n8n [list|templates|trigger] - n8n Workflow Intelligence"
     ));
+
 
     // 3. Real Estate Commands
     bot.command('scrape', async (ctx: any) => {
@@ -291,7 +295,20 @@ export function setupRouter(bot: Telegraf) {
         } catch (err: any) { ctx.reply(`⚠️ Google error: ${err.message}`); }
     });
 
+    // 15. n8n Integration
+    bot.command('n8n', async (ctx: any) => {
+        const text = ctx.message.text.replace('/n8n', '').trim();
+        await ctx.reply("🤖 **n8n Operation Initialized...**");
+        try {
+            const res = await handleN8nCommand(text);
+            ctx.reply(String(res), { parse_mode: 'Markdown' });
+        } catch (err: any) {
+            ctx.reply(`❌ n8n Error: ${err.message}`);
+        }
+    });
+
     // 16. Agentic Skills & AgentHub
+
     bot.command('agenthub', async (ctx: any) => {
         const text = ctx.message.text.replace('/agenthub', '').trim();
         if (!text) {

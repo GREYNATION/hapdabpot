@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // Google Workspace Agent
 // Drive, Docs, Slides, Sheets, Gmail, Calendar â€” all via
 // googleapis Node.js client with OAuth2 refresh token
@@ -8,6 +8,8 @@ import { google } from "googleapis";
 import { log } from "../core/config.js";
 
 // â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export let googleAuthBroken = false;
+
 function getAuth() {
     const oAuth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
@@ -19,7 +21,31 @@ function getAuth() {
 }
 
 export function isGoogleEnabled(): boolean {
-    return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REFRESH_TOKEN);
+    return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REFRESH_TOKEN) && !googleAuthBroken;
+}
+
+export function resetGoogleAuthStatus() {
+    googleAuthBroken = false;
+}
+
+/**
+ * Global wrapper to catch auth failures (invalid_grant)
+ */
+async function wrapAuth<T>(fn: () => Promise<T>): Promise<T> {
+    if (googleAuthBroken) throw new Error("Google Auth is currently broken (invalid_grant). Needs re-authentication.");
+    
+    try {
+        return await fn();
+    } catch (err: any) {
+        if (err.message?.includes('invalid_grant')) {
+            if (!googleAuthBroken) {
+                log("⚠️ CRITICAL: Google OAuth 'invalid_grant' detected. TOKEN REVOKED OR EXPIRED.", "error");
+                log("ACTION REQUIRED: User must regenerate GOOGLE_REFRESH_TOKEN.", "warn");
+                googleAuthBroken = true;
+            }
+        }
+        throw err;
+    }
 }
 
 // â”€â”€ DRIVE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -113,19 +139,21 @@ export async function createSheet(title: string): Promise<string> {
 
 // â”€â”€ GMAIL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function listEmails(query = "is:unread", maxResults = 5): Promise<string> {
-    const gmail = google.gmail({ version: "v1", auth: getAuth() });
-    const list = await gmail.users.messages.list({ userId: "me", q: query, maxResults });
-    const messages = list.data.messages ?? [];
-    if (messages.length === 0) return "ðŸ“­ No emails found.";
+    return wrapAuth(async () => {
+        const gmail = google.gmail({ version: "v1", auth: getAuth() });
+        const list = await gmail.users.messages.list({ userId: "me", q: query, maxResults });
+        const messages = list.data.messages ?? [];
+        if (messages.length === 0) return "📫 No emails found.";
 
-    const details = await Promise.all(messages.map(async (m) => {
-        const msg = await gmail.users.messages.get({ userId: "me", id: m.id!, format: "metadata", metadataHeaders: ["From", "Subject", "Date"] });
-        const headers = msg.data.payload?.headers ?? [];
-        const get = (name: string) => headers.find((h: any) => h.name === name)?.value ?? "N/A";
-        return `ðŸ“§ From: ${get("From")}\n   Subject: ${get("Subject")}\n   Date: ${get("Date")}`;
-    }));
+        const details = await Promise.all(messages.map(async (m) => {
+            const msg = await gmail.users.messages.get({ userId: "me", id: m.id!, format: "metadata", metadataHeaders: ["From", "Subject", "Date"] });
+            const headers = msg.data.payload?.headers ?? [];
+            const get = (name: string) => headers.find((h: any) => h.name === name)?.value ?? "N/A";
+            return `📧 From: ${get("From")}\n   Subject: ${get("Subject")}\n   Date: ${get("Date")}`;
+        }));
 
-    return details.join("\n\n");
+        return details.join("\n\n");
+    });
 }
 
 export async function sendEmail(to: string, subject: string, body: string): Promise<string> {

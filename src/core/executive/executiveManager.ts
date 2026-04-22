@@ -115,16 +115,24 @@ export class ExecutiveManager {
      * Workflow #3 & #22: Triage Pulse
      */
     static async runTriagePulse(): Promise<string | null> {
-        if (!isGoogleEnabled()) return null;
+        if (!isGoogleEnabled() && !googleAuthBroken) return null;
 
         log("[executive] Running Heartbeat Triage Pulse...");
-        const unreadCount = await listEmails("is:unread", 1);
         
-        if (unreadCount.includes("No emails found")) {
-            return null;
-        }
+        try {
+            const unreadCount = await listEmails("is:unread", 1);
+            
+            if (unreadCount.includes("No emails found")) {
+                return null;
+            }
 
-        return `🔔 **Urgent Pulse**: Unread high-priority communications detected.\n\n${unreadCount}`;
+            return `🔔 **Urgent Pulse**: Unread high-priority communications detected.\n\n${unreadCount}`;
+        } catch (err: any) {
+            if (err.message?.includes("re-authentication")) {
+                return `⚠️ **SYSTEM ALERT**: Google Workspace disconnected (invalid_grant).\n\n**Action Required**: Please regenerate your \`GOOGLE_REFRESH_TOKEN\` in Railway to restore Gmail/Calendar triage.`;
+            }
+            throw err;
+        }
     }
 
     /**

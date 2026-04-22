@@ -5,12 +5,12 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "NODE_OPTIONS='--no-deprecation' tsx src/index.ts",
+    "dev": "cross-env NODE_OPTIONS=--no-deprecation tsx src/index.ts",
     "build": "tsc && node scripts/sync-assets.js",
-    "start": "NODE_OPTIONS='--no-deprecation' node dist/index.js",
+    "start": "cross-env NODE_OPTIONS=--no-deprecation node dist/index.js",
     "deploy": "npm run build && npm start",
     "typecheck": "tsc --noEmit",
-    "bot": "NODE_OPTIONS='--no-deprecation' tsx src/bot.ts"
+    "bot": "cross-env NODE_OPTIONS=--no-deprecation tsx src/bot.ts"
   },
   "keywords": [],
   "author": "",
@@ -32,6 +32,7 @@
     "better-sqlite3": "^12.8.0",
     "cheerio": "^1.2.0",
     "cors": "^2.8.6",
+    "cross-env": "^10.1.0",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.2",

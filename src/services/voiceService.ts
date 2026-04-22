@@ -43,14 +43,19 @@ export class VoiceService {
 
                 return transcription.text;
             } catch (err: any) {
-                if (attempt < maxRetries) {
+                // Network/Connection errors merit a retry
+                const isRetryable = err.message?.includes('Connection') || err.status >= 500;
+                
+                if (isRetryable && attempt < maxRetries) {
                     attempt++;
                     const delay = attempt * 2000;
-                    log(`[voice] Transcription failed: ${err.message}. Retrying in ${delay}ms...`, "warn");
+                    log(`[voice] Transcription transient error: ${err.message}. Retrying (${attempt}/${maxRetries}) in ${delay}ms...`, "warn");
                     await new Promise(r => setTimeout(r, delay));
                     return attemptTranscription();
                 }
-                throw err;
+                
+                log(`[voice] Transcription FAILED permanently: ${err.message}`, "error");
+                return "[Audio Transcription Unavailable — Connection Error]";
             }
         };
 
