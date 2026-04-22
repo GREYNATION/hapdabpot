@@ -2,6 +2,7 @@ import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { execSync } from "child_process";
+import https from "https";
 
 /**
  * 🛠️ DEPRECATION SUPPRESSION
@@ -56,11 +57,21 @@ if (!fs.existsSync(dbDir)) {
 const templatesDir = path.resolve("./n8n-templates");
 if (!fs.existsSync(templatesDir)) {
     try {
+        initLog("Preparing n8n templates...");
+
+        // Try to install git if on a debian-based system
+        try {
+            execSync("apt-get update && apt-get install -y git 2>/dev/null", { stdio: "ignore" });
+        } catch {
+            // Silently fail if not on Linux or no root
+        }
+
         initLog("Cloning n8n templates repository...");
         execSync("git clone https://github.com/enescingoz/awesome-n8n-templates.git n8n-templates", { stdio: "inherit" });
         initLog("✅ n8n templates ready.");
     } catch (err: any) {
         initLog(`⚠️ Could not clone n8n templates: ${err.message}`);
+        initLog("👉 Please manually run: git clone https://github.com/enescingoz/awesome-n8n-templates.git n8n-templates");
     }
 } else {
     initLog("✅ n8n templates directory confirmed.");
