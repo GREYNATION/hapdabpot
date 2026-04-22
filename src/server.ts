@@ -71,8 +71,9 @@ app.get('/api/voice/audio', async (c) => {
 
     try {
         const buffer = await generateVoice(text);
+        if (!buffer) return c.text('Voice generation failed', 500);
         c.header('Content-Type', 'audio/mpeg');
-        return c.body(buffer as any);
+        return c.body(buffer);
     } catch (err: any) {
         return c.text('Voice generation failed', 500);
     }
