@@ -191,7 +191,9 @@ export class TelegramBot {
                     try {
                         const { text, voiceBuffer } = await this.council.chatWithVoice(userText, chatId);
                         await this.safeReply(ctx, `🤖 **Hapdabot Council**\n\n${text}`);
-                        return await ctx.replyWithVoice({ source: voiceBuffer });
+                        if (voiceBuffer) {
+                            return await ctx.replyWithVoice({ source: voiceBuffer });
+                        }
                     } catch (councilErr: any) {
                         log(`[council] Processing failed: ${councilErr.message}`, "error");
                         console.error("[CORTEX ERROR]:", councilErr); // Log full stack for "Logic Tear" debugging

@@ -286,6 +286,7 @@ export async function askAI(
                 return response;
             }
 
+            // Default to OpenRouter or primary Cloud
             const response = await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
             resetFailure();
             return response;
@@ -293,26 +294,38 @@ export async function askAI(
             const isRateLimit = err.status === 429 || 
                                err.message?.toLowerCase().includes("rate limit") ||
                                err.message?.toLowerCase().includes("429");
+            
+            const isCreditOrModelError = err.status === 402 || 
+                                        err.status === 400 || 
+                                        err.message?.toLowerCase().includes("credit") ||
+                                        err.message?.toLowerCase().includes("not exist");
 
             if (isRateLimit && attempt < maxRetries) {
                 attempt++;
                 handleFailure(err);
                 const backoffMs = Math.pow(2, attempt) * 1000;
-                log(`[ai] Rate limit/429 encountered. Retrying in ${backoffMs}ms (Attempt ${attempt}/${maxRetries})...`, "warn");
+                log(`[ai] Rate limit encountered. Retrying in ${backoffMs}ms...`, "warn");
                 await new Promise(r => setTimeout(r, backoffMs));
                 return executeWithBackoff();
             }
 
-            log(`[ai] AI call failed: ${err.message}. ${config.openaiApiKey ? "Attempting OpenRouter fallback..." : "No fallback available."}`, "error");
+            if (isCreditOrModelError) {
+                log(`[ai] Provider issue (${err.status}): ${err.message}. Triggering emergency Groq fallback...`, "error");
+                // Explicitly force Groq fallback if OpenRouter/Anthropic fails due to credits
+                try {
+                    return await withTimeout(callGroq(messages, { ...options, model: GROQ_MODEL }), 60_000, "askAI:emergency:groq");
+                } catch (groqErr: any) {
+                    log(`[ai] Emergency Groq fallback failed: ${groqErr.message}`, "error");
+                }
+            }
+
+            log(`[ai] AI call failed: ${err.message}. Attempting general fallback...`, "error");
             
-            // Fallback strategy: If any call fails (not just 429), try OpenRouter as long as we have a token/config
             if (!model.includes("openrouter")) {
                 try {
-                    log(`[ai] Triggering emergency OpenRouter fallback for intent: ${prompt.substring(0, 30)}...`);
-                    return await withTimeout(callOpenRouter(messages, { ...options, tools: options.tools }), 90_000, "askAI:openrouter:fallback");
+                    return await withTimeout(callOpenRouter(messages, { ...options }), 90_000, "askAI:openrouter:fallback");
                 } catch (fallbackErr: any) {
-                    log(`[ai] Fallback also failed: ${fallbackErr.message}`, "error");
-                    throw fallbackErr;
+                    log(`[ai] All fallbacks failed.`, "error");
                 }
             }
             throw err;

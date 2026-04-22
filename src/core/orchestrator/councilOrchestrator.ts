@@ -92,7 +92,7 @@ export class CouncilOrchestrator {
         return finalOutput;
     }
 
-    async chatWithVoice(userInput: string, chatId: number): Promise<{ text: string, voiceBuffer: Buffer }> {
+    async chatWithVoice(userInput: string, chatId: number): Promise<{ text: string, voiceBuffer: Buffer | null }> {
         const textResponse = await this.chat(userInput, chatId);
         
         // Remove markdown and limit length for cleaner TTS

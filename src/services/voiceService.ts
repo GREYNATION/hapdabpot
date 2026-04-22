@@ -66,35 +66,40 @@ export class VoiceService {
     /**
      * TTS: Synthesize Speech
      */
-    static async synthesize(text: string, voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" = "onyx"): Promise<Buffer> {
-        log(`[voice] Synthesizing speech with voice: ${voice} (Length: ${text.length})`);
-        
-        // Handle character limit (OpenAI TTS has a ~4096 character limit)
-        if (text.length <= 4000) {
-            const mp3 = await openai.audio.speech.create({
-                model: "tts-1",
-                voice: voice,
-                input: text,
-            });
-            return Buffer.from(await mp3.arrayBuffer());
+    static async synthesize(text: string, voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" = "onyx"): Promise<Buffer | null> {
+        try {
+            log(`[voice] Synthesizing speech with voice: ${voice} (Length: ${text.length})`);
+            
+            // Handle character limit (OpenAI TTS has a ~4096 character limit)
+            if (text.length <= 4000) {
+                const mp3 = await openai.audio.speech.create({
+                    model: "tts-1",
+                    voice: voice,
+                    input: text,
+                });
+                return Buffer.from(await mp3.arrayBuffer());
+            }
+
+            // Chunking strategy for long responses
+            log(`[voice] Text exceeds 4000 chars. Chunking...`);
+            const chunks = this.chunkText(text, 4000);
+            const buffers: Buffer[] = [];
+
+            for (const chunk of chunks) {
+                log(`[voice] Synthesizing chunk (${chunk.length} chars)...`);
+                const mp3 = await openai.audio.speech.create({
+                    model: "tts-1",
+                    voice: voice,
+                    input: chunk,
+                });
+                buffers.push(Buffer.from(await mp3.arrayBuffer()));
+            }
+
+            return Buffer.concat(buffers);
+        } catch (err: any) {
+            log(`[voice] TTS Failed: ${err.message}. Defaulting to text-only.`, "error");
+            return null;
         }
-
-        // Chunking strategy for long responses
-        log(`[voice] Text exceeds 4000 chars. Chunking...`);
-        const chunks = this.chunkText(text, 4000);
-        const buffers: Buffer[] = [];
-
-        for (const chunk of chunks) {
-            log(`[voice] Synthesizing chunk (${chunk.length} chars)...`);
-            const mp3 = await openai.audio.speech.create({
-                model: "tts-1",
-                voice: voice,
-                input: chunk,
-            });
-            buffers.push(Buffer.from(await mp3.arrayBuffer()));
-        }
-
-        return Buffer.concat(buffers);
     }
 
     /**
