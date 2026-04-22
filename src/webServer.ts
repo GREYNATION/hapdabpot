@@ -118,7 +118,8 @@ app.post('/api/voice', async (req: Request, res: Response) => {
   if (!text) return res.status(400).json({ success: false, error: 'Text required' });
 
   try {
-      const audioUrl = await uploadAudioAndGetUrl(await generateVoice(text));
+      const voiceData = await generateVoice(text);
+      const audioUrl = voiceData ? await uploadAudioAndGetUrl(voiceData) : "";
       return res.json({ success: true, audioUrl });
   } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
