@@ -5,12 +5,12 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "NODE_OPTIONS='--no-deprecation' tsx src/index.ts",
     "build": "tsc && node scripts/sync-assets.js",
-    "start": "node dist/index.js",
+    "start": "NODE_OPTIONS='--no-deprecation' node dist/index.js",
     "deploy": "npm run build && npm start",
     "typecheck": "tsc --noEmit",
-    "bot": "tsx src/bot.ts"
+    "bot": "NODE_OPTIONS='--no-deprecation' tsx src/bot.ts"
   },
   "keywords": [],
   "author": "",

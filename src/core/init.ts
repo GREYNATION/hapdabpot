@@ -3,6 +3,17 @@ import fs from 'fs';
 import path from 'path';
 
 /**
+ * 🛠️ DEPRECATION SUPPRESSION
+ * Silence the internal 'punycode' DEP0040 warning which comes from transitive dependencies (like tr46).
+ */
+const originalEmitWarning = process.emitWarning;
+(process as any).emitWarning = function (warning: any, ...args: any[]) {
+    if (typeof warning === 'string' && warning.includes('DEP0040')) return;
+    if (warning && typeof warning === 'object' && (warning as any).code === 'DEP0040') return;
+    return originalEmitWarning.call(process, warning, ...args);
+};
+
+/**
  * 🚀 GLOBAL SYSTEM PRE-FLIGHT INITIALIZATION
  * 
  * This script MUST be imported at the absolute top of all entry points.
