@@ -34,11 +34,19 @@ export class CouncilOrchestrator {
 
         // 1. Route the intent
         const routeResult = await this.router.route(userInput);
-        const { tasks, goal } = routeResult;
+        const { tasks, goal, skillId } = routeResult;
 
         log(`[council] Goal identified: ${goal}. Triggering ${tasks.length} tasks.`);
 
-        // 2. Execute tasks sequentially (to avoid 429 rate limits)
+        // 2. Load context (Memory & Skills)
+        const { SKILLS } = await import("../skills.js");
+        const { getRecentMessages } = await import("../memory.js");
+        
+        const history = getRecentMessages(chatId, 6);
+        const skill = skillId ? SKILLS.find(s => s.id === skillId) : undefined;
+        const skillContext = skill ? `\n\n--- SPECIALIZED SKILL ACTIVATED: ${skill.name} ---\n${skill.systemPrompt}\n-----------------------------------\n` : "";
+
+        // 3. Execute tasks sequentially
         const responses: string[] = [];
         for (const task of tasks) {
             let success = false;
@@ -49,12 +57,14 @@ export class CouncilOrchestrator {
                 try {
                     const agent = this.instantiateAgent(task.agent);
                     log(`[council] Executing ${task.agent} (Retries left: ${retries})...`);
-                    const result = await agent.ask(task.task);
+                    
+                    // Inject Skill and Memory
+                    const result = await agent.ask(task.task, history, skillContext ? skillContext : undefined);
+                    
                     const agentName = agent.getName ? agent.getName() : task.agent;
                     responses.push(`**[${agentName}]**: ${result.content || result}`);
                     success = true;
                     
-                    // Increased delay between tasks to stay under provider rate limits
                     await new Promise(r => setTimeout(r, 2000));
                 } catch (err: any) {
                     lastError = err.message;
@@ -74,7 +84,7 @@ export class CouncilOrchestrator {
 
         const finalOutput = responses.join("\n\n") || "I processed your request but didn't generate a specific response. How else can I help?";
 
-        // 3. Autonomous Background Wash
+        // 4. Autonomous Background Wash
         this.washer.wash(chatId).catch(e => 
             log(`[council] Post-chat wash failed: ${e.message}`, "warn")
         );
@@ -85,25 +95,29 @@ export class CouncilOrchestrator {
     async chatWithVoice(userInput: string, chatId: number): Promise<{ text: string, voiceBuffer: Buffer }> {
         const textResponse = await this.chat(userInput, chatId);
         
-        // Use a cleaned version for TTS if needed, but for now we'll use the whole response
-        // Remove markdown artifacts for cleaner speech
-        const cleanText = textResponse.replace(/\*\*/g, "").replace(/\[.*?\]/g, "");
+        // Remove markdown and limit length for cleaner TTS
+        const cleanText = textResponse
+            .replace(/\*\*/g, "")
+            .replace(/\[.*?\]/g, "")
+            .substring(0, 10000); // TTS service handles larger chunks now
         
         const voiceBuffer = await generateVoice(cleanText);
         return { text: textResponse, voiceBuffer };
     }
 
     private instantiateAgent(type: string): any {
-        switch (type.toLowerCase()) {
+        const normalized = type.toLowerCase().trim();
+        switch (normalized) {
             case "researcher": return new ResearcherAgent();
             case "marketer": return new MarketerAgent();
-            case "developer": return new DeveloperAgent();
+            case "developer":
+            case "automation_script": return new DeveloperAgent();
             case "architect": return new ArchitectAgent();
             case "github": return new GitHubAgent();
             case "finance": return new MasterTraderAgent();
             case "content":
             case "media": return new ContentAgent();
-            default: return new ResearcherAgent(); // Fallback to Ops Intelligence
+            default: return new ResearcherAgent();
         }
     }
 }

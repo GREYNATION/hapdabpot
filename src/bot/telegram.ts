@@ -194,6 +194,8 @@ export class TelegramBot {
                         return await ctx.replyWithVoice({ source: voiceBuffer });
                     } catch (councilErr: any) {
                         log(`[council] Processing failed: ${councilErr.message}`, "error");
+                        console.error("[CORTEX ERROR]:", councilErr); // Log full stack for "Logic Tear" debugging
+                        
                         if (councilErr.message?.toLowerCase().includes("rate limit") || councilErr.message?.includes("429")) {
                             return await this.safeReply(ctx, "⏳ **The Council is currently saturated.**\n\nRate limits reached. I'll be back in ~60 seconds once the circuit breaker resets.");
                         }

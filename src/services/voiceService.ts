@@ -67,15 +67,58 @@ export class VoiceService {
      * TTS: Synthesize Speech
      */
     static async synthesize(text: string, voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" = "onyx"): Promise<Buffer> {
-        log(`[voice] Synthesizing speech with voice: ${voice}`);
-        const mp3 = await openai.audio.speech.create({
-            model: "tts-1",
-            voice: voice,
-            input: text,
-        });
+        log(`[voice] Synthesizing speech with voice: ${voice} (Length: ${text.length})`);
+        
+        // Handle character limit (OpenAI TTS has a ~4096 character limit)
+        if (text.length <= 4000) {
+            const mp3 = await openai.audio.speech.create({
+                model: "tts-1",
+                voice: voice,
+                input: text,
+            });
+            return Buffer.from(await mp3.arrayBuffer());
+        }
 
-        const buffer = Buffer.from(await mp3.arrayBuffer());
-        return buffer;
+        // Chunking strategy for long responses
+        log(`[voice] Text exceeds 4000 chars. Chunking...`);
+        const chunks = this.chunkText(text, 4000);
+        const buffers: Buffer[] = [];
+
+        for (const chunk of chunks) {
+            log(`[voice] Synthesizing chunk (${chunk.length} chars)...`);
+            const mp3 = await openai.audio.speech.create({
+                model: "tts-1",
+                voice: voice,
+                input: chunk,
+            });
+            buffers.push(Buffer.from(await mp3.arrayBuffer()));
+        }
+
+        return Buffer.concat(buffers);
+    }
+
+    /**
+     * Split text into chunks that don't break mid-sentence if possible.
+     */
+    private static chunkText(text: string, limit: number): string[] {
+        const chunks: string[] = [];
+        let remaining = text;
+
+        while (remaining.length > 0) {
+            if (remaining.length <= limit) {
+                chunks.push(remaining);
+                break;
+            }
+
+            let splitAt = remaining.lastIndexOf('.', limit);
+            if (splitAt === -1) splitAt = remaining.lastIndexOf('\n', limit);
+            if (splitAt === -1) splitAt = limit;
+
+            chunks.push(remaining.substring(0, splitAt + 1).trim());
+            remaining = remaining.substring(splitAt + 1).trim();
+        }
+
+        return chunks;
     }
 
     /**

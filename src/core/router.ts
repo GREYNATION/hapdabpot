@@ -71,43 +71,32 @@ export class CommandRouter {
             };
         }
 
-        // 4. TRIAGE: AI-driven delegation (Fallback)
+        // 4. TRIAGE: AI-driven delegation (Fallback with Skill Discovery)
         log(`[router] Tier 4: Falling back to AI Triage.`);
         const matchedSkill = findSkillByIntent(message);
-        if (matchedSkill) {
-            log(`[router] Detected skill: ${matchedSkill.id}`);
-            return {
-                goal: `Execute skill: ${matchedSkill.name}`,
-                tasks: [{ agent: matchedSkill.primaryAgent.toLowerCase() as any, task: message }],
-                skillId: matchedSkill.id
-            };
-        }
+        
+        // Dynamic Skill Catalog for the AI Router
+        const { SKILLS } = await import("./skills.js");
+        const skillList = SKILLS.map(s => `- ${s.id}: ${s.name} (${s.description})`).join("\n");
 
         const systemPrompt = `You are the Hive Mind of the Council of Spirits — the elite Command Center for HapdaBot. 
 Analyze the user's message and delegate to the appropriate Council specialist.
 
 Council Personas (use these for delegation):
-- researcher: Ops Intelligence (The Architect). For scale, info-gathering, market research, or infrastructure.
-- marketer: Communications Lead (Global Outreach). For branding, copy, hooks, or engagement.
-- developer: Technical Soul. For code, systems, checks, or automation.
-- finance: Strategic Finance (Analytical Board). For markets, trading, ROI analysis, or capital.
-- council: Unified Board. For high-level strategic decisions or coordination.
+- researcher: Ops Intelligence (The Architect). High-scale research, infrastructure, or complex data.
+- marketer: Communications Lead (Global Outreach). Branding, copy, and human engagement.
+- developer: Technical Soul. Code, systems, and automation.
+- finance: Strategic Finance. Markets, ROI, and capital.
 
-Available Agents:
-- architect: System design & planning.
-- developer: Code & implementation.
-- researcher: Data & Info.
-- marketer: Growth & Branding.
-- finance: Trading & Analysis.
-- github: Repo actions.
-- media: Visuals.
-- general: Use this ONLY if the message is a casual greeting or doesn't need specialization.
+Available Specialized Skills (select the most relevant ID if any, or leave skillId null):
+${skillList}
 
 Respond with ONLY a JSON object:
 {
   "goal": "Coordinated objective description",
+  "skillId": "The ID of the specialized skill to use (optional)",
   "tasks": [
-    { "agent": "researcher", "task": "Task formatted for Ops Intelligence" }
+    { "agent": "researcher", "task": "Task formatted for the specialist" }
   ]
 }
 
@@ -122,31 +111,43 @@ Message: "${message}"`;
 
             const plan = JSON.parse(aiResponse.content);
             
+            // If AI suggested a skill, ensure we use its primary agent
+            if (plan.skillId) {
+                const skill = SKILLS.find(s => s.id === plan.skillId);
+                if (skill && plan.tasks?.[0]) {
+                    plan.tasks[0].agent = plan.tasks[0].agent || skill.primaryAgent;
+                }
+            }
+
             return {
                 goal: plan.goal || "Process request",
-                tasks: plan.tasks || [{ agent: "general", task: message }],
-                skillId: undefined
+                tasks: plan.tasks || [{ agent: "researcher", task: message }],
+                skillId: plan.skillId
             };
         } catch (err: any) {
             log(`[error] Router failed: ${err.message}`, "error");
             return {
                 goal: "Error recovery",
-                tasks: [{ agent: "general", task: message }]
+                tasks: [{ agent: matchedSkill?.primaryAgent || "researcher", task: message }],
+                skillId: matchedSkill?.id
             };
         }
     }
 
     private async auditLog(message: string) {
-        // Broadcasters the raw command to the Ops Console as an 'AUDIT' event
-        const { getSupabase } = await import("./supabase.js");
-        const supabase = getSupabase();
-        if (supabase) {
-            await supabase.from("ops_logs").insert([{
-                agent: "GATEKEEPER",
-                message: `AUDIT: ${message}`,
-                type: "status",
-                timestamp: new Date().toISOString()
-            }]);
+        try {
+            const { getSupabase } = await import("./supabase.js");
+            const supabase = getSupabase();
+            if (supabase) {
+                await supabase.from("ops_logs").insert([{
+                    agent: "GATEKEEPER",
+                    message: `AUDIT: ${message}`,
+                    type: "status",
+                    timestamp: new Date().toISOString()
+                }]);
+            }
+        } catch (e: any) {
+            log(`[audit] Non-fatal logging failure: ${e.message}`, "warn");
         }
     }
 }
