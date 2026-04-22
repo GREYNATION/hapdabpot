@@ -185,6 +185,11 @@ app.get('/api/voice/audio', async (req: Request, res: Response) => {
 
   try {
     const buffer = await generateVoice(text);
+    if (!buffer) {
+      log(`[WebServer] Audio generation returned null for: ${text.substring(0, 50)}`, 'error');
+      return res.status(500).send("Voice generation failed");
+    }
+
     res.set({
       'Content-Type': 'audio/mpeg',
       'Content-Length': buffer.length
@@ -200,7 +205,8 @@ app.get('/api/voice/audio', async (req: Request, res: Response) => {
 app.post('/api/voice/surplus', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
   const dealId = req.query.dealId || req.body.dealId;
   const intro = "Hi there, I'm just calling about a property you used to own. It looks like there might be some funds available to you. Are you the owner?";
-  const audioUrl = await uploadAudioAndGetUrl(await generateVoice(intro));
+  const voiceData = await generateVoice(intro);
+  const audioUrl = voiceData ? await uploadAudioAndGetUrl(voiceData) : "";
   
   const twiml = `
 <Response>
@@ -258,9 +264,11 @@ app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: R
   log(`[Twilio Voice] Owner said: "${speech}"`);
 
   const endCall = async (message: string) => {
-    const audioUrl = await uploadAudioAndGetUrl(await generateVoice(message));
+    const voiceData = await generateVoice(message);
+    const audioUrl = voiceData ? await uploadAudioAndGetUrl(voiceData) : "";
     res.setHeader("Content-Type", "text/xml");
-    return res.send(`<Response><Play>${audioUrl}</Play><Hangup/></Response>`);
+    const responseBody = audioUrl ? `<Play>${audioUrl}</Play><Hangup/>` : `<Say>${message}</Say><Hangup/>`;
+    return res.send(`<Response>${responseBody}</Response>`);
   };
 
   // Detect hangup/empty speech to actively drop out
@@ -308,11 +316,13 @@ app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: R
   - Respond briefly to what they just said
   `, "You are Claw, a calm and trustworthy assistant helping homeowners recover funds.");
 
-    const audioUrl = await uploadAudioAndGetUrl(await generateVoice(aiResponse.content));
+    const aiText = aiResponse.content;
+    const voiceData = await generateVoice(aiText);
+    const audioUrl = voiceData ? await uploadAudioAndGetUrl(voiceData) : "";
 
     const twiml = `
 <Response>
-  <Play>${audioUrl}</Play>
+  ${audioUrl ? `<Play>${audioUrl}</Play>` : `<Say>${aiText}</Say>`}
   <Gather input="speech" action="/api/voice/ai" speechTimeout="auto" />
 </Response>
 `;
