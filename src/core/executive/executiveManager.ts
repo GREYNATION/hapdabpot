@@ -115,8 +115,7 @@ export class ExecutiveManager {
      * Workflow #3 & #22: Triage Pulse
      */
     static async runTriagePulse(): Promise<string | null> {
-        if (!isGoogleEnabled() && !googleAuthBroken) return null;
-
+        if (!isGoogleEnabled()) return null;
         log("[executive] Running Heartbeat Triage Pulse...");
         
         try {
