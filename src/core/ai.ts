@@ -274,6 +274,7 @@ export async function askAI(
         const model = options.model || "";
         const isExplicitCloud = model.includes("google/") || model.includes("anthropic/");
         const isGroqMode = config.aiProvider === "groq";
+        const isOpenRouterMode = config.aiProvider === "openrouter";
 
         try {
             if (isGroqMode && !isExplicitCloud) {
@@ -286,7 +287,13 @@ export async function askAI(
                 return response;
             }
 
-            // Default to OpenRouter or primary Cloud
+            if (isOpenRouterMode || isExplicitCloud) {
+                const response = await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
+                resetFailure();
+                return response;
+            }
+
+            // Default fallback
             const response = await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
             resetFailure();
             return response;

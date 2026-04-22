@@ -17,7 +17,13 @@ export abstract class BaseAgent {
     protected systemPrompt: string;
 
     constructor(name: string, systemPrompt: string) {
-        this.model = config.aiProvider === "groq" ? config.groqModel : config.openaiModel;
+        if (config.aiProvider === "groq") {
+            this.model = config.groqModel;
+        } else if (config.aiProvider === "openrouter") {
+            this.model = "meta-llama/llama-3.3-70b-instruct:free";
+        } else {
+            this.model = config.openaiModel;
+        }
         
         // Inject Superpower Rules globally
         const superpowerRules = `
