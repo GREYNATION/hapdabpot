@@ -25,6 +25,7 @@ import {
 import { getDb } from '../core/memory.js';
 import { handleN8nCommand } from '../agents/n8nAgent/n8nAgent.js';
 import { handlePromptsCommand } from '../agents/promptsAgent/promptsAgent.js';
+import { handleHarnessCommand } from '../agents/harnessAgent/harnessAgent.ts';
 
 
 export function setupRouter(bot: Telegraf) {
@@ -73,7 +74,8 @@ export function setupRouter(bot: Telegraf) {
         "/decision \"title\" \"outcome\" \"logic\" - Log decision\n" +
         "/triage - Manual email/task triage\n" +
         "/n8n [list|templates|trigger] - n8n Workflow Intelligence\n" +
-        "/prompts [list|read] - AI Prompt Library"
+        "/prompts [list|read] - AI Prompt Library\n" +
+        "/harness [url] [task] - Browser Intelligence Harness"
     ));
 
 
@@ -342,6 +344,23 @@ export function setupRouter(bot: Telegraf) {
             }
         } catch (err: any) {
             ctx.reply(`❌ Prompts error: ${err.message}`);
+        }
+    });
+    
+    // 19. Browser Harness
+    bot.command('harness', async (ctx: any) => {
+        const text = ctx.message.text.replace('/harness', '').trim();
+        await ctx.reply("🌐 **Harnessing Browser Intelligence...**");
+        try {
+            const res = await handleHarnessCommand(text);
+            if (res.length <= 4096) {
+                await ctx.reply(res, { parse_mode: 'Markdown' });
+            } else {
+                const chunks = res.match(/[\s\S]{1,4000}/g) ?? [res];
+                for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
+            }
+        } catch (err: any) {
+            ctx.reply(`❌ Harness Error: ${err.message}`);
         }
     });
 
