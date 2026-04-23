@@ -55,14 +55,48 @@ export function initializeClients() {
 }
 
 // ── State for Circuit Breaker ────────────────────────────────────────────────
-let circuitBreakerOpen = false;
+enum BreakerState { CLOSED, OPEN, HALF_OPEN }
+let breakerState = BreakerState.CLOSED;
 let consecutiveFailures = 0;
+let lastFailureTimestamp = 0;
 const BREAKER_THRESHOLD = 3;
 const BREAKER_COOLDOWN = 60_000; // 60 seconds
 
+// ── Global Concurrency Limiting ──────────────────────────────────────────────
+let activeCalls = 0;
+const MAX_CONCURRENT_CALLS = 3;
+const callQueue: (() => void)[] = [];
+
+/**
+ * Semaphore to limit concurrent AI calls.
+ */
+async function acquireSlot() {
+    if (activeCalls < MAX_CONCURRENT_CALLS) {
+        activeCalls++;
+        return;
+    }
+    return new Promise<void>(resolve => callQueue.push(resolve));
+}
+
+function releaseSlot() {
+    activeCalls--;
+    if (callQueue.length > 0) {
+        activeCalls++;
+        const next = callQueue.shift();
+        if (next) next();
+    }
+}
+
 function checkBreaker() {
-    if (circuitBreakerOpen) {
-        throw new Error("⚠️ System cooling down (rate limit reached). Try again in a few seconds.");
+    const now = Date.now();
+    
+    if (breakerState === BreakerState.OPEN) {
+        if (now - lastFailureTimestamp > BREAKER_COOLDOWN) {
+            log(`[ai] Circuit Breaker entering HALF-OPEN state (testing recovery)...`, "warn");
+            breakerState = BreakerState.HALF_OPEN;
+        } else {
+            throw new Error("⚠️ System cooling down (rate limit reached). Try again in a few seconds.");
+        }
     }
 }
 
@@ -73,19 +107,20 @@ function handleFailure(err: any) {
 
     if (isRateLimit) {
         consecutiveFailures++;
-        if (consecutiveFailures >= BREAKER_THRESHOLD) {
-            log(`[ai] Circuit Breaker TRIPPED due to consecutive rate limits. Pausing for ${BREAKER_COOLDOWN/1000}s.`, "error");
-            circuitBreakerOpen = true;
-            setTimeout(() => {
-                circuitBreakerOpen = false;
-                consecutiveFailures = 0;
-                log(`[ai] Circuit Breaker RESET. Resuming operations.`, "info");
-            }, BREAKER_COOLDOWN);
+        lastFailureTimestamp = Date.now();
+
+        if (breakerState === BreakerState.HALF_OPEN || consecutiveFailures >= BREAKER_THRESHOLD) {
+            log(`[ai] Circuit Breaker OPEN (rate limit reached). Pausing for ${BREAKER_COOLDOWN/1000}s.`, "error");
+            breakerState = BreakerState.OPEN;
         }
     }
 }
 
 function resetFailure() {
+    if (breakerState === BreakerState.HALF_OPEN) {
+        log(`[ai] Circuit Breaker CLOSED. Recovery successful.`, "info");
+    }
+    breakerState = BreakerState.CLOSED;
     consecutiveFailures = 0;
 }
 
@@ -284,81 +319,86 @@ export async function askAI(
     let attempt = 0;
 
     const executeWithBackoff = async (): Promise<AIResponse> => {
-        const messages: OpenAI.ChatCompletionMessageParam[] = options.messages || [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: prompt },
-        ];
-
-        const model = options.model || "";
-        const isExplicitCloud = model.includes("google/") || model.includes("anthropic/");
-        const isGroqMode = config.aiProvider === "groq";
-        const isOpenRouterMode = config.aiProvider === "openrouter";
-
-        // Global throttle to maintain 1.5s spacing
-        await enforceThrottle();
-
+        await acquireSlot();
         try {
-            if (isGroqMode && !isExplicitCloud) {
-                const timeoutMs = options.tools?.length ? 120_000 : 60_000;
-                if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
-                    options.model = config.groqModel || GROQ_MODEL;
-                }
-                const response = await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
-                resetFailure();
-                return response;
-            }
+            const messages: OpenAI.ChatCompletionMessageParam[] = options.messages || [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: prompt },
+            ];
 
-            if (isOpenRouterMode || isExplicitCloud) {
+            const model = options.model || "";
+            const isExplicitCloud = model.includes("google/") || model.includes("anthropic/");
+            const isGroqMode = config.aiProvider === "groq";
+            const isOpenRouterMode = config.aiProvider === "openrouter";
+
+            // Global throttle to maintain 1.5s spacing
+            await enforceThrottle();
+
+            try {
+                if (isGroqMode && !isExplicitCloud) {
+                    const timeoutMs = options.tools?.length ? 120_000 : 60_000;
+                    if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
+                        options.model = config.groqModel || GROQ_MODEL;
+                    }
+                    const response = await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
+                    resetFailure();
+                    return response;
+                }
+
+                if (isOpenRouterMode || isExplicitCloud) {
+                    const response = await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
+                    resetFailure();
+                    return response;
+                }
+
+                // Default fallback
                 const response = await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
                 resetFailure();
                 return response;
-            }
-
-            // Default fallback
-            const response = await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
-            resetFailure();
-            return response;
-        } catch (err: any) {
-            const isRateLimit = err.status === 429 || 
-                               err.message?.toLowerCase().includes("rate limit") ||
-                               err.message?.toLowerCase().includes("429");
-            
-            const isCreditOrModelError = err.status === 402 || 
-                                        err.status === 400 || 
-                                        err.message?.toLowerCase().includes("credit") ||
-                                        err.message?.toLowerCase().includes("not exist");
-
-            if (isRateLimit && attempt < maxRetries) {
-                attempt++;
-                handleFailure(err);
+            } catch (err: any) {
+                const isRateLimit = err.status === 429 || 
+                                   err.message?.toLowerCase().includes("rate limit") ||
+                                   err.message?.toLowerCase().includes("429");
                 
-                // Exponential backoff: 2s -> 4s -> 8s
-                const backoffMs = Math.pow(2, attempt) * 1000;
-                log(`[ai] Rate limit encountered. Retrying in ${backoffMs}ms... (Attempt ${attempt}/${maxRetries})`, "warn");
-                await delay(backoffMs);
-                return executeWithBackoff();
-            }
+                const isCreditOrModelError = err.status === 402 || 
+                                            err.status === 400 || 
+                                            err.message?.toLowerCase().includes("credit") ||
+                                            err.message?.toLowerCase().includes("not exist");
 
-            if (isCreditOrModelError) {
-                log(`[ai] Provider issue (${err.status}): ${err.message}. Triggering emergency Groq fallback...`, "error");
-                // Explicitly force Groq fallback if OpenRouter/Anthropic fails due to credits
-                try {
-                    return await withTimeout(callGroq(messages, { ...options, model: GROQ_MODEL }), 60_000, "askAI:emergency:groq");
-                } catch (groqErr: any) {
-                    log(`[ai] Emergency Groq fallback failed: ${groqErr.message}`, "error");
+                if (isRateLimit && attempt < maxRetries) {
+                    attempt++;
+                    handleFailure(err);
+                    
+                    // Exponential backoff: 2s -> 4s -> 8s
+                    const backoffMs = Math.pow(2, attempt) * 1000;
+                    log(`[ai] Rate limit encountered. Retrying in ${backoffMs}ms... (Attempt ${attempt}/${maxRetries})`, "warn");
+                    await delay(backoffMs);
+                    return executeWithBackoff();
                 }
-            }
 
-            log(`[ai] AI call failed: ${err.message}. Attempting general fallback...`, "error");
-            
-            if (!model.includes("openrouter")) {
-                try {
-                    return await withTimeout(callOpenRouter(messages, { ...options }), 90_000, "askAI:openrouter:fallback");
-                } catch (fallbackErr: any) {
-                    log(`[ai] All fallbacks failed.`, "error");
+                if (isCreditOrModelError) {
+                    log(`[ai] Provider issue (${err.status}): ${err.message}. Triggering emergency Groq fallback...`, "error");
+                    // Explicitly force Groq fallback if OpenRouter/Anthropic fails due to credits
+                    try {
+                        return await withTimeout(callGroq(messages, { ...options, model: GROQ_MODEL }), 60_000, "askAI:emergency:groq");
+                    } catch (groqErr: any) {
+                        log(`[ai] Emergency Groq fallback failed: ${groqErr.message}`, "error");
+                    }
                 }
+
+                log(`[ai] AI call failed: ${err.message}. Attempting general fallback...`, "error");
+                
+                if (!model.includes("openrouter")) {
+                    try {
+                        return await withTimeout(callOpenRouter(messages, { ...options }), 90_000, "askAI:openrouter:fallback");
+                    } catch (fallbackErr: any) {
+                        log(`[ai] All fallbacks failed.`, "error");
+                    }
+                }
+                throw err;
             }
-            throw err;
+        } finally {
+            releaseSlot();
         }
     };
 

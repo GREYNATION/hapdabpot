@@ -350,6 +350,10 @@ export function setupRouter(bot: Telegraf) {
     // 19. Browser Harness
     bot.command('harness', async (ctx: any) => {
         const text = ctx.message.text.replace('/harness', '').trim();
+        if (!text) {
+            return ctx.reply("🌐 **Browser Intelligence Harness**\n\nUsage: `/harness [url] [task]`\nExample: `/harness https://news.google.com find top tech stories`", { parse_mode: 'Markdown' });
+        }
+        
         await ctx.reply("🌐 **Harnessing Browser Intelligence...**");
         try {
             const res = await handleHarnessCommand(text);

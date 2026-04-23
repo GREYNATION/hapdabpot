@@ -74,11 +74,20 @@ export class HarnessAgent {
 }
 
 export async function handleHarnessCommand(args: string): Promise<string> {
-    if (!args) return "📖 Usage: `/harness [url] [task]`";
+    if (!args || args.trim() === "") {
+        return "⚠️ **Incomplete Command**\nTry: `/harness https://example.com extract product data` or `/harness summarize latest news`";
+    }
 
     const parts = args.split(' ');
-    const url = parts[0].startsWith('http') ? parts.shift() : 'https://www.google.com';
-    const task = parts.join(' ') || "Summarize the page";
+    // If first part is not a URL, we assume they want to search Google
+    let url = parts[0].startsWith('http') ? parts.shift() : 'https://www.google.com/search?q=' + encodeURIComponent(parts.join(' '));
+    let task = parts.join(' ');
+
+    if (url.includes('google.com/search') && !task) {
+        task = "Find the most relevant results and summarize them.";
+    } else if (!task) {
+        task = "Summarize the key information on this page.";
+    }
 
     const agent = HarnessAgent.getInstance();
     return await agent.browse(url!, task);
