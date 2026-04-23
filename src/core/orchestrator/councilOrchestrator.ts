@@ -10,6 +10,8 @@ import { ContentAgent } from "../../agents/ContentAgent.js";
 import { generateVoice } from "../../services/voiceService.js";
 import { log } from "../config.js";
 import { RequestQueue } from "../queue.js";
+import { WikiService } from "../../services/wikiService.js";
+import { askAI } from "../ai.js";
 
 export class CouncilOrchestrator {
     private router = new CommandRouter();
@@ -43,8 +45,17 @@ export class CouncilOrchestrator {
         const { getRecentMessages } = await import("../memory.js");
         
         const history = getRecentMessages(chatId, 6);
+        const hotCache = WikiService.getHotCache();
+        
         const skill = skillId ? SKILLS.find(s => s.id === skillId) : undefined;
         const skillContext = skill ? `\n\n--- SPECIALIZED SKILL ACTIVATED: ${skill.name} ---\n${skill.systemPrompt}\n-----------------------------------\n` : "";
+        
+        const masterContext = `
+--- RECENT SPIRIT MEMORY (HOT CACHE) ---
+${hotCache}
+---------------------------------------
+${skillContext}
+`;
 
         // 3. Execute tasks sequentially
         const responses: string[] = [];
@@ -59,7 +70,7 @@ export class CouncilOrchestrator {
                     log(`[council] Executing ${task.agent} (Retries left: ${retries})...`);
                     
                     // Inject Skill and Memory
-                    const result = await agent.ask(task.task, history, skillContext ? skillContext : undefined);
+                    const result = await agent.ask(task.task, history, masterContext);
                     
                     const agentName = agent.getName ? agent.getName() : task.agent;
                     responses.push(`**[${agentName}]**: ${result.content || result}`);
@@ -88,6 +99,13 @@ export class CouncilOrchestrator {
         this.washer.wash(chatId).catch(e => 
             log(`[council] Post-chat wash failed: ${e.message}`, "warn")
         );
+        
+        // 5. Update Spirit Brain (Wiki)
+        if (finalOutput.length > 200) {
+            this.updateWikiAsync(userInput, finalOutput, chatId).catch(e => 
+                log(`[council] Wiki update failed: ${e.message}`, "warn")
+            );
+        }
 
         return finalOutput;
     }
@@ -118,6 +136,25 @@ export class CouncilOrchestrator {
             case "content":
             case "media": return new ContentAgent();
             default: return new ResearcherAgent();
+        }
+    }
+
+    private async updateWikiAsync(input: string, output: string, chatId: number) {
+        // 1. Synthesize a brief summary for the Hot Cache
+        const summaryPrompt = `Summarize this interaction for a "Hot Cache" (recent memory). Focus on key outcomes and data.
+User: ${input}
+Council: ${output.substring(0, 500)}...`;
+
+        const summaryRes = await askAI(summaryPrompt, "You are a concise memory summary agent.", { model: "google/gemini-2.0-flash-001" });
+        const summary = summaryRes.content || "Interaction processed.";
+
+        // 2. Update Hot Cache
+        await WikiService.updateHotCache(summary);
+
+        // 3. Save as a full source note if it's significant
+        if (output.length > 500) {
+            const title = `Chat_${new Date().getTime()}`;
+            await WikiService.saveNote(title, `## Interaction\n\n**User**: ${input}\n\n**Council**:\n${output}`, 'sources');
         }
     }
 }

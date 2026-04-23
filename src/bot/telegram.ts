@@ -13,7 +13,8 @@ import { findMotivatedSellers } from '../services/universalLeadScraper.js';
 import { CrmManager } from '../core/crm.js';
 import { SupabaseCrm } from '../core/supabaseCrm.js';
 import { openai } from '../core/ai.js';
-import { FactoryDashboardState } from '../core/factoryTypes.js';
+import { FactoryDashboardState, DashboardState } from '../core/factoryTypes.js';
+import { WikiService } from '../services/wikiService.js';
 import { DealWatcher } from '../core/dealWatcher.js';
 import { MasterTraderAgent } from '../agents/MasterTraderAgent.js';
 import { realEstateAgent } from '../agents/realEstateAgent.js';
@@ -112,18 +113,12 @@ export class TelegramBot {
                 if (!fs.existsSync(frameDir)) fs.mkdirSync(frameDir, { recursive: true });
 
                 const videoResponse = await axios.get(fileLink.toString(), { responseType: 'arraybuffer' });
-                fs.writeFileSync(videoPath, Buffer.from(videoResponse.data));
+                const videoBuffer = Buffer.from(videoResponse.data);
+                fs.writeFileSync(videoPath, videoBuffer);
 
-                const audioPath = path.join(process.cwd(), `temp_audio_${videoId}.mp3`);
-                await new Promise((res, rej) => {
-                    ffmpeg(videoPath).toFormat('mp3').on('end', res).on('error', rej).save(audioPath);
-                });
-
-                const transcription = await openai.audio.transcriptions.create({
-                    file: fs.createReadStream(audioPath),
-                    model: "whisper-1",
-                });
-                caption = (caption + "\n\n[Walkthrough Transcript]: " + transcription.text).trim();
+                // Use VoiceService for robust transcription
+                const transcription = await VoiceService.transcribe(videoBuffer, '.mp4');
+                caption = (caption + "\n\n[Walkthrough Transcript]: " + transcription).trim();
 
                 await new Promise((res, rej) => {
                     ffmpeg(videoPath).screenshots({ count: 3, folder: frameDir, filename: 'frame-%i.jpg' }).on('end', res).on('error', rej);
@@ -137,7 +132,7 @@ export class TelegramBot {
                         image_url: { url: `data:image/jpeg;base64,${base64}` }
                     });
                 }
-                fs.unlinkSync(videoPath); fs.unlinkSync(audioPath); fs.rmSync(frameDir, { recursive: true, force: true });
+                fs.unlinkSync(videoPath); fs.rmSync(frameDir, { recursive: true, force: true });
             }
         } catch (err: any) { log(`[media] Failed: ${err.message}`, "error"); }
         return { text: caption, attachments };
@@ -155,6 +150,30 @@ export class TelegramBot {
             const msg = ctx.message as any;
             
             // Allow commands to pass through to the router
+            if (msg.text?.startsWith("/wiki")) {
+                const query = msg.text.replace("/wiki", "").trim();
+                if (!query) return ctx.reply("🔍 Please provide a search query. Example: /wiki real estate");
+                
+                await ctx.sendChatAction("typing");
+                const results = await WikiService.search(query);
+                if (results.length === 0) return ctx.reply("❌ No wiki pages found for that query.");
+                
+                return ctx.reply(`🔍 **Wiki Search Results**:\n\n${results.map(r => `• ${r}`).join("\n")}\n\nUse the desktop Obsidian app to read the full pages.`);
+            }
+
+            if (msg.text?.startsWith("/save")) {
+                const title = msg.text.replace("/save", "").trim() || `Save_${new Date().getTime()}`;
+                await ctx.sendChatAction("typing");
+                
+                // Get history to save
+                const { getRecentMessages } = await import("../core/memory.js");
+                const history = getRecentMessages(chatId, 10);
+                const content = history.map(m => `**${m.role}**: ${m.content}`).join("\n\n");
+                
+                await WikiService.saveNote(title, content, 'sources');
+                return ctx.reply(`✅ Conversation saved to wiki as: **${title}**`);
+            }
+
             if (msg.text?.startsWith("/")) {
                 return next();
             }

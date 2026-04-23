@@ -88,18 +88,18 @@ function formatTemplate(template: string, deal: any): string {
 }
 
 export async function sendSms(to: string, body: string, dealId?: number) {
-    const sid = process.env.TWILIO_ACCOUNT_SID;
-    const token = process.env.TWILIO_AUTH_TOKEN;
-    const from = process.env.TWILIO_PHONE_NUMBER;
+    const accountSid = process.env.TWILIO_ACCOUNT_SID || process.env.TWILIO_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_AUTH;
+    const twilioNumber = process.env.TWILIO_PHONE_NUMBER || process.env.TWILIO_NUMBER;
 
-    if (!sid || !token || !from) {
+    if (!accountSid || !authToken || !twilioNumber) {
         throw new Error("Twilio credentials missing");
     }
 
-    const client = twilio(sid, token);
+    const client = twilio(accountSid, authToken);
     
     try {
-        const message = await client.messages.create({ body, from, to });
+        const message = await client.messages.create({ body, from: twilioNumber, to });
         log(`[outreach] SMS Sent to ${to}: ${message.sid}`);
         
         if (dealId) {
@@ -164,7 +164,7 @@ export function registerOutreachHandlers(bot: Telegraf) {
         const deal = (CrmManager as any).getDeal(dealId);
         
         if (!deal || !deal.seller_phone) {
-            return ctx.answerCbQuery("âŒ Deal or Phone number not found.");
+            return ctx.answerCbQuery("❌ Deal or Phone number not found.");
         }
 
         try {
@@ -182,17 +182,17 @@ export function registerOutreachHandlers(bot: Telegraf) {
                 VALUES (?, 'active', 0, ?)
             `).run(dealId, nextRun);
 
-            await ctx.editMessageText(`âœ… Initial SMS sent to ${deal.seller_name}! Sequence started.`);
+            await ctx.editMessageText(`✅ Initial SMS sent to ${deal.seller_name}! Sequence started.`);
             await ctx.answerCbQuery();
         } catch (err: any) {
-            await ctx.reply(`âŒ SMS failed: ${err.message}`);
+            await ctx.reply(`❌ SMS failed: ${err.message}`);
             await ctx.answerCbQuery();
         }
     });
 
     bot.action(/outreach_skip_(\d+)/, async (ctx) => {
         const dealId = ctx.match[1];
-        await ctx.editMessageText(`â­ï¸ Outreach skipped for deal #${dealId}.`);
+        await ctx.editMessageText(`🔕 Outreach skipped for deal #${dealId}.`);
         await ctx.answerCbQuery();
     });
 
@@ -203,10 +203,10 @@ export function registerOutreachHandlers(bot: Telegraf) {
         const active = getDb().prepare("SELECT * FROM outreach_sequences WHERE status = 'active'").all() as any[];
         if (active.length === 0) return ctx.reply("No active outreach sequences.");
 
-        let msg = "ðŸ“ **Active Outreach Sequences**\n\n";
+        let msg = "📊 **Active Outreach Sequences**\n\n";
         for (const seq of active) {
             const deal = CrmManager.getDeal(seq.deal_id);
-            msg += `ðŸ“ ${deal?.address}\n`;
+            msg += `📍 ${deal?.address}\n`;
             msg += `Step: ${seq.current_step + 1}/${OUTREACH_STEPS.length}\n`;
             msg += `Next: ${new Date(seq.next_run_at).toLocaleDateString()}\n\n`;
         }
@@ -224,16 +224,16 @@ export async function promptOutreachApproval(bot: Telegraf, dealId: number) {
     const ownerId = Number(config.ownerId);
     const keyboard = Markup.inlineKeyboard([
         [
-            Markup.button.callback("âœ… YES, Send SMS", `outreach_approve_${dealId}`),
-            Markup.button.callback("â­ï¸ SKIP", `outreach_skip_${dealId}`)
+            Markup.button.callback("✅ YES, Send SMS", `outreach_approve_${dealId}`),
+            Markup.button.callback("🔕 SKIP", `outreach_skip_${dealId}`)
         ]
     ]);
 
     await bot.telegram.sendMessage(ownerId, 
-        `ðŸ†• **New Potential Lead**\n\n` +
-        `ðŸ“ ${deal.address}\n` +
-        `ðŸ‘¤ ${deal.seller_name || 'Unknown'}\n` +
-        `ðŸ“± ${deal.seller_phone || 'No phone'}\n\n` +
+        `🆕 **New Potential Lead**\n\n` +
+        `📍 ${deal.address}\n` +
+        `👤 ${deal.seller_name || 'Unknown'}\n` +
+        `📱 ${deal.seller_phone || 'No phone'}\n\n` +
         `Should I start the SMS outreach sequence?`,
         keyboard
     );
@@ -295,15 +295,24 @@ export async function skipTrace(name: string, city: string): Promise<{name: stri
 export async function triggerAICall(deal: any): Promise<void> {
     log(`[outreach] 🎙️ Triggering Outbound AI Call to ${deal.phone} (${deal.owner || 'Owner'})...`);
     
+    const accountSid = process.env.TWILIO_ACCOUNT_SID || process.env.TWILIO_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_AUTH;
+    const twilioNumber = process.env.TWILIO_PHONE_NUMBER || process.env.TWILIO_NUMBER;
+
     try {
-        const client = twilio(process.env.TWILIO_SID!, process.env.TWILIO_AUTH!);
-        
-        await client.calls.create({
+        const client = twilio(accountSid!, authToken!);
+        // Fix: Use deal.id instead of deal.address to ensure database updates work
+        const dealId = deal.id;
+        if (!dealId) {
+            throw new Error(`Deal missing numeric ID for outreach tracking.`);
+        }
+
+        const call = await client.calls.create({
+            from: twilioNumber!,
             to: deal.phone,
-            from: process.env.TWILIO_NUMBER!,
-            url: `${process.env.BASE_URL!}/api/voice/surplus?dealId=${deal.address}`, // Keep dealId as address for voice flow compatibility
-            statusCallback: `${process.env.BASE_URL!}/api/voice/status?dealId=${deal.id}`, // Pass actual numeric ID for status updates
-            statusCallbackEvent: ['answered', 'completed', 'no-answer', 'busy', 'failed']
+            url: `${process.env.BASE_URL!}/api/voice/surplus?dealId=${dealId}`,
+            statusCallback: `${process.env.BASE_URL!}/api/voice/status?dealId=${dealId}`,
+            statusCallbackEvent: ['answered', 'completed', 'busy', 'failed', 'no-answer']
         });
         
         // Log to database for dashboard stats and UI

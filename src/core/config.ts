@@ -64,11 +64,15 @@ export const config = {
     visionModel: process.env.VISION_MODEL ?? "gpt-4-vision-preview",
     STITCH_MASTER_PROJECT_ID: process.env.STITCH_MASTER_PROJECT_ID ?? "",
     firecrawlApiKey: env.FIRECRAWL_API_KEY || "",
+    openaiBaseUrl: env.OPENAI_BASE_URL || "",
 };
 
 // ── AI Clients (Exports are updated by initializeClients) ──────────────────
 
-export let openai = new OpenAI({ apiKey: env.OPENAI_API_KEY || "placeholder" });
+export let openai = new OpenAI({ 
+    apiKey: env.OPENAI_API_KEY || "placeholder",
+    baseURL: env.OPENAI_BASE_URL || undefined
+});
 export let groq = new Groq({ apiKey: env.GROQ_API_KEY || "placeholder" });
 export let anthropic = env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : null;
 
@@ -98,7 +102,10 @@ export async function initializeConfig() {
             if (row.key === "OPENAI_MODEL") config.openaiModel = row.value;
             if (row.key === "GROQ_MODEL") config.groqModel = row.value;
             if (row.key === "OPENAI_API_KEY") {
-                openai = new OpenAI({ apiKey: row.value });
+                openai = new OpenAI({ 
+                    apiKey: row.value,
+                    baseURL: process.env.OPENAI_BASE_URL || undefined
+                });
                 config.openaiApiKey = row.value;
             }
             if (row.key === "GROQ_API_KEY") groq = new Groq({ apiKey: row.value });

@@ -1,11 +1,21 @@
 import { askAI } from "../core/ai.js";
 import { config } from "../core/config.js";
+import fs from "fs";
+import path from "path";
 
 /**
  * Developer agent that acts as a COMPOSER.
  * It integrates Stitch UI data, Marketer copy, and the SiteBlueprint structural plan.
  */
 export async function developerAgent(stitchUI: any, marketerCopy: any, siteBlueprint: any) {
+  let designSystemContent = "None provided.";
+  try {
+    const dsPath = path.resolve("./design-system/MASTER.md");
+    if (fs.existsSync(dsPath)) {
+        designSystemContent = fs.readFileSync(dsPath, 'utf8');
+    }
+  } catch (e) {}
+
   const systemPrompt = `
 You are the Developer Agent. You are a strict COMPOSER.
 Your goal is to integrate visual structure, marketing copy, and a structural blueprint into a complete functional project.
@@ -29,10 +39,13 @@ INPUT DATA:
 - SiteBlueprint: ${JSON.stringify(siteBlueprint)}
 - Marketer Copy: ${JSON.stringify(marketerCopy)}
 - Stitch UI Data: ${JSON.stringify(stitchUI)}
+- Design System (Source of Truth): ${designSystemContent}
 
 RULES:
 - No explanations. No markdown.
-- Generate a COMPLETE working React/Next.js (or specified technology) project.
+- Generate a COMPLETE working project following the MASTER.md Source of Truth.
+- Apply the UI Style (${siteBlueprint.designTokens?.uiStyle || "Standard"}) correctly in CSS/Tailwind.
+- Use the prescribed color palette and font pairings from the Design System.
 - Integrate the Marketer headlines and CTAs into the corresponding components.
 - Follow the Blueprint's component list exactly.
 - Always include a README.md with launch instructions.

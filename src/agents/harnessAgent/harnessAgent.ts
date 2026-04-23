@@ -80,8 +80,12 @@ export async function handleHarnessCommand(args: string): Promise<string> {
 
     const parts = args.split(' ');
     // If first part is not a URL, we assume they want to search Google
-    let url = parts[0].startsWith('http') ? parts.shift() : 'https://www.google.com/search?q=' + encodeURIComponent(parts.join(' '));
+    let url: string = parts[0].startsWith('http') ? (parts.shift() || "") : 'https://www.google.com/search?q=' + encodeURIComponent(parts.join(' '));
     let task = parts.join(' ');
+
+    if (!url) {
+        return "⚠️ **Invalid URL**\nPlease provide a valid URL or search query.";
+    }
 
     if (url.includes('google.com/search') && !task) {
         task = "Find the most relevant results and summarize them.";
@@ -90,5 +94,5 @@ export async function handleHarnessCommand(args: string): Promise<string> {
     }
 
     const agent = HarnessAgent.getInstance();
-    return await agent.browse(url!, task);
+    return await agent.browse(url, task);
 }

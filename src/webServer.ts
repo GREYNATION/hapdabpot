@@ -202,7 +202,20 @@ app.get('/api/voice/audio', async (req: Request, res: Response) => {
 
 // Twilio Active Voice Call Webhook (Initiation)
 app.post('/api/voice/surplus', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
-  const dealId = req.query.dealId || req.body.dealId;
+  let dealIdRaw = req.query.dealId || req.body.dealId;
+  let dealId: number | null = parseInt(String(dealIdRaw));
+  
+  // Fallback: If not a numeric ID, try finding deal by address string
+  if (isNaN(dealId)) {
+    const deals = CrmManager.findDealsByAddress(String(dealIdRaw));
+    if (deals.length > 0) {
+      dealId = deals[0].id;
+    } else {
+      log(`[webServer] ⚠️ Failed to resolve dealId from: ${dealIdRaw}`, "warn");
+      dealId = null;
+    }
+  }
+
   const intro = "Hi there, I'm just calling about a property you used to own. It looks like there might be some funds available to you. Are you the owner?";
   const voiceData = await generateVoice(intro);
   const audioUrl = voiceData ? await uploadAudioAndGetUrl(voiceData) : "";
@@ -220,11 +233,12 @@ app.post('/api/voice/surplus', express.urlencoded({ extended: false }), async (r
 // Twilio Status Callback Webhook
 app.post('/api/voice/status', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
   const { CallStatus } = req.body;
-  const dealId = req.query.dealId;
+  const dealIdRaw = req.query.dealId;
+  const dealId = parseInt(String(dealIdRaw));
   
-  log(`[Twilio Status] Call Status for Deal ${dealId}: ${CallStatus}`);
+  log(`[Twilio Status] Call Status for Deal ${dealIdRaw} (ID: ${dealId}): ${CallStatus}`);
 
-  if (dealId) {
+  if (dealId && !isNaN(dealId)) {
     let status = 'Dialed';
     if (CallStatus === 'in-progress') status = 'Answered';
     if (CallStatus === 'no-answer') status = 'No Answer';
@@ -260,7 +274,10 @@ app.post('/api/voice/status', express.urlencoded({ extended: false }), async (re
 // Twilio Conversational Loop Webhook
 app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
   const speech = (req.body.SpeechResult || "").toLowerCase();
-  log(`[Twilio Voice] Owner said: "${speech}"`);
+  const dealIdRaw = req.query.dealId;
+  const dealId = parseInt(String(dealIdRaw));
+
+  log(`[Twilio Voice] Owner (Deal ${dealId}) said: "${speech}"`);
 
   const endCall = async (message: string) => {
     const voiceData = await generateVoice(message);
@@ -279,9 +296,9 @@ app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: R
   const intent = classifyLead(speech);
   const dealId = req.query.dealId;
 
-  if (intent === "interested" && dealId) {
+  if (intent === "interested" && dealId && !isNaN(dealId)) {
     getDb().prepare("UPDATE deals SET last_call_status = 'Interested', status = 'interested', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-      .run(Number(dealId));
+      .run(dealId);
     
     // Mirror to Supabase Funnel
     const deal = CrmManager.getDeal(Number(dealId));

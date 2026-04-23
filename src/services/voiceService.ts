@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { log } from '../core/config.js';
-import { openai, openRouterClient } from '../core/ai.js';
+import { openai, config, log } from '../core/config.js';
+import { openRouterClient } from '../core/ai.js';
+// @ts-ignore
 import ffmpeg from 'fluent-ffmpeg';
 import fetch from 'node-fetch';
 
@@ -11,6 +12,7 @@ import fetch from 'node-fetch';
  */
 export class VoiceService {
     private static TEMP_DIR = path.resolve('./temp/voice');
+    private static isFfmpegReady = false;
 
     static init() {
         if (!fs.existsSync(this.TEMP_DIR)) {
@@ -19,18 +21,21 @@ export class VoiceService {
 
         // Windows-specific ffmpeg path fallback (if installed via common paths)
         if (process.platform === 'win32') {
-            const commonPaths = [
+            const paths = [
+                'ffmpeg', // Default in PATH (Linux/Railway)
                 'C:\\ffmpeg\\bin\\ffmpeg.exe',
                 'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
                 'C:\\ProgramData\\chocolatey\\bin\\ffmpeg.exe',
                 'C:\\bin\\ffmpeg.exe',
                 path.join(process.cwd(), 'bin', 'ffmpeg.exe')
             ];
-            for (const p of commonPaths) {
-                if (fs.existsSync(p)) {
+            
+            for (const p of paths) {
+                if (p === 'ffmpeg' || fs.existsSync(p)) {
                     ffmpeg.setFfmpegPath(p);
-                    log(`[voice] Windows ffmpeg found at: ${p}`);
-                    return;
+                    log(`[voice] FFmpeg path set to: ${p}`);
+                    this.isFfmpegReady = true;
+                    break;
                 }
             }
             log(`[voice] WARNING: ffmpeg not found in common Windows paths. Fallback to system PATH.`, "warn");
@@ -120,34 +125,50 @@ export class VoiceService {
     /**
      * TTS: Synthesize Speech
      */
-    static async synthesize(text: string, voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" = "onyx"): Promise<Buffer | null> {
+    static async synthesize(text: string, voice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer' = 'alloy'): Promise<Buffer | null> {
         try {
-            log(`[voice] Synthesizing speech with voice: ${voice} (Length: ${text.length})`);
+            // 1. Try ElevenLabs First (Premium)
+            if (config.elevenKey) {
+                try {
+                    log(`[voice] Generating premium voice via ElevenLabs...`);
+                    const voiceId = config.elevenVoiceId || "pNInz6obpgmqnzPCWZZf";
+                    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'xi-api-key': config.elevenKey
+                        },
+                        body: JSON.stringify({
+                            text,
+                            model_id: "eleven_monolingual_v1",
+                            voice_settings: { stability: 0.5, similarity_boost: 0.5 }
+                        })
+                    });
 
-            if (text.length <= 4000) {
-                const mp3 = await openai.audio.speech.create({
-                    model: "tts-1",
-                    voice: voice,
-                    input: text,
-                });
-                return Buffer.from(await mp3.arrayBuffer());
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        return Buffer.from(arrayBuffer);
+                    } else {
+                        const err = await response.text();
+                        log(`[voice] ElevenLabs failed: ${err}`, "warn");
+                    }
+                } catch (e: any) {
+                    log(`[voice] ElevenLabs error: ${e.message}`, "warn");
+                }
             }
 
-            const chunks = this.chunkText(text, 4000);
-            const buffers: Buffer[] = [];
+            // 2. Fallback to OpenAI TTS
+            log(`[voice] Falling back to OpenAI TTS...`);
+            const mp3 = await openai.audio.speech.create({
+                model: "tts-1",
+                voice: voice,
+                input: text,
+            });
 
-            for (const chunk of chunks) {
-                const mp3 = await openai.audio.speech.create({
-                    model: "tts-1",
-                    voice: voice,
-                    input: chunk,
-                });
-                buffers.push(Buffer.from(await mp3.arrayBuffer()));
-            }
-
-            return Buffer.concat(buffers);
+            const buffer = Buffer.from(await mp3.arrayBuffer());
+            return buffer;
         } catch (err: any) {
-            log(`[voice] TTS Failed: ${err.message}.`, "error");
+            log(`[voice] TTS Failed permanently: ${err.message}.`, "error");
             return null;
         }
     }

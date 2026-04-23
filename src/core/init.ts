@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from "child_process";
 import https from "https";
+import { WikiService } from "../services/wikiService.js";
 
 /**
  * 🛠️ DEPRECATION SUPPRESSION
@@ -105,6 +106,45 @@ if (!fs.existsSync(harnessDir)) {
     }
 } else {
     initLog("✅ Browser Harness directory confirmed.");
+}
+
+// 7. Clone UI/UX Pro Max Skill if missing
+const uxSkillDir = path.resolve("./ui-ux-pro-max-skill");
+if (!fs.existsSync(uxSkillDir)) {
+    try {
+        initLog("Cloning UI/UX Pro Max Skill repository...");
+        execSync("git clone https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git ui-ux-pro-max-skill", { stdio: "inherit" });
+        initLog("✅ UI/UX Pro Max Skill ready.");
+    } catch (err: any) {
+        initLog(`⚠️ Could not clone UI/UX Pro Max Skill: ${err.message}`);
+        initLog("👉 Please manually run: git clone https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git ui-ux-pro-max-skill");
+    }
+} else {
+    initLog("✅ UI/UX Pro Max Skill directory confirmed.");
+}
+
+// 8. Clone Claude-Obsidian if missing
+const obsidianDir = path.resolve("./claude-obsidian");
+if (!fs.existsSync(obsidianDir)) {
+    try {
+        initLog("Cloning Claude-Obsidian repository...");
+        execSync("git clone https://github.com/AgriciDaniel/claude-obsidian.git claude-obsidian", { stdio: "inherit" });
+        initLog("✅ Claude-Obsidian ready.");
+    } catch (err: any) {
+        initLog(`⚠️ Could not clone Claude-Obsidian: ${err.message}`);
+        initLog("👉 Please manually run: git clone https://github.com/AgriciDaniel/claude-obsidian.git claude-obsidian");
+    }
+} else {
+    initLog("✅ Claude-Obsidian directory confirmed.");
+}
+
+// 9. Initialize Wiki Service
+try {
+    initLog("Initializing Spirit Brain (Obsidian Wiki)...");
+    await WikiService.init();
+    initLog("✅ Spirit Brain online.");
+} catch (err: any) {
+    initLog(`⚠️ Spirit Brain init failed: ${err.message}`);
 }
 
 // 6. Log System Status

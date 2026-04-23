@@ -2,8 +2,10 @@ import { ArchitectAgent, SiteBlueprint } from "../agents/architectAgent.js";
 import { StitchAgent } from "../agents/stitchAgent.js";
 import { MarketerAgent } from "../agents/marketerAgent.js";
 import { developerAgent } from "../agents/developer.js";
-import { log } from "../core/config.js";
 import { DashboardPatch, FactoryDashboardState, DashboardStage, DashboardStatus } from "../core/factoryTypes.js";
+import { execSync } from "child_process";
+import fs from "fs";
+import path from "path";
 
 export type FactoryStatus = "PLANNING" | "SCAFFOLDING" | "STYLING" | "CONTENT" | "ASSEMBLY" | "COMPLETE" | "FAILED";
 
@@ -67,6 +69,27 @@ export class WebsiteFactory {
                 throw new Error("Architect failed to produce a valid SiteBlueprint JSON.");
             }
             patch("architect", "complete", `Blueprint: ${blueprint.templateId}`);
+            
+            // 1.5. STATE: DESIGN SYSTEM (PRO MAX)
+            patch("stitch", "running", "Generating UI/UX Pro Max Design System...");
+            try {
+                const designDir = path.resolve("./design-system");
+                if (!fs.existsSync(designDir)) fs.mkdirSync(designDir, { recursive: true });
+                
+                const searchQuery = `${blueprint.goal} ${blueprint.designTokens.uiStyle || ""} ${blueprint.designTokens.colorPalette || ""}`.trim();
+                const skillPath = path.resolve("./ui-ux-pro-max-skill/src/ui-ux-pro-max/scripts/search.py");
+                
+                if (fs.existsSync(skillPath)) {
+                    log(`[Factory] Invoking UI/UX Pro Max for: ${searchQuery}`);
+                    const output = execSync(`python3 "${skillPath}" "${searchQuery}" --design-system -f markdown`, { encoding: 'utf8' });
+                    fs.writeFileSync(path.join(designDir, "MASTER.md"), output);
+                    patch("stitch", "running", `Design System: ${blueprint.designTokens.uiStyle || "Custom"}`);
+                } else {
+                    log("[Factory] UI/UX Pro Max skill not found, skipping specialized design system.", "warn");
+                }
+            } catch (dsErr: any) {
+                log(`[Factory] Design System generation failed: ${dsErr.message}`, "warn");
+            }
 
             // 2. STATE: STITCH
             patch("stitch", "running", "Assembling UI in Stitch...");
