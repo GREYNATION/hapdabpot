@@ -48,56 +48,60 @@ export class VoiceService {
 
         fs.writeFileSync(inputPath, buffer);
 
-        let attempt = 0;
-        const maxRetries = 2;
-
         const attemptTranscription = async (): Promise<string> => {
-            try {
-                let fileToUpload = inputPath;
+            const maxRetries = 3;
+            let attempt = 0;
 
-                // Try converting to MP3 if ffmpeg is available
+            while (attempt < maxRetries) {
                 try {
-                    await this.convertToMp3(inputPath, outputPath);
-                    fileToUpload = outputPath;
-                    log(`[voice] Conversion successful, using MP3 for Whisper.`);
-                } catch (convErr: any) {
-                    log(`[voice] ffmpeg conversion failed or not found: ${convErr.message}. Trying raw upload...`, "warn");
-                    // Whisper supports .oga/.ogg/.wav/.m4a etc.
-                    // We'll rename it to .ogg so OpenAI recognizes the container correctly.
-                    const rawOggPath = path.join(this.TEMP_DIR, `raw_${timestamp}.ogg`);
-                    fs.copyFileSync(inputPath, rawOggPath);
-                    fileToUpload = rawOggPath;
-                }
+                    let fileToUpload = inputPath;
 
-                try {
-                    const transcription = await openai.audio.transcriptions.create({
-                        file: fs.createReadStream(fileToUpload),
-                        model: "whisper-1",
-                    });
-                    return transcription.text;
-                } catch (oe: any) {
-                    log(`[voice] OpenAI Whisper failed, trying OpenRouter fallback...`, "warn");
-                    const transcription = await openRouterClient.audio.transcriptions.create({
-                        file: fs.createReadStream(fileToUpload),
-                        model: "openai/whisper-large-v3",
-                    });
-                    return transcription.text;
-                }
-            } catch (err: any) {
-                const isRetryable = err.message?.includes('Connection') || err.status >= 500;
+                    // Try converting to MP3 if ffmpeg is available
+                    try {
+                        await this.convertToMp3(inputPath, outputPath);
+                        fileToUpload = outputPath;
+                        log(`[voice] Conversion successful, using MP3 for Whisper.`);
+                    } catch (convErr: any) {
+                        log(`[voice] ffmpeg conversion failed or not found: ${convErr.message}. Trying raw upload...`, "warn");
+                        const rawOggPath = path.join(this.TEMP_DIR, `raw_${timestamp}.ogg`);
+                        fs.copyFileSync(inputPath, rawOggPath);
+                        fileToUpload = rawOggPath;
+                    }
 
-                if (isRetryable && attempt < maxRetries) {
+                    try {
+                        const transcription = await openai.audio.transcriptions.create({
+                            file: fs.createReadStream(fileToUpload),
+                            model: "whisper-1",
+                        });
+                        return transcription.text;
+                    } catch (oe: any) {
+                        log(`[voice] OpenAI Whisper failed, trying OpenRouter fallback...`, "warn");
+                        const transcription = await openRouterClient.audio.transcriptions.create({
+                            file: fs.createReadStream(fileToUpload),
+                            model: "openai/whisper-large-v3",
+                        });
+                        return transcription.text;
+                    }
+                } catch (err: any) {
+                    const isRetryable = err.message?.includes('Connection') || 
+                                       err.status >= 500 || 
+                                       err.message?.includes('rate limit');
+
+                    if (!isRetryable || attempt >= maxRetries - 1) {
+                        log(`[voice] Transcription FAILED permanently: ${err.message}`, "error");
+                        return `[Audio Transcription Unavailable — Error: ${err.message.substring(0, 50)}]`;
+                    }
+
                     attempt++;
-                    const waitDelay = attempt * 2000;
-                    log(`[voice] Transcription transient error: ${err.message}. Retrying (${attempt}/${maxRetries}) in ${waitDelay}ms...`, "warn");
-                    await delay(waitDelay);
-                    return attemptTranscription();
-                }
+                    const baseDelay = Math.pow(2, attempt) * 1000;
+                    const jitter = Math.random() * 500;
+                    const waitDelay = baseDelay + jitter;
 
-                log(`[voice] Transcription FAILED permanently: ${err.message}`, "error");
-                // More helpful error for the spirits to apologize for
-                return `[Audio Transcription Unavailable — Likely missing FFmpeg or OpenAI key error: ${err.message.substring(0, 50)}]`;
+                    log(`[voice] Transcription transient error: ${err.message}. Retrying (${attempt}/${maxRetries}) in ${Math.round(waitDelay)}ms...`, "warn");
+                    await new Promise(r => setTimeout(r, waitDelay));
+                }
             }
+            return "[Audio Transcription Unavailable — Retries exhausted]";
         };
 
         try {

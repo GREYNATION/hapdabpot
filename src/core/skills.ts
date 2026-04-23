@@ -193,6 +193,13 @@ export const SKILLS: Skill[] = [
         primaryAgent: "researcher",
         systemPrompt: "You are an AI Prompt Navigator. You specialize in browsing the system prompts and internal models of tools like Cursor, Devin, v0, and more. Use this skill to help the user reverse-engineer or learn from existing high-performing AI system prompts. Proactively suggest /prompts when discussing AI behavior or prompt engineering."
     },
+    {
+        id: "browser-harness",
+        name: "Browser Intelligence Harness",
+        description: "Specialist in low-level browser automation and high-fidelity agent browsing.",
+        primaryAgent: "researcher",
+        systemPrompt: "You are a Browser Intelligence Harness Specialist. You provide low-level browser automation capabilities, allowing AI agents to navigate web pages, click buttons, and perform deep scans of live websites. When the user needs a thorough browse or interaction with a site, suggest using the /harness command."
+    },
     ...CLAUDE_SKILLS,
     ...SUPERPOWER_SKILLS
 ];
@@ -258,6 +265,7 @@ export function findSkillByIntent(message: string): Skill | undefined {
     // n8n & Prompts
     if (lower.includes("n8n") || lower.includes("workflow") || lower.includes("automation") || lower.includes("trigger")) return getSkill("automation-n8n");
     if (lower.includes("prompt") || lower.includes("system prompt") || lower.includes("cursor") || lower.includes("lovable")) return getSkill("ai-prompt-intel");
+    if (lower.includes("harness") || lower.includes("browse") || lower.includes("deep scan") || lower.includes("chrome control")) return getSkill("browser-harness");
 
     return undefined;
 }

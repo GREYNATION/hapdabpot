@@ -92,7 +92,22 @@ if (!fs.existsSync(promptsDir)) {
     initLog("✅ AI prompts directory confirmed.");
 }
 
-// 5. Log System Status
+// 5. Clone Browser Harness if missing
+const harnessDir = path.resolve("./browser-harness");
+if (!fs.existsSync(harnessDir)) {
+    try {
+        initLog("Cloning Browser Harness repository...");
+        execSync("git clone https://github.com/browser-use/browser-harness.git browser-harness", { stdio: "inherit" });
+        initLog("✅ Browser Harness ready.");
+    } catch (err: any) {
+        initLog(`⚠️ Could not clone Browser Harness: ${err.message}`);
+        initLog("👉 Please manually run: git clone https://github.com/browser-use/browser-harness.git browser-harness");
+    }
+} else {
+    initLog("✅ Browser Harness directory confirmed.");
+}
+
+// 6. Log System Status
 initLog(`CWD: ${process.cwd()}`);
 initLog(`Resolved DB Path: ${dbPath}`);
 
