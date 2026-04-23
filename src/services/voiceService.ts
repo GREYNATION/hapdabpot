@@ -2,6 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { openai, config, log } from '../core/config.js';
 import { openRouterClient } from '../core/ai.js';
+import OpenAI from "openai";
+
+// Create a dedicated OpenAI client for TTS that ignores custom BASE_URLs
+const ttsClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "placeholder" });
 // @ts-ignore
 import ffmpeg from 'fluent-ffmpeg';
 import fetch from 'node-fetch';
@@ -139,7 +143,7 @@ export class VoiceService {
                 if (config.elevenKey) {
                     try {
                         log(`[voice] Generating premium chunk (${chunk.length} chars) via ElevenLabs...`);
-                        const voiceId = config.elevenVoiceId || "pNInz6obpgmqnzPCWZZf";
+                        const voiceId = config.elevenVoiceId || "21m00Tcm4TlvDq8ikWAM"; // Rachel (High compatibility)
                         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
                             method: 'POST',
                             headers: {
@@ -168,7 +172,7 @@ export class VoiceService {
                 if (!chunkBuffer) {
                     log(`[voice] Falling back to OpenAI TTS for chunk...`);
                     try {
-                        const mp3 = await openai.audio.speech.create({
+                        const mp3 = await ttsClient.audio.speech.create({
                             model: "tts-1",
                             voice: voice,
                             input: chunk,
