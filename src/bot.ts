@@ -57,7 +57,16 @@ Found ${opportunities.length} high-margin >$10k surplus overages in ${targetCity
       } catch (err: any) {
         return `❌ Surplus run failed: ${err.message}`;
       }
+case "prompts":
+      try {
+        const { handlePromptsCommand } = await import("./agents/promptsAgent/promptsAgent.js");
+        const promptsResult = await handlePromptsCommand(args.join(" "));
+        return promptsResult;
+      } catch (err: any) {
+        return `❌ Prompts command failed: ${err.message}`;
+      }
 
+    case "n8n":
     case "n8n":
       try {
         const { handleN8nCommand } = await import("./agents/n8nAgent/n8nAgent.js");
