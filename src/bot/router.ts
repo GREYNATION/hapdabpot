@@ -25,7 +25,7 @@ import {
 import { getDb } from '../core/memory.js';
 import { handleN8nCommand } from '../agents/n8nAgent/n8nAgent.js';
 import { handlePromptsCommand } from '../agents/promptsAgent/promptsAgent.js';
-import { handleHarnessCommand } from '../agents/harnessAgent/harnessAgent.ts';
+import { handleHarnessCommand } from '../agents/harnessAgent/harnessAgent.js';
 
 
 export function setupRouter(bot: Telegraf) {
