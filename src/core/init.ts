@@ -58,7 +58,7 @@ const templatesDir = path.resolve("./n8n-templates");
 if (!fs.existsSync(templatesDir)) {
     try {
         initLog("Preparing n8n templates...");
-
+        
         // Try to install git if on a debian-based system
         try {
             execSync("apt-get update && apt-get install -y git 2>/dev/null", { stdio: "ignore" });
@@ -77,7 +77,22 @@ if (!fs.existsSync(templatesDir)) {
     initLog("✅ n8n templates directory confirmed.");
 }
 
-// 4. Log System Status
+// 4. Clone AI prompts if missing
+const promptsDir = path.resolve("./ai-prompts");
+if (!fs.existsSync(promptsDir)) {
+    try {
+        initLog("Cloning AI prompts repository...");
+        execSync("git clone https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools.git ai-prompts", { stdio: "inherit" });
+        initLog("✅ AI prompts ready.");
+    } catch (err: any) {
+        initLog(`⚠️ Could not clone AI prompts: ${err.message}`);
+        initLog("👉 Please manually run: git clone https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools.git ai-prompts");
+    }
+} else {
+    initLog("✅ AI prompts directory confirmed.");
+}
+
+// 5. Log System Status
 initLog(`CWD: ${process.cwd()}`);
 initLog(`Resolved DB Path: ${dbPath}`);
 
