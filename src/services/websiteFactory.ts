@@ -6,6 +6,7 @@ import { DashboardPatch, FactoryDashboardState, DashboardStage, DashboardStatus 
 import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
+import { log } from "../core/config.js";
 
 export type FactoryStatus = "PLANNING" | "SCAFFOLDING" | "STYLING" | "CONTENT" | "ASSEMBLY" | "COMPLETE" | "FAILED";
 

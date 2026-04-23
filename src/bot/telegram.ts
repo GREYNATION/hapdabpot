@@ -13,7 +13,7 @@ import { findMotivatedSellers } from '../services/universalLeadScraper.js';
 import { CrmManager } from '../core/crm.js';
 import { SupabaseCrm } from '../core/supabaseCrm.js';
 import { openai } from '../core/ai.js';
-import { FactoryDashboardState, DashboardState } from '../core/factoryTypes.js';
+import { FactoryDashboardState, DashboardStage } from '../core/factoryTypes.js';
 import { WikiService } from '../services/wikiService.js';
 import { DealWatcher } from '../core/dealWatcher.js';
 import { MasterTraderAgent } from '../agents/MasterTraderAgent.js';

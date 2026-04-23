@@ -294,7 +294,6 @@ app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: R
   }
 
   const intent = classifyLead(speech);
-  const dealId = req.query.dealId;
 
   if (intent === "interested" && dealId && !isNaN(dealId)) {
     getDb().prepare("UPDATE deals SET last_call_status = 'Interested', status = 'interested', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
