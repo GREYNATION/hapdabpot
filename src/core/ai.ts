@@ -11,7 +11,7 @@ import { withTimeout, getErrorMessage, delay } from "./timeout.js";
 
 // ── Rate Limiting & Throttling ───────────────────────────────────────────────
 let lastCallTimestamp = 0;
-const GLOBAL_THROTTLE_MS = 1500; // 1.5s between calls
+const GLOBAL_THROTTLE_MS = 800; // 0.8s between calls
 
 /**
  * Ensure we don't bombard providers. Waits if the last call was too recent.
@@ -59,12 +59,12 @@ enum BreakerState { CLOSED, OPEN, HALF_OPEN }
 let breakerState = BreakerState.CLOSED;
 let consecutiveFailures = 0;
 let lastFailureTimestamp = 0;
-const BREAKER_THRESHOLD = 3;
-const BREAKER_COOLDOWN = 60_000; // 60 seconds
+const BREAKER_THRESHOLD = 5;
+const BREAKER_COOLDOWN = 30_000; // 30 seconds
 
 // ── Global Concurrency Limiting ──────────────────────────────────────────────
 let activeCalls = 0;
-const MAX_CONCURRENT_CALLS = 3;
+const MAX_CONCURRENT_CALLS = 5;
 const callQueue: (() => void)[] = [];
 
 /**
