@@ -126,47 +126,66 @@ export class VoiceService {
      * TTS: Synthesize Speech
      */
     static async synthesize(text: string, voice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer' = 'alloy'): Promise<Buffer | null> {
-        try {
-            // 1. Try ElevenLabs First (Premium)
-            if (config.elevenKey) {
-                try {
-                    log(`[voice] Generating premium voice via ElevenLabs...`);
-                    const voiceId = config.elevenVoiceId || "pNInz6obpgmqnzPCWZZf";
-                    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'xi-api-key': config.elevenKey
-                        },
-                        body: JSON.stringify({
-                            text,
-                            model_id: "eleven_monolingual_v1",
-                            voice_settings: { stability: 0.5, similarity_boost: 0.5 }
-                        })
-                    });
+        if (!text || text.trim() === "") return null;
 
-                    if (response.ok) {
-                        const arrayBuffer = await response.arrayBuffer();
-                        return Buffer.from(arrayBuffer);
-                    } else {
-                        const err = await response.text();
-                        log(`[voice] ElevenLabs failed: ${err}`, "warn");
+        try {
+            const chunks = this.chunkText(text, 4000); // Split to stay under API limits
+            const buffers: Buffer[] = [];
+
+            for (const chunk of chunks) {
+                let chunkBuffer: Buffer | null = null;
+
+                // 1. Try ElevenLabs First (Premium)
+                if (config.elevenKey) {
+                    try {
+                        log(`[voice] Generating premium chunk (${chunk.length} chars) via ElevenLabs...`);
+                        const voiceId = config.elevenVoiceId || "pNInz6obpgmqnzPCWZZf";
+                        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'xi-api-key': config.elevenKey
+                            },
+                            body: JSON.stringify({
+                                text: chunk,
+                                model_id: "eleven_monolingual_v1",
+                                voice_settings: { stability: 0.5, similarity_boost: 0.5 }
+                            })
+                        });
+
+                        if (response.ok) {
+                            chunkBuffer = Buffer.from(await response.arrayBuffer());
+                        } else {
+                            const errText = await response.text();
+                            log(`[voice] ElevenLabs chunk failed: ${errText}`, "warn");
+                        }
+                    } catch (e: any) {
+                        log(`[voice] ElevenLabs error: ${e.message}`, "warn");
                     }
-                } catch (e: any) {
-                    log(`[voice] ElevenLabs error: ${e.message}`, "warn");
+                }
+
+                // 2. Fallback to OpenAI TTS
+                if (!chunkBuffer) {
+                    log(`[voice] Falling back to OpenAI TTS for chunk...`);
+                    try {
+                        const mp3 = await openai.audio.speech.create({
+                            model: "tts-1",
+                            voice: voice,
+                            input: chunk,
+                        });
+                        chunkBuffer = Buffer.from(await mp3.arrayBuffer());
+                    } catch (oaErr: any) {
+                        log(`[voice] OpenAI fallback failed: ${oaErr.message}`, "error");
+                    }
+                }
+
+                if (chunkBuffer) {
+                    buffers.push(chunkBuffer);
                 }
             }
 
-            // 2. Fallback to OpenAI TTS
-            log(`[voice] Falling back to OpenAI TTS...`);
-            const mp3 = await openai.audio.speech.create({
-                model: "tts-1",
-                voice: voice,
-                input: text,
-            });
-
-            const buffer = Buffer.from(await mp3.arrayBuffer());
-            return buffer;
+            if (buffers.length === 0) return null;
+            return Buffer.concat(buffers);
         } catch (err: any) {
             log(`[voice] TTS Failed permanently: ${err.message}.`, "error");
             return null;
