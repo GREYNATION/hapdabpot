@@ -8,6 +8,7 @@ RUN apt-get update && \
     python-is-python3 \
     make \
     g++ \
+    git \
     ffmpeg \
     libnss3 \
     libatk-bridge2.0-0 \

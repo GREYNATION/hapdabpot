@@ -39,6 +39,11 @@ export async function withTimeout<T>(
 }
 
 /**
+ * Helper to sleep for N milliseconds
+ */
+export const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+/**
  * Helper to get a clean error message from any caught error.
  */
 export function getErrorMessage(error: any): string {

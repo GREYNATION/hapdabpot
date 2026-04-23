@@ -1,0 +1,70 @@
+{
+"nodes": [
+{
+"id": "d44489b8-8cb7-4776-8c16-a8bb01e52171",
+"name": "OpenAI1",
+"type": "@n8n/n8n-nodes-langchain.openAi",
+"position": [
+300,
+-300
+],
+"parameters": {
+"text": "={{ \n JSON.parse($('Insert Transcription Part').item.json.dialog)\n .filter(item => item.date_updated && new Date(item.date_updated) >= new Date($('Insert Transcription Part').item.json.date_updated))\n .sort((a, b) => a.order - b.order)\n .map(item => `${item.words}\\n${item.speaker}`)\n .join('\\n\\n')\n}}",
+"memory": "threadId",
+"prompt": "define",
+"options": {},
+"resource": "assistant",
+"threadId": "={{ $json.thread_id }}",
+"assistantId": {
+"__rl": true,
+"mode": "list",
+"value": "asst_D5t6bNnNpenmfC7PmvywMqyR",
+"cachedResultName": "5minAI - Realtime Agent"
+}
+},
+"credentials": {
+"openAiApi": {
+"id": "SphXAX7rlwRLkiox",
+"name": "Test club key"
+}
+},
+"typeVersion": 1.6
+},
+{
+"id": "3425f1c1-ad68-495e-bb9a-95ea92e7cf23",
+"name": "Insert Transcription Part",
+"type": "n8n-nodes-base.postgres",
+"position": [
+-120,
+-300
+],
+"parameters": {
+"query": "UPDATE public.data\nSET output = jsonb_set(\n output,\n '{dialog}', \n (\n COALESCE(\n (output->'dialog')::jsonb, \n '[]'::jsonb -- Initialize as empty array if dialog does not exist\n ) || jsonb_build_object(\n 'order', (COALESCE(jsonb_array_length(output->'dialog'), 0) + 1), -- Calculate the next order\n 'words', '{{ $('Webhook2').item.json.body.data.transcript.words.map(word => word.text.replace(/'/g, \"''\")).join(\" \") }}',\n 'speaker', '{{ $('Webhook2').item.json.body.data.transcript.speaker }}',\n 'language', '{{ $('Webhook2').item.json.body.data.transcript.language }}',\n 'speaker_id', ('{{ $('Webhook2').item.json.body.data.transcript.speaker_id }}')::int,\n 'date_updated', to_jsonb('{{ $now }}'::text)\n )\n )\n)\nWHERE input->>'recall_bot_id' = $1\nReturning input->>'openai_thread_id' as thread_id;",
+"options": {
+"queryReplacement": "={{ $('Scenario 2 Start - Webhook').item.json.body.data.bot_id }}"
+},
+"operation": "executeQuery"
+},
+"credentials": {
+"postgres": {
+"id": "AO9cER6p8uX7V07T",
+"name": "Postgres 5minai"
+}
+},
+"typeVersion": 2.5
+}
+],
+"connections": {
+"Insert Transcription Part": {
+"main": [
+[
+{
+"node": "OpenAI1",
+"type": "main",
+"index": 0
+}
+]
+]
+}
+}
+}

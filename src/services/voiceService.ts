@@ -1,13 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import { log } from '../core/config.js';
-import { openai } from '../core/ai.js';
+import { openai, openRouterClient } from '../core/ai.js';
 import ffmpeg from 'fluent-ffmpeg';
-import { promisify } from 'util';
 import fetch from 'node-fetch';
 
 /**
  * VoiceService — Handles STT (Whisper) and TTS (OpenAI)
+ * Optimized for Windows and Railway deployments.
  */
 export class VoiceService {
     private static TEMP_DIR = path.resolve('./temp/voice');
@@ -16,6 +16,25 @@ export class VoiceService {
         if (!fs.existsSync(this.TEMP_DIR)) {
             fs.mkdirSync(this.TEMP_DIR, { recursive: true });
         }
+
+        // Windows-specific ffmpeg path fallback (if installed via common paths)
+        if (process.platform === 'win32') {
+            const commonPaths = [
+                'C:\\ffmpeg\\bin\\ffmpeg.exe',
+                'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
+                'C:\\ProgramData\\chocolatey\\bin\\ffmpeg.exe',
+                'C:\\bin\\ffmpeg.exe',
+                path.join(process.cwd(), 'bin', 'ffmpeg.exe')
+            ];
+            for (const p of commonPaths) {
+                if (fs.existsSync(p)) {
+                    ffmpeg.setFfmpegPath(p);
+                    log(`[voice] Windows ffmpeg found at: ${p}`);
+                    return;
+                }
+            }
+            log(`[voice] WARNING: ffmpeg not found in common Windows paths. Fallback to system PATH.`, "warn");
+        }
     }
 
     /**
@@ -23,8 +42,9 @@ export class VoiceService {
      */
     static async transcribe(buffer: Buffer, originalExt: string = '.oga'): Promise<string> {
         this.init();
-        const inputPath = path.join(this.TEMP_DIR, `input_${Date.now()}${originalExt}`);
-        const outputPath = path.join(this.TEMP_DIR, `output_${Date.now()}.mp3`);
+        const timestamp = Date.now();
+        const inputPath = path.join(this.TEMP_DIR, `input_${timestamp}${originalExt}`);
+        const outputPath = path.join(this.TEMP_DIR, `output_${timestamp}.mp3`);
 
         fs.writeFileSync(inputPath, buffer);
 
@@ -33,38 +53,63 @@ export class VoiceService {
 
         const attemptTranscription = async (): Promise<string> => {
             try {
-                // Convert to MP3 if needed (OpenAI likes mp3/m4a/wav)
-                await this.convertToMp3(inputPath, outputPath);
+                let fileToUpload = inputPath;
 
-                const transcription = await openai.audio.transcriptions.create({
-                    file: fs.createReadStream(outputPath),
-                    model: "whisper-1",
-                });
+                // Try converting to MP3 if ffmpeg is available
+                try {
+                    await this.convertToMp3(inputPath, outputPath);
+                    fileToUpload = outputPath;
+                    log(`[voice] Conversion successful, using MP3 for Whisper.`);
+                } catch (convErr: any) {
+                    log(`[voice] ffmpeg conversion failed or not found: ${convErr.message}. Trying raw upload...`, "warn");
+                    // Whisper supports .oga/.ogg/.wav/.m4a etc.
+                    // We'll rename it to .ogg so OpenAI recognizes the container correctly.
+                    const rawOggPath = path.join(this.TEMP_DIR, `raw_${timestamp}.ogg`);
+                    fs.copyFileSync(inputPath, rawOggPath);
+                    fileToUpload = rawOggPath;
+                }
 
-                return transcription.text;
+                try {
+                    const transcription = await openai.audio.transcriptions.create({
+                        file: fs.createReadStream(fileToUpload),
+                        model: "whisper-1",
+                    });
+                    return transcription.text;
+                } catch (oe: any) {
+                    log(`[voice] OpenAI Whisper failed, trying OpenRouter fallback...`, "warn");
+                    const transcription = await openRouterClient.audio.transcriptions.create({
+                        file: fs.createReadStream(fileToUpload),
+                        model: "openai/whisper-large-v3",
+                    });
+                    return transcription.text;
+                }
             } catch (err: any) {
-                // Network/Connection errors merit a retry
                 const isRetryable = err.message?.includes('Connection') || err.status >= 500;
-                
+
                 if (isRetryable && attempt < maxRetries) {
                     attempt++;
-                    const delay = attempt * 2000;
-                    log(`[voice] Transcription transient error: ${err.message}. Retrying (${attempt}/${maxRetries}) in ${delay}ms...`, "warn");
-                    await new Promise(r => setTimeout(r, delay));
+                    const waitDelay = attempt * 2000;
+                    log(`[voice] Transcription transient error: ${err.message}. Retrying (${attempt}/${maxRetries}) in ${waitDelay}ms...`, "warn");
+                    await delay(waitDelay);
                     return attemptTranscription();
                 }
-                
+
                 log(`[voice] Transcription FAILED permanently: ${err.message}`, "error");
-                return "[Audio Transcription Unavailable — Connection Error]";
+                // More helpful error for the spirits to apologize for
+                return `[Audio Transcription Unavailable — Likely missing FFmpeg or OpenAI key error: ${err.message.substring(0, 50)}]`;
             }
         };
 
         try {
             return await attemptTranscription();
         } finally {
-            // Cleanup
-            if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+            // Cleanup all temp files
+            const files = fs.readdirSync(this.TEMP_DIR);
+            for (const f of files) {
+                if (f.includes(String(timestamp))) {
+                    try { fs.unlinkSync(path.join(this.TEMP_DIR, f)); } catch { }
+                }
+            }
         }
     }
 
@@ -74,8 +119,7 @@ export class VoiceService {
     static async synthesize(text: string, voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" = "onyx"): Promise<Buffer | null> {
         try {
             log(`[voice] Synthesizing speech with voice: ${voice} (Length: ${text.length})`);
-            
-            // Handle character limit (OpenAI TTS has a ~4096 character limit)
+
             if (text.length <= 4000) {
                 const mp3 = await openai.audio.speech.create({
                     model: "tts-1",
@@ -85,13 +129,10 @@ export class VoiceService {
                 return Buffer.from(await mp3.arrayBuffer());
             }
 
-            // Chunking strategy for long responses
-            log(`[voice] Text exceeds 4000 chars. Chunking...`);
             const chunks = this.chunkText(text, 4000);
             const buffers: Buffer[] = [];
 
             for (const chunk of chunks) {
-                log(`[voice] Synthesizing chunk (${chunk.length} chars)...`);
                 const mp3 = await openai.audio.speech.create({
                     model: "tts-1",
                     voice: voice,
@@ -102,14 +143,11 @@ export class VoiceService {
 
             return Buffer.concat(buffers);
         } catch (err: any) {
-            log(`[voice] TTS Failed: ${err.message}. Defaulting to text-only.`, "error");
+            log(`[voice] TTS Failed: ${err.message}.`, "error");
             return null;
         }
     }
 
-    /**
-     * Split text into chunks that don't break mid-sentence if possible.
-     */
     private static chunkText(text: string, limit: number): string[] {
         const chunks: string[] = [];
         let remaining = text;
@@ -131,9 +169,6 @@ export class VoiceService {
         return chunks;
     }
 
-    /**
-     * Helper: Convert audio to MP3 using fluent-ffmpeg
-     */
     private static convertToMp3(input: string, output: string): Promise<void> {
         return new Promise((resolve, reject) => {
             ffmpeg(input)
@@ -144,9 +179,6 @@ export class VoiceService {
         });
     }
 
-    /**
-     * Download file from Telegram URL
-     */
     static async downloadTelegramFile(url: string): Promise<Buffer> {
         let attempts = 0;
         const maxAttempts = 3;
@@ -157,7 +189,7 @@ export class VoiceService {
                 const timeout = setTimeout(() => controller.abort(), 15000);
                 const res = await fetch(url, { signal: controller.signal as any });
                 clearTimeout(timeout);
-                
+
                 if (!res.ok) throw new Error(`Failed to download file from ${url}`);
                 const arrayBuffer = await res.arrayBuffer();
                 return Buffer.from(arrayBuffer);
@@ -173,12 +205,8 @@ export class VoiceService {
     }
 }
 
-/**
- * Global Export for compatibility 
- */
 export const generateVoice = (text: string) => VoiceService.synthesize(text, "onyx");
 
 export async function uploadAudioAndGetUrl(file: Buffer): Promise<string> {
-  // TODO: implement upload (S3, Supabase, etc.)
-  return "https://placeholder-url.com/audio.mp3";
+    return "https://placeholder-url.com/audio.mp3";
 }

@@ -72,7 +72,8 @@ export function setupRouter(bot: Telegraf) {
         "/brief - Executive Morning Command Center\n" +
         "/decision \"title\" \"outcome\" \"logic\" - Log decision\n" +
         "/triage - Manual email/task triage\n" +
-        "/n8n [list|templates|trigger] - n8n Workflow Intelligence"
+        "/n8n [list|templates|trigger] - n8n Workflow Intelligence\n" +
+        "/prompts [list|read] - AI Prompt Library"
     ));
 
 

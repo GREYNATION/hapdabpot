@@ -179,6 +179,20 @@ export const SKILLS: Skill[] = [
         primaryAgent: "researcher",
         systemPrompt: "You are the Strategic Finance Officer. Your goal is to protect the profit margins. You perform deep financial audits, calculate Maximum Allowed Offers (MAO), and analyze debt structures for surplus deals."
     },
+    {
+        id: "automation-n8n",
+        name: "Automation Engineer (n8n)",
+        description: "Specialist in n8n workflows, triggers, and automation templates.",
+        primaryAgent: "developer",
+        systemPrompt: "You are an Automation Engineer specializing in n8n. Your goal is to guide the user in managing and triggering automation workflows. You know how to browse local templates, search for solutions, and deploy them to the live n8n instance. When the user mentions 'workflow', 'automation', or 'n8n', suggest using the /n8n command set."
+    },
+    {
+        id: "ai-prompt-intel",
+        name: "AI Prompt Navigator",
+        description: "Specialist in exploring and analyzing system prompts of top AI tools.",
+        primaryAgent: "researcher",
+        systemPrompt: "You are an AI Prompt Navigator. You specialize in browsing the system prompts and internal models of tools like Cursor, Devin, v0, and more. Use this skill to help the user reverse-engineer or learn from existing high-performing AI system prompts. Proactively suggest /prompts when discussing AI behavior or prompt engineering."
+    },
     ...CLAUDE_SKILLS,
     ...SUPERPOWER_SKILLS
 ];
@@ -240,6 +254,10 @@ export function findSkillByIntent(message: string): Skill | undefined {
     if (lower.includes("test") || lower.includes("tdd") || lower.includes("unit test")) return getSkill("superpower-test-driven-development");
     if (lower.includes("review code") || lower.includes("code review") || lower.includes("check this code")) return getSkill("superpower-code-review");
     if (lower.includes("verify") || lower.includes("check work") || lower.includes("is it done")) return getSkill("superpower-verification");
+
+    // n8n & Prompts
+    if (lower.includes("n8n") || lower.includes("workflow") || lower.includes("automation") || lower.includes("trigger")) return getSkill("automation-n8n");
+    if (lower.includes("prompt") || lower.includes("system prompt") || lower.includes("cursor") || lower.includes("lovable")) return getSkill("ai-prompt-intel");
 
     return undefined;
 }

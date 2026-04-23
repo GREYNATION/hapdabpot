@@ -7,7 +7,25 @@ import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import { config, log } from "./config.js";
-import { withTimeout, getErrorMessage } from "./timeout.js";
+import { withTimeout, getErrorMessage, delay } from "./timeout.js";
+
+// ── Rate Limiting & Throttling ───────────────────────────────────────────────
+let lastCallTimestamp = 0;
+const GLOBAL_THROTTLE_MS = 1500; // 1.5s between calls
+
+/**
+ * Ensure we don't bombard providers. Waits if the last call was too recent.
+ */
+async function enforceThrottle() {
+    const now = Date.now();
+    const timeSinceLast = now - lastCallTimestamp;
+    if (timeSinceLast < GLOBAL_THROTTLE_MS) {
+        const waitTime = GLOBAL_THROTTLE_MS - timeSinceLast;
+        // log(`[ai] Throttling for ${waitTime}ms...`, "info");
+        await delay(waitTime);
+    }
+    lastCallTimestamp = Date.now();
+}
 
 // ── Clients (Re-initialized via initializeClients) ───────────────────────────
 import * as cfg from "./config.js";
@@ -16,7 +34,7 @@ const GROQ_MODEL = "llama-3.3-70b-versatile"; // keep this exact string
 
 export let openai = cfg.openai;
 let groqClient = cfg.groq;
-let openRouterClient: OpenAI;
+export let openRouterClient: OpenAI;
 let anthropicClient = cfg.anthropic;
 
 /**
@@ -44,7 +62,7 @@ const BREAKER_COOLDOWN = 60_000; // 60 seconds
 
 function checkBreaker() {
     if (circuitBreakerOpen) {
-        throw new Error("AI Circuit Breaker is OPEN. Cooling down to avoid 429 penalties.");
+        throw new Error("⚠️ System cooling down (rate limit reached). Try again in a few seconds.");
     }
 }
 
@@ -276,6 +294,9 @@ export async function askAI(
         const isGroqMode = config.aiProvider === "groq";
         const isOpenRouterMode = config.aiProvider === "openrouter";
 
+        // Global throttle to maintain 1.5s spacing
+        await enforceThrottle();
+
         try {
             if (isGroqMode && !isExplicitCloud) {
                 const timeoutMs = options.tools?.length ? 120_000 : 60_000;
@@ -310,9 +331,11 @@ export async function askAI(
             if (isRateLimit && attempt < maxRetries) {
                 attempt++;
                 handleFailure(err);
+                
+                // Exponential backoff: 2s -> 4s -> 8s
                 const backoffMs = Math.pow(2, attempt) * 1000;
-                log(`[ai] Rate limit encountered. Retrying in ${backoffMs}ms...`, "warn");
-                await new Promise(r => setTimeout(r, backoffMs));
+                log(`[ai] Rate limit encountered. Retrying in ${backoffMs}ms... (Attempt ${attempt}/${maxRetries})`, "warn");
+                await delay(backoffMs);
                 return executeWithBackoff();
             }
 
