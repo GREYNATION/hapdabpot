@@ -24,6 +24,8 @@ import {
 } from '../agents/googleWorkspaceAgent.js';
 import { getDb } from '../core/memory.js';
 import { handleN8nCommand } from '../agents/n8nAgent/n8nAgent.js';
+import { handlePromptsCommand } from '../agents/promptsAgent/promptsAgent.js';
+
 
 export function setupRouter(bot: Telegraf) {
     log("[router] Initializing Command Router...");
@@ -326,5 +328,22 @@ export function setupRouter(bot: Telegraf) {
         ctx.reply(res, { parse_mode: 'Markdown' });
     });
 
+    // 18. AI Prompts Browser
+    bot.command('prompts', async (ctx: any) => {
+        const args = ctx.message.text.replace('/prompts', '').trim();
+        try {
+            const result = await handlePromptsCommand(args);
+            if (result.length <= 4096) {
+                await ctx.reply(result, { parse_mode: 'Markdown' });
+            } else {
+                const chunks = result.match(/[\s\S]{1,4000}/g) ?? [result];
+                for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
+            }
+        } catch (err: any) {
+            ctx.reply(`❌ Prompts error: ${err.message}`);
+        }
+    });
+
     log("[router] Routes configured.");
+
 }
