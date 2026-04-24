@@ -4,8 +4,19 @@ import { openai, config, log } from '../core/config.js';
 import { openRouterClient } from '../core/ai.js';
 import OpenAI from "openai";
 
-// Create a dedicated OpenAI client for TTS that ignores custom BASE_URLs
-const ttsClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "placeholder" });
+// Lazy-initialized TTS client — must NOT be created at module load time
+// because OPENAI_API_KEY arrives from Supabase after boot.
+let _ttsClient: OpenAI | null = null;
+function getTtsClient(): OpenAI {
+    if (!_ttsClient || (_ttsClient as any)._lastKey !== config.openaiApiKey) {
+        const key = config.openaiApiKey || process.env.OPENAI_API_KEY || "";
+        log(`[voice] Creating TTS client (key present: ${!!key && key !== "placeholder"})`);
+        _ttsClient = new OpenAI({ apiKey: key });
+        (_ttsClient as any)._lastKey = config.openaiApiKey;
+    }
+    return _ttsClient;
+}
+
 // @ts-ignore
 import ffmpeg from 'fluent-ffmpeg';
 import fetch from 'node-fetch';
@@ -172,7 +183,7 @@ export class VoiceService {
                 if (!chunkBuffer) {
                     log(`[voice] Falling back to OpenAI TTS for chunk...`);
                     try {
-                        const mp3 = await ttsClient.audio.speech.create({
+                        const mp3 = await getTtsClient().audio.speech.create({
                             model: "tts-1",
                             voice: voice,
                             input: chunk,

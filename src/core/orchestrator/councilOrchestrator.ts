@@ -90,7 +90,7 @@ ${skillContext}
                     responses.push(`**[${agentName}]**: ${result.content || result}`);
                     success = true;
                     
-                    await new Promise(r => setTimeout(r, 2000));
+                    await new Promise(r => setTimeout(r, 500));
                 } catch (err: any) {
                     lastError = err.message;
                     retries--;
@@ -131,7 +131,9 @@ ${skillContext}
         const cleanText = textResponse
             .replace(/\*\*/g, "")
             .replace(/\[.*?\]/g, "")
-            .substring(0, 10000); // TTS service handles larger chunks now
+            .replace(/#+ /g, "")
+            .replace(/```[\s\S]*?```/g, "(code block omitted)")
+            .substring(0, 2000); // Keep voice short and snappy
         
         const voiceBuffer = await generateVoice(cleanText);
         return { text: textResponse, voiceBuffer };
