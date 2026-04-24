@@ -7,6 +7,7 @@ import { GitHubAgent } from "../../agents/githubAgent.js";
 import { MasterTraderAgent } from "../../agents/MasterTraderAgent.js";
 import { MemoryWasherAgent } from "../../agents/memoryWasher.js";
 import { ContentAgent } from "../../agents/ContentAgent.js";
+import { GameStudioAgent } from "../../agents/gameStudioAgent.js";
 import { generateVoice } from "../../services/voiceService.js";
 import { log } from "../config.js";
 import { RequestQueue } from "../queue.js";
@@ -33,6 +34,19 @@ export class CouncilOrchestrator {
 
     private async executeChatTurn(userInput: string, chatId: number): Promise<string> {
         log(`[council] Processing chat turn: ${userInput.substring(0, 50)}...`);
+
+        // Fast-path: Direct routing for explicit command prefixes
+        if (userInput.startsWith("[GAME STUDIO REQUEST]")) {
+            const cleanInput = userInput.replace("[GAME STUDIO REQUEST]", "").trim();
+            log(`[council] Fast-path: routing to GameStudioAgent`);
+            const agent = new GameStudioAgent();
+            const { getRecentMessages } = await import("../memory.js");
+            const history = getRecentMessages(chatId, 6);
+            const hotCache = WikiService.getHotCache();
+            const masterContext = `\n--- RECENT SPIRIT MEMORY (HOT CACHE) ---\n${hotCache}\n---------------------------------------\n`;
+            const result = await agent.ask(cleanInput, history, masterContext);
+            return `**[Game Studio]**: ${result.content || result}`;
+        }
 
         // 1. Route the intent
         const routeResult = await this.router.route(userInput);
@@ -135,6 +149,9 @@ ${skillContext}
             case "finance": return new MasterTraderAgent();
             case "content":
             case "media": return new ContentAgent();
+            case "gamestudio":
+            case "game_studio":
+            case "game": return new GameStudioAgent();
             default: return new ResearcherAgent();
         }
     }

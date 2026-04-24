@@ -174,6 +174,39 @@ export class TelegramBot {
                 return ctx.reply(`✅ Conversation saved to wiki as: **${title}**`);
             }
 
+            if (msg.text?.startsWith("/game")) {
+                const prompt = msg.text.replace("/game", "").trim();
+                if (!prompt) {
+                    return ctx.reply(
+                        `🎮 **Game Studio Commands**\n\n` +
+                        `Use \`/game <prompt>\` to activate the studio.\n\n` +
+                        `**Examples:**\n` +
+                        `• \`/game brainstorm a roguelike\`\n` +
+                        `• \`/game design a crafting system\`\n` +
+                        `• \`/game review my core loop\`\n` +
+                        `• \`/game plan a sprint for combat\`\n` +
+                        `• \`/game scope check my RPG\`\n\n` +
+                        `**Available workflows:** brainstorm, design-system, map-systems, art-bible, create-architecture, sprint-plan, code-review, qa-plan, release-checklist, and 60+ more.`
+                    );
+                }
+
+                await ctx.sendChatAction("typing");
+
+                try {
+                    const { text, voiceBuffer } = await this.council.chatWithVoice(
+                        `[GAME STUDIO REQUEST] ${prompt}`, chatId
+                    );
+                    await this.safeReply(ctx, `🎮 **Game Studio**\n\n${text}`);
+                    if (voiceBuffer) {
+                        return await ctx.replyWithVoice({ source: voiceBuffer });
+                    }
+                } catch (err: any) {
+                    log(`[game] Studio error: ${err.message}`, "error");
+                    return this.safeReply(ctx, `🎮 **Game Studio Error**: ${err.message}`);
+                }
+                return;
+            }
+
             if (msg.text?.startsWith("/")) {
                 return next();
             }

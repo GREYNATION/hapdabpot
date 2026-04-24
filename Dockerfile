@@ -1,39 +1,44 @@
-# Use official Node 22 slim image
-FROM node:22-slim
+# STAGE 1: Build
+FROM node:22-slim AS builder
 
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y \
-    python3 \
-    python-is-python3 \
-    make \
-    g++ \
-    git \
-    ffmpeg \
-    libnss3 \
-    libatk-bridge2.0-0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libpangocairo-1.0-0 \
-    libxshmfence1 \
-    libx11-xcb1 \
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    python3 python-is-python3 make g++ git ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install dependencies first (layer cache friendly)
+# Install root dependencies
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
-# Copy source and build TypeScript
+# Build nested Remotion composer
 COPY . .
-RUN cd src/agents/stuyza/openmontage/remotion-composer && npm install --legacy-peer-deps && cd /app
+RUN cd src/agents/stuyza/openmontage/remotion-composer && npm install --legacy-peer-deps
+
+# Build the main TS project
 RUN npm run build
 
-# No hardcoded EXPOSE 3001, Railway handles port mapping via PORT env var
-# EXPOSE 3000
+# STAGE 2: Production Runtime
+FROM node:22-slim
+
+# Install ONLY runtime dependencies (no compilers)
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libnss3 libatk-bridge2.0-0 libxcomposite1 libxdamage1 libxrandr2 \
+    libgbm1 libasound2 libpangocairo-1.0-0 libxshmfence1 libx11-xcb1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy only what we need from builder
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/src/agents/stuyza/openmontage/remotion-composer ./src/agents/stuyza/openmontage/remotion-composer
+COPY --from=builder /app/scripts ./scripts
+
+# Set environment to production
+ENV NODE_ENV=production
 
 CMD ["npm", "run", "start"]
