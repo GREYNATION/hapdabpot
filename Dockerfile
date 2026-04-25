@@ -25,10 +25,13 @@ RUN npm run build
 FROM node:22-slim
 
 # Install ONLY runtime dependencies (no compilers)
+# Full Chromium shared-library set required by Puppeteer on Debian slim
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libnss3 libatk-bridge2.0-0 libxcomposite1 libxdamage1 libxrandr2 \
     libgbm1 libasound2 libpangocairo-1.0-0 libxshmfence1 libx11-xcb1 \
+    libcups2 libdbus-1-3 libdrm2 libexpat1 libxcb1 libxkbcommon0 \
+    libatspi2.0-0 libxfixes3 libxext6 fonts-liberation wget ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
