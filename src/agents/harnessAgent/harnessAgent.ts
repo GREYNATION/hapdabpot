@@ -28,8 +28,14 @@ export class HarnessAgent {
         try {
             if (!this.browser) {
                 this.browser = await puppeteer.launch({
-                    headless: "shell",
-                    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+                    headless: true,
+                    args: [
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                        "--disable-dev-shm-usage",
+                        "--disable-gpu",
+                        "--single-process"
+                    ]
                 });
             }
 

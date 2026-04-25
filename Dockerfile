@@ -10,6 +10,8 @@ WORKDIR /app
 
 # Install root dependencies
 COPY package*.json ./
+# Ensure Puppeteer downloads its bundled Chromium into a known path
+ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
 RUN npm install --legacy-peer-deps
 
 # Build nested Remotion composer
@@ -35,10 +37,12 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.cache ./.cache
 COPY --from=builder /app/src/agents/stuyza/openmontage/remotion-composer ./src/agents/stuyza/openmontage/remotion-composer
 COPY --from=builder /app/scripts ./scripts
 
 # Set environment to production
 ENV NODE_ENV=production
+ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
 
 CMD ["npm", "run", "start"]
