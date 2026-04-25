@@ -358,7 +358,8 @@ export function setupRouter(bot: Telegraf) {
         try {
             const res = await handleHarnessCommand(text);
             if (res.length <= 4096) {
-                await ctx.reply(res, { parse_mode: 'Markdown' });
+                // No parse_mode — AI summary of web content contains raw chars that break Markdown parsing
+                await ctx.reply(res).catch(() => ctx.reply("✅ Harness complete (reply too long to display)."));
             } else {
                 const chunks = res.match(/[\s\S]{1,4000}/g) ?? [res];
                 for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
