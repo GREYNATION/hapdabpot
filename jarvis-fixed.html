@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JARVIS FINAL FIX</title>
+    <style>
+        body { background: #050505; color: #00ffcc; font-family: 'Courier New', monospace; padding: 40px; text-align: center; }
+        #chat { height: 300px; overflow-y: auto; border: 2px solid #00ffcc; padding: 20px; background: rgba(0,255,204,0.05); margin-bottom: 20px; text-align: left; }
+        input { width: 70%; background: #000; color: #0ff; border: 1px solid #0ff; padding: 15px; font-size: 18px; }
+        button { background: #0ff; color: #000; border: none; padding: 15px 30px; cursor: pointer; font-weight: bold; font-size: 18px; }
+        .system { color: #888; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>SYSTEM INTERFACE: ONLINE</h1>
+    <div id="chat"><div class="system">Hands Agent Status: Checking...</div></div>
+    <input type="text" id="user-input" placeholder="Type: click at 500 500">
+    <button onclick="sendMessage()">EXECUTE</button>
+
+    <script>
+        async function executeHands(text) {
+            const coords = text.match(/\d+/g);
+            if (!coords || coords.length < 2) return;
+            const x = parseInt(coords[0]);
+            const y = parseInt(coords[1]);
+            
+            try {
+                const response = await fetch("http://localhost:3300/hands/click", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ x, y })
+                });
+                console.log("Mouse Move Sent");
+            } catch (e) {
+                alert("ERROR: Make sure the PowerShell Hands Agent is running!");
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById("user-input");
+            const msg = input.value;
+            const chat = document.getElementById("chat");
+            
+            chat.innerHTML += `<div><b>HAP:</b> ${msg}</div>`;
+            
+            if (msg.toLowerCase().includes("click")) {
+                executeHands(msg);
+                chat.innerHTML += `<div><b>JARVIS:</b> Command dispatched to coordinates.</div>`;
+            } else {
+                chat.innerHTML += `<div><b>JARVIS:</b> Awaiting hardware command, sir.</div>`;
+            }
+
+            input.value = "";
+            chat.scrollTop = chat.scrollHeight;
+        }
+    </script>
+</body>
+</html>

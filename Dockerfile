@@ -28,6 +28,7 @@ FROM node:22-slim
 # Full Chromium shared-library set required by Puppeteer on Debian slim
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    python3 python-is-python3 python3-pip python3-venv libsndfile1 \
     libnss3 libatk-bridge2.0-0 libxcomposite1 libxdamage1 libxrandr2 \
     libgbm1 libasound2 libpangocairo-1.0-0 libxshmfence1 libx11-xcb1 \
     libcups2 libdbus-1-3 libdrm2 libexpat1 libxcb1 libxkbcommon0 \
@@ -43,6 +44,15 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.cache ./.cache
 COPY --from=builder /app/src/agents/stuyza/openmontage/remotion-composer ./src/agents/stuyza/openmontage/remotion-composer
 COPY --from=builder /app/scripts ./scripts
+COPY video-use ./video-use
+
+# Setup Python Virtual Environment and Install Dependencies
+ENV VIRTUAL_ENV=/app/.venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+RUN pip install --upgrade pip && \
+    pip install -e ./video-use && \
+    pip install youtube-transcript-api yt-dlp
 
 # Set environment to production
 ENV NODE_ENV=production

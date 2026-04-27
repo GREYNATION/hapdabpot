@@ -7,6 +7,7 @@ import { Session } from "./core/runtime/session.js";
 import { PermissionEnforcer } from "./core/runtime/permission.js";
 import { ConversationRuntime } from "./core/runtime/conversation.js";
 import { PropertyScraper } from "./services/PropertyScraper.js";
+import { rufloEngine } from "./core/memory/ruflo-memory.js";
 
 async function bootstrap() {
     await initializeConfig();
@@ -65,6 +66,32 @@ Sound like a trustworthy, short-sentenced human assistant.
             if (!url) return "❌ Usage: /scrape [url]";
             const data = await PropertyScraper.scrapeListings(url);
             return `Scraped ${data.length} listings. Check logs for details.`;
+
+        case "ruflo":
+            const subCommand = args[0];
+            const taskInput = args.slice(1).join(" ");
+            
+            if (!subCommand) {
+                return "❌ Usage: /ruflo [memory|swarm|youtube] [query/task/topic]";
+            }
+
+            try {
+                if (subCommand === "memory") {
+                    await rufloEngine.saveContext(`memory-${Date.now()}`, taskInput);
+                    const memoryResult = await rufloEngine.retrieveContext(taskInput);
+                    return `🧠 [Ruflo Memory] Query processed. Swarm consensus memory accessed.`;
+                } else if (subCommand === "swarm") {
+                    const result = await rufloEngine.deploySwarm(taskInput, "general");
+                    return result;
+                } else if (subCommand === "youtube") {
+                    const result = await rufloEngine.deploySwarm(taskInput, "youtube");
+                    return result;
+                } else {
+                    return `❌ Unknown Ruflo command. Available: memory, swarm, youtube`;
+                }
+            } catch (err: any) {
+                return `❌ Ruflo Engine Error: ${err.message}`;
+            }
 
         case "status":
             return `🤖 Hapda Bot is ONLINE. Running on ${config.aiProvider} with ${config.openaiModel}.`;

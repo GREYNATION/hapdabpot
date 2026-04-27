@@ -7,6 +7,7 @@ import { setupRouter } from "./bot/router.js";
 import { initMarketScans } from "./cron/marketScans.js";
 import { startHeartbeat } from "./cron/heartbeat.js";
 import { startWebServer } from "./webServer.js";
+import { contentScheduler } from "./agents/ContentSchedulerAgent.js";
 
 // Global crash handlers to catch silent Railway deaths
 process.on('uncaughtException', (err) => {
@@ -34,6 +35,7 @@ async function main() {
         log("[index] Step 1: Setting up Router...");
         // 3. Register command routes from router.ts
         setupRouter(bot);
+        contentScheduler.attachBot(bot);
         log("[index] Step 1 Complete: Router setup.");
 
         // 4. Initialize Cron Jobs (Skip if in Dashboard-only mode)
@@ -44,6 +46,7 @@ async function main() {
             log("[index] Step 2: Initializing Market Scans...");
             initMarketScans(bot);
             startHeartbeat(bot);
+            contentScheduler.startScheduler();
             log("[index] Step 2 Complete: Market Scans & Heartbeat.");
         }
 

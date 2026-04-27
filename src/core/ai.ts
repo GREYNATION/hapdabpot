@@ -9,24 +9,6 @@ import Groq from "groq-sdk";
 import { config, log } from "./config.js";
 import { withTimeout, getErrorMessage, delay } from "./timeout.js";
 
-// ── Rate Limiting & Throttling ───────────────────────────────────────────────
-let lastCallTimestamp = 0;
-const GLOBAL_THROTTLE_MS = 800; // 0.8s between calls
-
-/**
- * Ensure we don't bombard providers. Waits if the last call was too recent.
- */
-async function enforceThrottle() {
-    const now = Date.now();
-    const timeSinceLast = now - lastCallTimestamp;
-    if (timeSinceLast < GLOBAL_THROTTLE_MS) {
-        const waitTime = GLOBAL_THROTTLE_MS - timeSinceLast;
-        // log(`[ai] Throttling for ${waitTime}ms...`, "info");
-        await delay(waitTime);
-    }
-    lastCallTimestamp = Date.now();
-}
-
 // ── Clients (Re-initialized via initializeClients) ───────────────────────────
 import * as cfg from "./config.js";
 
@@ -54,74 +36,94 @@ export function initializeClients() {
     });
 }
 
-// ── State for Circuit Breaker ────────────────────────────────────────────────
-enum BreakerState { CLOSED, OPEN, HALF_OPEN }
-let breakerState = BreakerState.CLOSED;
-let consecutiveFailures = 0;
-let lastFailureTimestamp = 0;
-const BREAKER_THRESHOLD = 5;
-const BREAKER_COOLDOWN = 30_000; // 30 seconds
+// ── Rate Limiting & Throttling ───────────────────────────────────────────────
+import PQueue from "p-queue";
 
-// ── Global Concurrency Limiting ──────────────────────────────────────────────
-let activeCalls = 0;
-const MAX_CONCURRENT_CALLS = 5;
-const callQueue: (() => void)[] = [];
+export const globalQueue = new PQueue({
+  concurrency: 3,          // how many requests at once
+  interval: 1000,          // time window
+  intervalCap: 5           // max requests per window
+});
 
-/**
- * Semaphore to limit concurrent AI calls.
- */
-async function acquireSlot() {
-    if (activeCalls < MAX_CONCURRENT_CALLS) {
-        activeCalls++;
-        return;
+class CircuitBreaker {
+  state = "CLOSED";
+  failures = 0;
+  lastFailure = 0;
+
+  constructor(private threshold = 5, private cooldown = 30000) {}
+
+  async execute(fn: () => Promise<any>) {
+    if (this.state === "OPEN") {
+      if (Date.now() - this.lastFailure > this.cooldown) {
+        log(`[ai] Circuit Breaker entering HALF-OPEN state (testing recovery)...`, "warn");
+        this.state = "HALF_OPEN";
+      } else {
+        throw new Error("⚠️ System cooling down (rate limit reached). Try again in a few seconds.");
+      }
     }
-    return new Promise<void>(resolve => callQueue.push(resolve));
-}
 
-function releaseSlot() {
-    activeCalls--;
-    if (callQueue.length > 0) {
-        activeCalls++;
-        const next = callQueue.shift();
-        if (next) next();
-    }
-}
+    try {
+      const result = await fn();
+      if (this.state === "HALF_OPEN") {
+          log(`[ai] Circuit Breaker CLOSED. Recovery successful.`, "info");
+      }
+      this.failures = 0;
+      this.state = "CLOSED";
+      return result;
+    } catch (err: any) {
+      const isRateLimit = err.status === 429 || 
+                          (err.message && err.message.toLowerCase().includes("rate limit")) ||
+                          (err.message && err.message.toLowerCase().includes("429"));
 
-function checkBreaker() {
-    const now = Date.now();
-    
-    if (breakerState === BreakerState.OPEN) {
-        if (now - lastFailureTimestamp > BREAKER_COOLDOWN) {
-            log(`[ai] Circuit Breaker entering HALF-OPEN state (testing recovery)...`, "warn");
-            breakerState = BreakerState.HALF_OPEN;
-        } else {
-            throw new Error("⚠️ System cooling down (rate limit reached). Try again in a few seconds.");
+      if (isRateLimit) {
+        this.failures++;
+        this.lastFailure = Date.now();
+
+        if (this.state === "HALF_OPEN" || this.failures >= this.threshold) {
+          log(`[ai] Circuit Breaker OPEN (rate limit reached). Pausing for ${this.cooldown/1000}s.`, "error");
+          this.state = "OPEN";
         }
+      }
+
+      throw err;
     }
+  }
 }
 
-function handleFailure(err: any) {
-    const isRateLimit = err.status === 429 || 
-                       (err.message && err.message.toLowerCase().includes("rate limit")) ||
-                       (err.message && err.message.toLowerCase().includes("429"));
+const breaker = new CircuitBreaker();
 
-    if (isRateLimit) {
-        consecutiveFailures++;
-        lastFailureTimestamp = Date.now();
-
-        if (breakerState === BreakerState.HALF_OPEN || consecutiveFailures >= BREAKER_THRESHOLD) {
-            log(`[ai] Circuit Breaker OPEN (rate limit reached). Pausing for ${BREAKER_COOLDOWN/1000}s.`, "error");
-            breakerState = BreakerState.OPEN;
-        }
-    }
+function isRetryable(err: any): boolean {
+    return err.status === 429 || 
+           (err.message && err.message.toLowerCase().includes("rate limit")) ||
+           (err.message && err.message.toLowerCase().includes("429")) ||
+           err.status === 502 || err.status === 503 || err.status === 504;
 }
 
-function resetFailure() {
-    if (breakerState === BreakerState.HALF_OPEN) {
-        log(`[ai] Circuit Breaker CLOSED. Recovery successful.`, "info");
+export async function withRetry(fn: () => Promise<any>, maxRetries = 5) {
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      if (!isRetryable(err)) throw err;
+
+      attempt++;
+      const delayMs = Math.min(1000 * 2 ** attempt, 15000) + Math.random() * 500;
+      log(`[ai] Rate limit encountered. Retrying in ${delayMs.toFixed(0)}ms... (Attempt ${attempt}/${maxRetries})`, "warn");
+      await delay(delayMs);
     }
-    breakerState = BreakerState.CLOSED;
-    consecutiveFailures = 0;
+  }
+
+  throw new Error("Max retries reached");
+}
+
+export async function runAgentTask(task: () => Promise<any>) {
+  return globalQueue.add(() =>
+    breaker.execute(() =>
+      withRetry(task)
+    )
+  );
 }
 
 // Initial call
@@ -256,7 +258,7 @@ async function callGroq(
         });
 
         const msg = completion.choices[0].message;
-        const tool_calls = msg.tool_calls?.map((tc) => ({
+        const tool_calls = msg.tool_calls?.map((tc: any) => ({
             id: tc.id,
             type: "function" as const,
             function: { name: tc.function.name, arguments: tc.function.arguments },
@@ -313,96 +315,63 @@ export async function askAI(
     systemPrompt = "You are a helpful assistant.",
     options: AIOptions = {}
 ): Promise<AIResponse> {
-    checkBreaker();
+    const messages: OpenAI.ChatCompletionMessageParam[] = options.messages || [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt },
+    ];
 
-    const maxRetries = 3;
-    let attempt = 0;
+    const model = options.model || "";
+    const isExplicitCloud = model.includes("google/") || model.includes("anthropic/");
+    const isGroqMode = config.aiProvider === "groq";
+    const isOpenRouterMode = config.aiProvider === "openrouter";
 
-    const executeWithBackoff = async (): Promise<AIResponse> => {
-        await acquireSlot();
+    const task = async (): Promise<AIResponse> => {
         try {
-            const messages: OpenAI.ChatCompletionMessageParam[] = options.messages || [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: prompt },
-            ];
-
-            const model = options.model || "";
-            const isExplicitCloud = model.includes("google/") || model.includes("anthropic/");
-            const isGroqMode = config.aiProvider === "groq";
-            const isOpenRouterMode = config.aiProvider === "openrouter";
-
-            // Global throttle to maintain 1.5s spacing
-            await enforceThrottle();
-
-            try {
-                if (isGroqMode && !isExplicitCloud) {
-                    const timeoutMs = options.tools?.length ? 120_000 : 60_000;
-                    if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
-                        options.model = config.groqModel || GROQ_MODEL;
-                    }
-                    const response = await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
-                    resetFailure();
-                    return response;
+            if (isGroqMode && !isExplicitCloud) {
+                const timeoutMs = options.tools?.length ? 120_000 : 60_000;
+                if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
+                    options.model = config.groqModel || GROQ_MODEL;
                 }
-
-                if (isOpenRouterMode || isExplicitCloud) {
-                    const response = await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
-                    resetFailure();
-                    return response;
-                }
-
-                // Default fallback
-                const response = await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
-                resetFailure();
-                return response;
-            } catch (err: any) {
-                const isRateLimit = err.status === 429 || 
-                                   err.message?.toLowerCase().includes("rate limit") ||
-                                   err.message?.toLowerCase().includes("429");
-                
-                const isCreditOrModelError = err.status === 402 || 
-                                            err.status === 400 || 
-                                            err.message?.toLowerCase().includes("credit") ||
-                                            err.message?.toLowerCase().includes("not exist");
-
-                if (isRateLimit && attempt < maxRetries) {
-                    attempt++;
-                    handleFailure(err);
-                    
-                    // Exponential backoff: 2s -> 4s -> 8s
-                    const backoffMs = Math.pow(2, attempt) * 1000;
-                    log(`[ai] Rate limit encountered. Retrying in ${backoffMs}ms... (Attempt ${attempt}/${maxRetries})`, "warn");
-                    await delay(backoffMs);
-                    return executeWithBackoff();
-                }
-
-                if (isCreditOrModelError) {
-                    log(`[ai] Provider issue (${err.status}): ${err.message}. Triggering emergency Groq fallback...`, "error");
-                    // Explicitly force Groq fallback if OpenRouter/Anthropic fails due to credits
-                    try {
-                        return await withTimeout(callGroq(messages, { ...options, model: GROQ_MODEL }), 60_000, "askAI:emergency:groq");
-                    } catch (groqErr: any) {
-                        log(`[ai] Emergency Groq fallback failed: ${groqErr.message}`, "error");
-                    }
-                }
-
-                log(`[ai] AI call failed: ${err.message}. Attempting general fallback...`, "error");
-                
-                if (!model.includes("openrouter")) {
-                    try {
-                        return await withTimeout(callOpenRouter(messages, { ...options }), 90_000, "askAI:openrouter:fallback");
-                    } catch (fallbackErr: any) {
-                        log(`[ai] All fallbacks failed.`, "error");
-                    }
-                }
-                throw err;
+                return await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
             }
-        } finally {
-            releaseSlot();
+
+            if (isOpenRouterMode || isExplicitCloud) {
+                return await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
+            }
+
+            // Default fallback
+            return await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
+        } catch (err: any) {
+            const isCreditOrModelError = err.status === 402 || 
+                                        err.status === 400 || 
+                                        err.message?.toLowerCase().includes("credit") ||
+                                        err.message?.toLowerCase().includes("not exist");
+
+            if (isCreditOrModelError) {
+                log(`[ai] Provider issue (${err.status}): ${err.message}. Triggering emergency Groq fallback...`, "error");
+                // Explicitly force Groq fallback if OpenRouter/Anthropic fails due to credits
+                try {
+                    return await withTimeout(callGroq(messages, { ...options, model: GROQ_MODEL }), 60_000, "askAI:emergency:groq");
+                } catch (groqErr: any) {
+                    log(`[ai] Emergency Groq fallback failed: ${groqErr.message}`, "error");
+                }
+            }
+
+            // Don't retry the fallback if the error is retryable (since withRetry handles retries inherently).
+            // We only do the general fallback if it's NOT a rate limit.
+            if (!model.includes("openrouter") && !isRetryable(err)) {
+                log(`[ai] AI call failed: ${err.message}. Attempting general fallback...`, "error");
+                try {
+                    return await withTimeout(callOpenRouter(messages, { ...options }), 90_000, "askAI:openrouter:fallback");
+                } catch (fallbackErr: any) {
+                    log(`[ai] All fallbacks failed.`, "error");
+                }
+            }
+            throw err;
         }
     };
 
-    return executeWithBackoff();
+    return runAgentTask(task);
 }
 
 /**

@@ -18,7 +18,7 @@ import { createLeadsRouter } from './routes/leads.js';
 import { CouncilOrchestrator } from './core/orchestrator/councilOrchestrator.js';
 import cors from 'cors';
 import fs from 'fs';
-import { WebSocketServer } from 'ws';
+import WebSocket from 'ws';
 import { getSupabase } from './core/supabase.js';
 const orchestrator = new CouncilOrchestrator();
 
@@ -578,7 +578,7 @@ export function startWebServer(bot: any) {
   });
 
   // ── Unified WebSocket Neural Bridge ───────────────────────────────────────
-  const wss = new WebSocketServer({ server });
+  const wss = new (WebSocket as any).Server({ server });
   
   wss.on('connection', (socket: any) => {
     log('[WebSocket] Dashboard connected to Neural Bridge.');

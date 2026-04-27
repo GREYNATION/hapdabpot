@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<body style="background:#000; color:#0ff; font-family:monospace; padding:50px; text-align:center;">
+    <h1 style="font-size:40px;">SYSTEM ONLINE</h1>
+    <div id="chat" style="height:200px; border:1px solid #0ff; margin-bottom:20px; padding:10px; text-align:left; overflow-y:auto;">
+        <div>JARVIS: Awaiting coordinates, sir...</div>
+    </div>
+    <input type="text" id="i" style="width:250px; padding:15px; font-size:20px;" placeholder="960 540">
+    <button onclick="s()" style="padding:15px 30px; font-size:20px; cursor:pointer; background:#0ff; color:#000; font-weight:bold;">MOVE MOUSE</button>
+    <script>
+        async function s() {
+            const v = document.getElementById('i').value;
+            const pts = v.match(/\d+/g);
+            if (!pts) return alert("Type numbers!");
+            const chat = document.getElementById('chat');
+            chat.innerHTML += `<div>HAP: ${v}</div>`;
+            try {
+                await fetch("http://localhost:3300/hands/click", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ x: parseInt(pts[0]), y: parseInt(pts[1]) })
+                });
+                chat.innerHTML += `<div>JARVIS: Success.</div>`;
+            } catch (e) {
+                chat.innerHTML += `<div style="color:red">JARVIS: Error! Is Hands Agent running?</div>`;
+            }
+            chat.scrollTop = chat.scrollHeight;
+        }
+    </script>
+</body>
+</html>

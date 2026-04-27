@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head><title>TEST HANDS</title></head>
+<body style="background:#000; color:#0f0; font-family:monospace; padding:30px;">
+    <h2>Direct Hands Test</h2>
+    <p>Type a command and press ENTER:</p>
+    <input id="cmd" style="width:400px; padding:12px; font-size:18px; background:#111; color:#0f0; border:1px solid #0f0;" 
+           placeholder="click 500 500" autofocus>
+    <div id="log" style="margin-top:20px; min-height:100px;"></div>
+
+    <script>
+        console.log("? Test page loaded - Hands bypass active");
+
+        async function runCommand(text) {
+            const log = document.getElementById("log");
+            log.innerHTML += `<div>> ${text}</div>`;
+            
+            const lower = text.toLowerCase();
+            const nums = text.match(/\d+/g);
+            
+            try {
+                if (lower.includes("click") && nums && nums.length >= 2) {
+                    await fetch("http://localhost:3300/hands/click", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ x: parseInt(nums[0]), y: parseInt(nums[1]) })
+                    });
+                    log.innerHTML += `<div style="color:lime">? Click sent to ${nums[0]}, ${nums[1]}</div>`;
+                }
+                else if (lower.startsWith("type ")) {
+                    await fetch("http://localhost:3300/hands/type", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ text: text.substring(5) })
+                    });
+                    log.innerHTML += `<div style="color:lime">? Typed: ${text.substring(5)}</div>`;
+                }
+                else {
+                    log.innerHTML += `<div style="color:yellow">Command received but not recognized</div>`;
+                }
+            } catch(e) {
+                log.innerHTML += `<div style="color:red">? ERROR: Hands agent not reachable on port 3300</div>`;
+                console.error(e);
+            }
+            log.scrollTop = log.scrollHeight;
+        }
+
+        document.getElementById("cmd").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                runCommand(this.value);
+                this.value = "";
+            }
+        });
+    </script>
+</body>
+</html>

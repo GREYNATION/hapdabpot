@@ -26,10 +26,18 @@ import { getDb } from '../core/memory.js';
 import { handleN8nCommand } from '../agents/n8nAgent/n8nAgent.js';
 import { handlePromptsCommand } from '../agents/promptsAgent/promptsAgent.js';
 import { handleHarnessCommand } from '../agents/harnessAgent/harnessAgent.js';
+import { handleMoneyCommand, handleMoneyVideoCommand } from '../agents/moneyAgent.js';
+import { PQueue } from '../core/ai.js';
+import { runAgentTask } from '../core/ai.js';
+import { executeWithTier } from '../services/orchestrator.js';
+import { initContentScheduler } from '../agents/ContentSchedulerAgent.js';
 
 
 export function setupRouter(bot: Telegraf) {
     log("[router] Initializing Command Router...");
+    
+    // Initialize Content Scheduler & Cron Jobs
+    initContentScheduler(bot);
 
 
     // Global Middleware for Permission Check
@@ -100,6 +108,7 @@ export function setupRouter(bot: Telegraf) {
 
     // 4. Trading Commands
     bot.command('trade', async (ctx: any) => {
+        await ctx.reply("📈 Fetching Strategic Finance status. Please wait...");
         const res = await new MasterTraderAgent().ask("Give me a trading account summary and current session.");
         ctx.reply(String(res.content));
     });
@@ -334,6 +343,7 @@ export function setupRouter(bot: Telegraf) {
     // 18. AI Prompts Browser
     bot.command('prompts', async (ctx: any) => {
         const args = ctx.message.text.replace('/prompts', '').trim();
+        await ctx.reply("🔍 Accessing AI Prompt Library. Please wait...");
         try {
             const result = await handlePromptsCommand(args);
             if (result.length <= 4096) {
@@ -351,7 +361,7 @@ export function setupRouter(bot: Telegraf) {
     bot.command('harness', async (ctx: any) => {
         const text = ctx.message.text.replace('/harness', '').trim();
         if (!text) {
-            return ctx.reply("🌐 **Browser Intelligence Harness**\n\nUsage: `/harness [url] [task]`\nExample: `/harness https://news.google.com find top tech stories`", { parse_mode: 'Markdown' });
+            return ctx.reply("🌐 **Browser Intelligence Harness**\n\nUsage: `/harness [url] [task]`\nExample: `/harness https://news.google.com find top top tech stories`", { parse_mode: 'Markdown' });
         }
         
         await ctx.reply("🌐 **Harnessing Browser Intelligence...**");
@@ -366,6 +376,98 @@ export function setupRouter(bot: Telegraf) {
             }
         } catch (err: any) {
             ctx.reply(`❌ Harness Error: ${err.message}`);
+        }
+    });
+
+    // 19.5 Job Status Polling
+    bot.command('status', async (ctx: any) => {
+        const jobId = ctx.message.text.replace('/status', '').trim();
+        if (!jobId) {
+            return ctx.reply("🔍 **Usage**: `/status job_12345`", { parse_mode: 'Markdown' });
+        }
+
+        try {
+            const res = await fetch(`http://localhost:3000/agent/status/${jobId}`);
+            if (res.status === 404) {
+                return ctx.reply(`⚠️ Job **${jobId}** not found.`);
+            }
+
+            const data = await res.json();
+
+            if (data.status === 'queued') {
+                return ctx.reply(`⏳ Job **${jobId}** is queued...`);
+            } else if (data.status === 'running') {
+                return ctx.reply(`🏃 Job **${jobId}** is currently running...`);
+            } else if (data.status === 'error') {
+                return ctx.reply(`❌ Job **${jobId}** failed:\n${data.error}`);
+            } else if (data.status === 'done') {
+                const resultText = data.result?.data || data.result?.summary || JSON.stringify(data.result);
+                
+                if (resultText.length <= 4096) {
+                    await ctx.reply(`✅ **Result:**\n\n${resultText}`).catch(() => ctx.reply("✅ Job complete (reply too long to display)."));
+                } else {
+                    const chunks = resultText.match(/[\s\S]{1,4000}/g) ?? [resultText];
+                    for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
+                }
+            } else {
+                return ctx.reply(`❓ Unknown status: ${data.status}`);
+            }
+
+        } catch (err: any) {
+            ctx.reply(`❌ Could not fetch status: ${err.message}`);
+        }
+    });
+
+    // 19.6 Money Agent
+    bot.command('money', async (ctx: any) => {
+        const text = ctx.message.text.trim();
+        await ctx.reply("💸 Initializing Money Agent. Analyzing opportunities...");
+        try {
+            const res = await handleMoneyCommand(text);
+            await ctx.reply(res);
+        } catch (err: any) {
+            ctx.reply(`❌ Money Agent Error: ${err.message}`);
+        }
+    });
+
+    // 19.7 Money Video Agent
+    bot.command('money_video', async (ctx: any) => {
+        const text = ctx.message.text.trim().replace('/money_video', '/money-video');
+        await ctx.reply("🎥 **Starting FBA YouTube Intelligence...**\nScraping trending videos, extracting transcripts, and scoring products. This may take 5-20 minutes depending on video length...");
+        try {
+            const res = await handleMoneyVideoCommand(text);
+            await ctx.reply(res);
+        } catch (err: any) {
+            ctx.reply(`❌ Money Video Agent Error: ${err.message}`);
+        }
+    });
+
+    // 20. Ruflo Swarm Engine
+    bot.command('ruflo', async (ctx: any) => {
+        const text = ctx.message.text.trim();
+        const userId = String(ctx.from?.id || 'default');
+
+        if (text === '/ruflo') {
+            return ctx.reply("🌊 **Ruflo Swarm Engine**\n\nUsage: `/ruflo [memory|swarm|youtube] [task]`\nExample: `/ruflo youtube \"AI Real Estate Investing\"`", { parse_mode: 'Markdown' });
+        }
+
+        await ctx.reply("🌊 **Ruflo Engine Initializing...**\nDeploying agent swarm. This may take a few moments...");
+
+        try {
+            const result = await handleHapdaCommand(text, userId);
+
+            if (!result) {
+                return ctx.reply("⚠️ **Ruflo**: No actionable result generated.");
+            }
+
+            if (result.length <= 4096) {
+                await ctx.reply(result, { parse_mode: 'Markdown' }).catch(() => ctx.reply(result));
+            } else {
+                const chunks = result.match(/[\s\S]{1,4000}/g) ?? [result];
+                for (const chunk of chunks) await ctx.reply(chunk).catch(() => { });
+            }
+        } catch (err: any) {
+            ctx.reply(`❌ **Ruflo Swarm Failed**: ${err.message}`, { parse_mode: 'Markdown' });
         }
     });
 

@@ -40,7 +40,20 @@ export class HarnessAgent {
             }
 
             const page = await this.browser.newPage();
-            await page.goto(url, { waitUntil: 'networkidle2' });
+            await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+            try {
+                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            } catch (navErr: any) {
+                await page.close();
+                if (navErr.message?.includes('ERR_NAME_NOT_RESOLVED')) {
+                    return `Could not reach "${url}" — domain not found.\n\nDid you mistype the URL? (e.g. "new.google.com" should be "news.google.com")`;
+                }
+                if (navErr.message?.includes('timeout') || navErr.message?.includes('TimeoutError')) {
+                    return `Page load timed out for "${url}".\n\nThe site may be slow or blocking headless browsers. Try a different URL.`;
+                }
+                return `Navigation failed: ${navErr.message}`;
+            }
 
             // Extract page state for the AI
             const content = await page.evaluate(() => {
@@ -67,7 +80,12 @@ export class HarnessAgent {
 
         } catch (err: any) {
             log(`[harness] Error: ${err.message}`, "error");
-            return `❌ Harness Error: ${err.message}`;
+            // Reset browser on error so next call gets a fresh instance
+            if (this.browser) {
+                await this.browser.close().catch(() => {});
+                this.browser = null;
+            }
+            return `Harness Error: ${err.message}`;
         }
     }
 
@@ -79,26 +97,43 @@ export class HarnessAgent {
     }
 }
 
-export async function handleHarnessCommand(args: string): Promise<string> {
-    if (!args || args.trim() === "") {
-        return "⚠️ **Incomplete Command**\nTry: `/harness https://example.com extract product data` or `/harness summarize latest news`";
-    }
 
-    const parts = args.split(' ');
-    // If first part is not a URL, we assume they want to search Google
-    let url: string = parts[0].startsWith('http') ? (parts.shift() || "") : 'https://www.google.com/search?q=' + encodeURIComponent(parts.join(' '));
-    let task = parts.join(' ');
+export async function handleHarnessCommand(input: string) {
+  const parts = input.split(" ");
+  
+  // The first part of input might be the url, or we just extract safely
+  const url = parts[0];
+  let task: any = parts.slice(1).join(" ");
 
-    if (!url) {
-        return "⚠️ **Invalid URL**\nPlease provide a valid URL or search query.";
-    }
+  if (!url || !task) {
+    return `Usage:\n/harness https://example.com "extract product data"\nOR\n/harness https://example.com {"type":"extract_products", "filters":{...}}`;
+  }
 
-    if (url.includes('google.com/search') && !task) {
-        task = "Find the most relevant results and summarize them.";
-    } else if (!task) {
-        task = "Summarize the key information on this page.";
-    }
+  // Try to parse structured JSON tasks
+  try {
+    task = JSON.parse(task);
+  } catch (e) {
+    // Keep as string if it's not valid JSON
+  }
 
-    const agent = HarnessAgent.getInstance();
-    return await agent.browse(url, task);
+  // Call your API instead of running locally
+  try {
+    const res = await fetch("http://localhost:3000/agent/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        agent: {
+          id: "harness",
+          type: "browser",
+          task,
+          input: { url }
+        }
+      })
+    });
+
+    const data = await res.json();
+    return `🚀 Job queued: ${data.jobId}`;
+  } catch (err: any) {
+    return `❌ Failed to contact API: ${err.message}`;
+  }
 }
