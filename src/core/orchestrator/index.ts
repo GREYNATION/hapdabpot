@@ -146,7 +146,7 @@ export async function runMoneyAgent(agent: any) {
 
   // Step 2: Extract structured products
   // Provide fallback to empty array if raw.data is not iterable
-  const products = normalizeProducts(Array.isArray(raw.data) ? raw.data : []);
+  const products = normalizeProducts(Array.isArray((raw as any).data) ? (raw as any).data : []);
 
   // Step 3: Score them
   const scored = products.map(scoreProduct);
@@ -169,7 +169,7 @@ export async function runMoneyAgent(agent: any) {
         task: `Search for wholesale supplier for: ${w.title}. Find the average unit cost. Return ONLY a JSON array with one object containing { "cost": number }.`
       });
 
-      const supplierData = Array.isArray(supplierRaw.data) ? supplierRaw.data[0] : supplierRaw.data;
+      const supplierData = Array.isArray((supplierRaw as any).data) ? (supplierRaw as any).data[0] : (supplierRaw as any).data;
       const realCost = Number(supplierData?.cost) || w.estimatedCost;
       const realProfit = w.price - realCost;
 
@@ -178,7 +178,7 @@ export async function runMoneyAgent(agent: any) {
         input: { url: "https://www.amazon.com" },
         task: `Search Amazon for "${w.title}". Estimate the competition level (low, medium, high) and classify the best business opportunity as ONE of these exact strings: "private_label", "dropship", or "print_on_demand". Return ONLY a JSON array with one object containing { "competition": string, "opportunity": string }.`
       });
-      const amazonData = Array.isArray(amazonRaw.data) ? amazonRaw.data[0] : amazonRaw.data;
+      const amazonData = Array.isArray((amazonRaw as any).data) ? (amazonRaw as any).data[0] : (amazonRaw as any).data;
       const competition = amazonData?.competition || "medium";
       const opportunity = amazonData?.opportunity || "private_label";
 

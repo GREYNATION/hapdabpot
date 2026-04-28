@@ -27,19 +27,13 @@ import { handleN8nCommand } from '../agents/n8nAgent/n8nAgent.js';
 import { handlePromptsCommand } from '../agents/promptsAgent/promptsAgent.js';
 import { handleHarnessCommand } from '../agents/harnessAgent/harnessAgent.js';
 import { handleMoneyCommand, handleMoneyVideoCommand } from '../agents/moneyAgent.js';
-import { PQueue } from '../core/ai.js';
 import { runAgentTask } from '../core/ai.js';
 import { executeWithTier } from '../services/orchestrator.js';
-import { initContentScheduler } from '../agents/ContentSchedulerAgent.js';
 
 
 export function setupRouter(bot: Telegraf) {
     log("[router] Initializing Command Router...");
     
-    // Initialize Content Scheduler & Cron Jobs
-    initContentScheduler(bot);
-
-
     // Global Middleware for Permission Check
     bot.use(async (ctx: any, next) => {
         const allowedIds = (process.env.TELEGRAM_ALLOWED_USER_IDS || "").split(",").map(Number);

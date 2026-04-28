@@ -38,6 +38,7 @@ export function initializeClients() {
 
 // ── Rate Limiting & Throttling ───────────────────────────────────────────────
 import PQueue from "p-queue";
+export { PQueue };
 
 export const globalQueue = new PQueue({
   concurrency: 3,          // how many requests at once
