@@ -381,7 +381,8 @@ export function setupRouter(bot: Telegraf) {
         }
 
         try {
-            const res = await fetch(`http://localhost:3000/agent/status/${jobId}`);
+            const port = process.env.PORT || 8080;
+            const res = await fetch(`http://localhost:${port}/api/agent/status/${jobId}`);
             if (res.status === 404) {
                 return ctx.reply(`⚠️ Job **${jobId}** not found.`);
             }

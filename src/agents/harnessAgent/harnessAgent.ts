@@ -118,7 +118,8 @@ export async function handleHarnessCommand(input: string) {
 
   // Call your API instead of running locally
   try {
-    const res = await fetch("http://localhost:3000/agent/run", {
+    const port = process.env.PORT || 8080;
+    const res = await fetch(`http://localhost:${port}/api/agent/run`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

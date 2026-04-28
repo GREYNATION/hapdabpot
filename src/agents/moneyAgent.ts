@@ -8,7 +8,8 @@ export async function handleMoneyCommand(input: string) {
     return `Usage:\n/money https://etsy.com "trending products"`;
   }
 
-  const res = await fetch("http://localhost:3000/agent/run", {
+  const port = process.env.PORT || 8080;
+  const res = await fetch(`http://localhost:${port}/api/agent/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -43,7 +44,8 @@ export async function handleMoneyVideoCommand(input: string) {
     return `Usage:\n/money_video https://youtube.com/... "find winning products"\nOR\n/money_video "trending amazon products"`;
   }
 
-  const res = await fetch("http://localhost:3000/agent/run", {
+  const port = process.env.PORT || 8080;
+  const res = await fetch(`http://localhost:${port}/api/agent/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
