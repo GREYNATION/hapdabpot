@@ -9,6 +9,7 @@ import * as path from 'path';
 import * as https from 'https';
 import * as cron from 'node-cron';
 import { Telegraf, Context } from 'telegraf';
+import { fileURLToPath } from 'url';
 
 // ─── CONFIG ─────────────────────────────────────────────────
 const TIKTOK_ACCESS_TOKEN = process.env.TIKTOK_ACCESS_TOKEN!;
@@ -112,6 +113,9 @@ const SEASON_1: SpideyEpisode[] = [
     posted: false
   }
 ];
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Persistent state file
 const STATE_FILE = path.join(__dirname, '../../data/spidey_schedule.json');
