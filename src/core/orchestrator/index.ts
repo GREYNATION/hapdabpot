@@ -2,6 +2,7 @@ import { log } from "../config.js";
 import { HarnessAgent } from "../../agents/harnessAgent/harnessAgent.js";
 import { GeneticTraderAgent } from "../../agents/trading/GeneticTraderAgent.js";
 import { exec } from "child_process";
+import path from "path";
 import { google } from "googleapis";
 // import { runTraderAgent } from "..."; // TODO: Implement
 // import { runScraperAgent } from "..."; // TODO: Implement
