@@ -131,7 +131,7 @@ Goal: ${result.blueprint.goal}`;
   }
 }
 
-export async function runPlan(taskObjects: any[], onStatus?: (msg: string | DashboardPatch) => Promise<void>): Promise<string> {
+export async function runPlan(taskObjects: any[], onStatus?: (msg: string | DashboardPatch) => Promise<void> | void): Promise<string> {
     if (onStatus) await onStatus(`⚡ Running tasks...`);
 
     const taskPromises = taskObjects.map(async (task: any, i: number) => {
@@ -140,7 +140,7 @@ export async function runPlan(taskObjects: any[], onStatus?: (msg: string | Dash
         
         try {
             updateTaskInDB(task.id, "running");
-            const result = await executeTask(task, (m) => {
+            const result = await executeTask(task, (m: string | DashboardPatch) => {
                 if (onStatus) onStatus(m);
             });
             const content = typeof result === 'string' ? result : (result?.content || "No output.");

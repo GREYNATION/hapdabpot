@@ -13,7 +13,15 @@ export class GeneticTraderAgent extends BaseAgent {
     private currentProgress: GeneticsProgress | null = null;
 
     constructor() {
-        super();
+        super("Genetics Trader", "You are the Genetics Trader Agent. You specialize in strategy evolution using genetic algorithms.");
+    }
+
+    public getSystemPrompt(): string {
+        return "You are the Genetics Trader Agent. You specialize in strategy evolution using genetic algorithms.";
+    }
+
+    public getSkills(): any[] {
+        return [];
     }
 
     public getName(): string {
@@ -54,7 +62,7 @@ export class GeneticTraderAgent extends BaseAgent {
                         }
                     }
                 }
-            } catch (e) {
+            } catch (e: any) {
                 // Ignore non-JSON output
             }
         });

@@ -13,10 +13,18 @@ export class VisionAgent extends BaseAgent {
     private SCREENSHOT_PATH = path.join(process.cwd(), "screen-capture.jpg");
 
     constructor() {
-        super();
+        super("Visionary", "You are the Visionary Agent. You specialize in analyzing images, screen captures, and desktop views to provide visual intelligence.");
         if (process.env.ANTHROPIC_API_KEY) {
             this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
         }
+    }
+
+    public getSystemPrompt(): string {
+        return "You are the Visionary Agent. You analyze images and screen captures.";
+    }
+
+    public getSkills(): any[] {
+        return [];
     }
 
     public getName(): string {
@@ -122,4 +130,13 @@ export class VisionAgent extends BaseAgent {
             return `❌ Image analysis failed: ${err.message}`;
         }
     }
+}
+
+/**
+ * Convenience wrapper for the VisionAgent.
+ */
+export async function visionAgent(query: string) {
+    const agent = new VisionAgent();
+    const res = await agent.ask(query);
+    return res.content;
 }

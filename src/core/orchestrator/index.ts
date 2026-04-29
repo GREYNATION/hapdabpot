@@ -122,7 +122,7 @@ async function runVideoAnalysis(agent: any) {
           transcript = `VIDEO TITLE: ${snippet?.title}\n\nDESCRIPTION: ${snippet?.description}`;
           log(`[video] Metadata fallback successful.`);
         }
-      } catch (e) {
+      } catch (e: any) {
         log(`[video] Metadata fallback failed: ${e}`, "error");
       }
     }
@@ -154,14 +154,14 @@ async function runVideoAnalysis(agent: any) {
 function extractVideoTranscript(url: string): Promise<any> {
   return new Promise((resolve) => {
     log(`[video] executing Python video_agent.py for ${url}...`);
-    exec(`python video_agent.py "${url}"`, (err, stdout) => {
+    exec(`python video_agent.py "${url}"`, (err: any, stdout: string) => {
       if (err) {
         return resolve({ error: "exec_error", description: err.message });
       }
       try {
         const data = JSON.parse(stdout);
         resolve(data);
-      } catch (e) {
+      } catch (e: any) {
         resolve({ error: "parse_error", description: "Failed to parse Python output" });
       }
     });
@@ -265,7 +265,7 @@ export async function runMoneyAgent(agent: any) {
   winners = deepWinners.sort((a, b) => b.score - a.score);
 
   const formattedData = `💰 MONEY AGENT RESULTS\n\nTop Opportunities:\n\n` + 
-    winners.map((w, i) => 
+    winners.map((w: any, i: number) => 
       `${i + 1}. ${w.title || "Unnamed Product"}\n` +
       `   Price: $${w.price.toFixed(2)}\n` +
       `   Reviews: ${w.reviews}\n` +
@@ -289,17 +289,17 @@ export async function runMoneyVideoAgent(agent: any) {
 
   const products = await extractProductsFromInsights(analysis.insights);
 
-  const scored = products.map(p => {
+  const scored = products.map((p: any) => {
     const scoredP = scoreProduct(p);
     return {
       ...scoredP,
-      score: scoredP.score + (analysis.videoBonus || 0)
+      score: (scoredP as any).score + (analysis.videoBonus || 0)
     };
   });
-  const winners = scored.filter(p => p.score > 70).sort((a, b) => b.score - a.score).slice(0, 5);
+  const winners = scored.filter((p: any) => p.score > 70).sort((a: any, b: any) => b.score - a.score).slice(0, 5);
 
   const formattedData = `🎬 **MONEY VIDEO RESULTS**\n\nTop Product Ideas from Video:\n\n` + 
-    winners.map((w, i) => 
+    winners.map((w: any, i: number) => 
       `${i + 1}. **${w.title || "Unnamed Product"}**\n` +
       `   Price: $${w.price.toFixed(2)}\n` +
       `   Reviews: ${w.reviews}\n` +
@@ -348,14 +348,14 @@ async function extractProductsFromInsights(insights: string[]) {
   try {
     const data = JSON.parse(response.content);
     return Array.isArray(data) ? data : (data.products || []);
-  } catch (e) {
+  } catch (e: any) {
     log(`[video] Failed to parse product JSON. Using AI to retry extraction...`, "error");
     // Try one more time with a very strict prompt
     try {
       const retry = await askAI(`Extract the product names from this text and return them as a comma-separated list: ${response.content}`, "Return only the list.");
-      const titles = retry.content.split(",").map(t => t.trim());
-      return titles.map(title => ({ title, price: 29.99, reviews: 100, rating: 4.5, sales: 200 }));
-    } catch (retryErr) {
+      const titles = retry.content.split(",").map((t: string) => t.trim());
+      return titles.map((title: string) => ({ title, price: 29.99, reviews: 100, rating: 4.5, sales: 200 }));
+    } catch (retryErr: any) {
       return [];
     }
   }

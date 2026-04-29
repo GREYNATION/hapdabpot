@@ -41,7 +41,14 @@ export abstract class BaseAgent {
     }
 
     abstract getName(): string;
-    abstract getSystemPrompt(): string;
+    
+    public getSystemPrompt(): string {
+        return this.systemPrompt;
+    }
+
+    public getSkills(): any[] {
+        return [];
+    }
 
     public async executeTool(name: string, args: any): Promise<string> {
         log(`[tool] ${this.getName()} executing ${name}...`);
