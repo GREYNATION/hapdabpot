@@ -199,7 +199,7 @@ export class RealEstateAgent extends BaseAgent {
       return formatLeads(nextBatch, 5);
     }
 
-    // Lead finding — use universal scraper
+    // Lead finding — use universal scraper for general, AI for specific
     if (
       lower.includes("find") || lower.includes("search") ||
       lower.includes("motivated") || lower.includes("seller") ||
@@ -207,12 +207,26 @@ export class RealEstateAgent extends BaseAgent {
       lower.includes("pull") || lower.includes("list") ||
       lower.includes("deal")
     ) {
+      const words = lower.split(/\s+/);
+      const isSpecificQuery = words.length > 5 || 
+                              lower.includes("mortgage") || 
+                              lower.includes("pay") || 
+                              lower.includes("behind") ||
+                              lower.includes("tax") ||
+                              lower.includes("probate") ||
+                              lower.includes("divorce");
+
+      if (isSpecificQuery) {
+        log(`[realEstate] 🧠 Using AI-driven autonomous search for specific query: "${userMessage}"`);
+        return await this.chat(`Find motivated sellers or property leads based on this specific request: "${userMessage}". Use your tools to find live data if possible.`);
+      }
+
       const { state, city } = this.parseLocation(lower);
       const location = city || state
         ? `${city || ""}${city && state ? ", " : ""}${state || ""}`
         : "all markets";
 
-      log(`[realEstate] Scraping leads for: ${location}`);
+      log(`[realEstate] ⚡ Using fast-scraper for general leads in: ${location}`);
 
       try {
         const leads = await findMotivatedSellers(state, city);

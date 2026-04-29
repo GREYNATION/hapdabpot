@@ -28,6 +28,8 @@ Available agents:
 - RealEstateAgent (properties, houses, deals)
 - ContentAgent (TikTok, social media, content creation)
 - DramaAgent (TikTok 3D mini-drama scripts, character direction, scene blocking)
+- GeneticTraderAgent (genetic programming, strategy evolution, algorithm optimization)
+- VisionAgent (analyze images, screen captures, desktop view, "what do you see")
 
 Respond ONLY with the agent name.
 `

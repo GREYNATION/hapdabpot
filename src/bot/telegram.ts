@@ -359,21 +359,29 @@ export class TelegramBot {
         }
     }
 
-    public launch() {
+    public async launch(retries = 10, delayMs = 5000) {
         DealWatcher.init();
 
-        // dropPendingUpdates: true fixes 409 Conflict on Railway redeploys
-        // (old instance is still polling when new one starts)
-        this.bot.launch({ dropPendingUpdates: true }).catch((err: any) => {
+        try {
+            // dropPendingUpdates: true fixes 409 Conflict on Railway redeploys
+            // (old instance is still polling when new one starts)
+            await this.bot.launch({ dropPendingUpdates: true });
+            log('[bot] Launched Hapdabot Supreme (conflict-safe mode).');
+        } catch (err: any) {
             log(`[bot] Launch error: ${err.message}`, 'error');
-        });
+            
+            if (err.message?.includes('409') && retries > 0) {
+                log(`[bot] Conflict detected (another instance running). Retrying in ${delayMs/1000}s... (${retries} retries left)`);
+                setTimeout(() => this.launch(retries - 1, delayMs * 1.2), delayMs);
+            } else {
+                log(`[bot] Fatal launch failure or retries exhausted.`, 'error');
+            }
+        }
 
         // Recover from polling errors without crashing
         this.bot.catch((err: any) => {
             log(`[bot] Polling error (non-fatal): ${err.message}`, 'error');
         });
-
-        log('[bot] Launched Hapdabot Supreme (conflict-safe mode).');
     }
     public stop(signal: string) { this.bot.stop(signal); }
 }

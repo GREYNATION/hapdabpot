@@ -10,16 +10,25 @@ let _supabase: SupabaseClient | null = null;
 export function getSupabase(): SupabaseClient | null {
   if (!_supabase) {
     const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const anonKey = process.env.SUPABASE_ANON_KEY;
 
     if (!url) {
-      console.log("[supabase] ⚠️ SUPABASE_URL is missing in environment.");
+      console.log("[supabase] âš ï¸ CRITICAL: SUPABASE_URL is missing in environment.");
       return null;
     }
+
+    const key = serviceKey || anonKey;
+
     if (!key) {
-      if (url) console.log("[supabase] ℹ️ Using local/public access (ANON_KEY).");
-      else console.log("[supabase] ⚠️ SUPABASE_URL and KEYS are missing in environment.");
+      console.log("[supabase] âš ï¸ CRITICAL: Both SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ANON_KEY are missing.");
       return null;
+    }
+
+    if (serviceKey) {
+      console.log("[supabase] âœ… Initializing with SERVICE_ROLE access.");
+    } else {
+      console.log("[supabase] â„¹ï¸ Initializing with ANON/PUBLIC access.");
     }
 
     _supabase = createClient(url, key);

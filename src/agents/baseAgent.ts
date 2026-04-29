@@ -6,6 +6,7 @@ import axios from "axios";
 import { agentMail } from "../services/agentmail.js";
 import { HiveMind } from "../core/hiveMind.js";
 import { ApifyService } from "../services/apifyService.js";
+import { SearchOrchestrator, addObservation } from "../core/memory.js";
 
 export interface AgentResponse {
     content: string;
@@ -148,6 +149,16 @@ export abstract class BaseAgent {
                 const { ContentAgent } = await import("./ContentAgent.js");
                 const agent = new ContentAgent();
                 return await agent.createVideo(args.topic, false); // false = actual post
+            }
+            if (name === "add_memory") {
+                const domain = args.domain || "global";
+                // We use a placeholder session ID or retrieve from context if possible
+                const sessionId = (this as any)._currentSessionId || "00000000-0000-0000-0000-000000000000";
+                await addObservation(sessionId, domain, args.content, args.importance || 1);
+                return `Memory added to ${domain}.`;
+            }
+            if (name === "get_memory") {
+                return await SearchOrchestrator.search(args.query, args.domain || "global");
             }
             return "Unknown tool";
         } catch (e: any) {
@@ -313,6 +324,37 @@ export abstract class BaseAgent {
                     description: "Clear the current agent pin and return to the Dispatcher/Triage routing.",
                     parameters: { type: "object", properties: {} }
                 }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "add_memory",
+                    description: "Save an important observation or fact to long-term episodic memory.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            content: { type: "string", description: "The core memory to save" },
+                            domain: { type: "string", description: "Domain of memory (trading, real_estate, global)" },
+                            importance: { type: "number", description: "1-5 scale of importance" }
+                        },
+                        required: ["content"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "get_memory",
+                    description: "Retrieve relevant past memories based on a query.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            query: { type: "string", description: "Search query" },
+                            domain: { type: "string", description: "Domain to search" }
+                        },
+                        required: ["query"]
+                    }
+                }
             }
         ];
     }
@@ -328,13 +370,16 @@ export abstract class BaseAgent {
         // Inject Hive Mind and Council Protocol
         const hive = HiveMind.getInstance();
         systemPrompt += hive.getContextString();
+
+        // ─── Episodic Memory Injection ──────────────────────────────────────
+        const memoryContext = await SearchOrchestrator.search(userText, "global");
+        systemPrompt += `\n\n--- EPISODIC MEMORY (PAST CONTEXT) ---\n${memoryContext}\n-------------------------------------`;
+
         systemPrompt += `\n\n--- COUNCIL OPERATIONAL PROTOCOL ---
 1. You are PART OF A COUNCIL. Focus on your specific role within the larger mission.
 2. Updates to the mission state or objectives MUST be done using 'update_hive_mind'.
-3. STRICT TOOL CALLING: You MUST use the provide tool-calling schema. 
-   - DO NOT use XML tags like <function> or <tool_call>.
-   - DO NOT wrap arguments in anything other than the standard JSON structure.
-   - Failure to follow the JSON schema will cause a system disconnect.
+3. TOOL PROTOCOL: Use the provided tools for real-world actions. Always analyze results before responding.
+4. MEMORY: Use 'add_memory' to persist important discoveries for future sessions.
 -------------------------------------`;
 
         const tools = this.getTools();

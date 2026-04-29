@@ -27,6 +27,28 @@ export function registerLeadCommands(bot: Telegraf, db: Database.Database) {
   bot.command('leads', async (ctx) => {
     if (!isOwner(ctx)) return;
 
+    const text = ctx.message.text.replace('/leads', '').trim();
+
+    if (text.length > 3) {
+      // If there's a query, treat it as a finding request
+      await ctx.reply("🏠 **Ops Intelligence Initialized.**\nScanning for motivated sellers matching your criteria...");
+      try {
+        const { realEstateAgent } = await import('../agents/realEstateAgent.js');
+        const result = await realEstateAgent.handle(text);
+        
+        if (result.length <= 4096) {
+            await ctx.reply(result, { parse_mode: 'Markdown' }).catch(() => ctx.reply(result));
+        } else {
+            const chunks = result.match(/[\s\S]{1,4000}/g) ?? [result];
+            for (const chunk of chunks) await ctx.reply(chunk).catch(() => { });
+        }
+        return;
+      } catch (err: any) {
+        log(`[bot] Error in autonomous /leads: ${err.message}`, 'error');
+        return ctx.reply(`❌ Lead Discovery Failed: ${err.message}`);
+      }
+    }
+
     try {
         const stats = getStuyzaLeadStats(db);
         const leads = getStuyzaLeads(db, 10) as StuyzaLead[];

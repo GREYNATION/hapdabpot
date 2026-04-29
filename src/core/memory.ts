@@ -44,6 +44,16 @@ export interface AgentSignal {
   created_at: string;
 }
 
+export interface Observation {
+  id: string;
+  session_id: string;
+  domain: string;
+  content: string;
+  importance: number;
+  metadata: any;
+  created_at: string;
+}
+
 /**
  * Initialize the local database schema (for operational data)
  */
@@ -163,6 +173,84 @@ export async function writeKnowledge(domain: AgentDomain, key: string, value: st
     source,
     updated_at: new Date().toISOString()
   });
+}
+
+// ─── Episodic Memory (Advanced) ─────────────────────────────────────────────
+
+export async function createSession(userId: string, title?: string): Promise<string | null> {
+  const client = getSupabase();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from("hapda_sessions")
+    .insert({ user_id: userId, title, metadata: { source: "hapdabot" } })
+    .select("id")
+    .single();
+
+  if (error) {
+    log(`[memory] Failed to create session: ${error.message}`, "error");
+    return null;
+  }
+  return data.id;
+}
+
+export async function addObservation(sessionId: string, domain: string, content: string, importance: number = 1): Promise<void> {
+  const client = getSupabase();
+  if (!client) return;
+
+  const { error } = await client.from("hapda_observations").insert({
+    session_id: sessionId,
+    domain,
+    content,
+    importance,
+    metadata: { timestamp: new Date().toISOString() }
+  });
+
+  if (error) log(`[memory] Observation error: ${error.message}`, "error");
+}
+
+export async function getTimeline(sessionId: string, limit: number = 20): Promise<Observation[]> {
+  const client = getSupabase();
+  if (!client) return [];
+
+  const { data, error } = await client
+    .from("hapda_observations")
+    .select("*")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  return (data || []) as Observation[];
+}
+
+/**
+ * SearchOrchestrator — Coordinates Semantic and Temporal Retrieval
+ */
+export class SearchOrchestrator {
+    static async search(query: string, domain: string, limit: number = 5): Promise<string> {
+        const client = getSupabase();
+        if (!client) return "";
+
+        log(`[memory] Searching for relevant context in domain: ${domain}...`);
+
+        // 1. Semantic Search (Keyword fallback for now, Vector integration next)
+        const { data: results } = await client
+            .from("hapda_observations")
+            .select("content, importance")
+            .eq("domain", domain)
+            .ilike("content", `%${query}%`)
+            .order("importance", { ascending: false })
+            .limit(limit);
+
+        if (!results || results.length === 0) return "No relevant previous context found.";
+
+        let context = "[Relevant Memories]\n";
+        results.forEach((r, i) => {
+            context += `${i + 1}. ${r.content}\n`;
+        });
+
+        return context;
+    }
 }
 
 export async function getDomainContext(domain: AgentDomain): Promise<string> {

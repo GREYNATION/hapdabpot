@@ -1,4 +1,4 @@
-export async function handleMoneyCommand(input: string) {
+export async function handleMoneyCommand(input: string, chatId?: string | number) {
   const parts = input.split(" ");
 
   const url = parts[1];
@@ -16,7 +16,7 @@ export async function handleMoneyCommand(input: string) {
       agent: {
         id: "money",
         task: query,
-        input: { url }
+        input: { url, chatId }
       }
     })
   });
@@ -26,7 +26,7 @@ export async function handleMoneyCommand(input: string) {
   return `💰 Money Agent running → Job: ${data.jobId}`;
 }
 
-export async function handleMoneyVideoCommand(input: string) {
+export async function handleMoneyVideoCommand(input: string, chatId?: string | number) {
   const parts = input.split(" ");
 
   let url = parts[1];
@@ -52,7 +52,7 @@ export async function handleMoneyVideoCommand(input: string) {
       agent: {
         id: "money-video",
         task: query,
-        input: { videoUrl: url, searchQuery: !url ? query : undefined }
+        input: { videoUrl: url, searchQuery: !url ? query : undefined, chatId }
       }
     })
   });

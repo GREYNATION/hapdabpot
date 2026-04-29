@@ -1,32 +1,100 @@
-import axios from "axios";
-import { openai, config, log } from "../core/config.js";
+import { BaseAgent } from "./baseAgent.js";
+import { config, log } from "../core/config.js";
+import Anthropic from "@anthropic-ai/sdk";
+import screenshot from "screenshot-desktop";
+import * as fs from "fs";
+import * as path from "path";
 
 /**
- * Standalone vision agent that calls Groq directly.
- * Bypasses the shared askAI function to ensure multimodal content is properly formatted.
+ * Unified VisionAgent — Handles both image URL analysis and local screen captures.
  */
-export async function visionAgent(multimodalPrompt: any[]) {
-    const systemPrompt = `Analyze this property image and return:
+export class VisionAgent extends BaseAgent {
+    private anthropic: Anthropic | null = null;
+    private SCREENSHOT_PATH = path.join(process.cwd(), "screen-capture.jpg");
 
-{
-  "condition": "good | average | bad",
-  "estimated_repairs": number,
-  "deal_rating": 1-10,
-  "reason": "short explanation"
-}`;
-
-    // Extract text from the multimodal prompt
-    const userText = multimodalPrompt.find(p => p.type === "text")?.text || "Describe this image.";
-    const imagePart = multimodalPrompt.find(p => p.type === "image_url");
-    
-    if (!imagePart) {
-        return "âŒ No image data found in the request.";
+    constructor() {
+        super();
+        if (process.env.ANTHROPIC_API_KEY) {
+            this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        }
     }
 
-    log(`[visionAgent] Calling vision model: ${config.visionModel}`);
+    public getName(): string {
+        return "Visionary";
+    }
 
-    const MAX_RETRIES = 3;
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    /**
+     * Captures the current desktop screen and returns base64.
+     */
+    private async captureScreen(): Promise<string> {
+        log("[vision] Capturing desktop screen...");
+        const imgBuffer = await screenshot({ format: "jpg" });
+        fs.writeFileSync(this.SCREENSHOT_PATH, imgBuffer);
+        return imgBuffer.toString("base64");
+    }
+
+    /**
+     * Primary entry point for task routing.
+     */
+    public async ask(query: string): Promise<{ content: string }> {
+        // If the task implies a screenshot or desktop view
+        if (query.toLowerCase().includes("screenshot") || query.toLowerCase().includes("screen") || query.toLowerCase().includes("desktop")) {
+            const analysis = await this.analyzeScreen(query);
+            return { content: `**[Visionary]**: ${analysis}` };
+        }
+
+        return { content: "**[Visionary]**: I can analyze your screen or any images you provide. Try asking 'What is on my screen?'" };
+    }
+
+    /**
+     * Analyzes the current desktop screen using Claude Multimodal.
+     */
+    public async analyzeScreen(prompt: string): Promise<string> {
+        if (!this.anthropic) {
+            return "❌ Anthropic API key is missing. Visual analysis unavailable.";
+        }
+
+        try {
+            const base64Image = await this.captureScreen();
+            
+            const response = await this.anthropic.messages.create({
+                model: "claude-3-5-sonnet-latest", // Upgraded to latest sonnet
+                max_tokens: 1024,
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "image",
+                                source: {
+                                    type: "base64",
+                                    media_type: "image/jpeg",
+                                    data: base64Image,
+                                },
+                            },
+                            {
+                                type: "text",
+                                text: prompt,
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            const result = response.content[0].type === "text" ? response.content[0].text : "Could not analyze screen.";
+            return result;
+        } catch (err: any) {
+            log(`[vision] Screen analysis failed: ${err.message}`, "error");
+            return `Vision error: ${err.message}`;
+        }
+    }
+
+    /**
+     * Analyzes an external image URL (used by property/real estate agents).
+     */
+    public async analyzeImage(imageUrl: string, prompt: string): Promise<string> {
+        // Implementation for external URLs using OpenRouter or GPT-4o
+        // Bypassing askAI to ensure multimodal formatting.
         try {
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
@@ -35,17 +103,13 @@ export async function visionAgent(multimodalPrompt: any[]) {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    model: "openai/gpt-4o", // ✅ FIXED
+                    model: "openai/gpt-4o",
                     messages: [
-                        { role: "system", content: systemPrompt },
                         {
                             role: "user",
                             content: [
-                                { type: "text", text: userText },
-                                {
-                                    type: "image_url",
-                                    image_url: imagePart.image_url
-                                }
+                                { type: "text", text: prompt },
+                                { type: "image_url", image_url: { url: imageUrl } }
                             ]
                         }
                     ]
@@ -53,43 +117,9 @@ export async function visionAgent(multimodalPrompt: any[]) {
             });
 
             const data = await response.json();
-            const result = data.choices?.[0]?.message?.content;
-            log(`[visionAgent] Analysis complete. Result length: ${result?.length}`);
-            return result || "❌ Model returned no content.";
-
+            return data.choices?.[0]?.message?.content || "❌ Model returned no content.";
         } catch (err: any) {
-            const isRateLimit = err.status === 429 || err.message?.includes("429") || err.message?.includes("retry");
-            if (isRateLimit && attempt < MAX_RETRIES) {
-                const wait = 5000 * attempt;
-                log(`[visionAgent] Rate limited. Retrying in ${wait / 1000}s... (attempt ${attempt}/${MAX_RETRIES})`);
-                await new Promise(r => setTimeout(r, wait));
-            } else {
-                log(`[visionAgent] Failed: ${err.message}`, "error");
-                console.log("⚠️ Vision failed, fallback to text");
-
-                try {
-                    const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                        method: "POST",
-                        headers: {
-                            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            model: "openai/gpt-4o",
-                            messages: [
-                                { role: "system", content: systemPrompt },
-                                { role: "user", content: "Analyze deal based on text only: " + userText }
-                            ]
-                        })
-                    });
-                    const fallbackData = await fallbackResponse.json();
-                    return fallbackData.choices?.[0]?.message?.content || "❌ Fallback text model returned no content.";
-                } catch (fallbackErr: any) {
-                    return `❌ Visual analysis and text fallback failed: ${fallbackErr.message}`;
-                }
-            }
+            return `❌ Image analysis failed: ${err.message}`;
         }
     }
-
-    return "❌ Analysis timed out after multiple retries.";
 }

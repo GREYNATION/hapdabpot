@@ -418,7 +418,7 @@ export function setupRouter(bot: Telegraf) {
         const text = ctx.message.text.trim();
         await ctx.reply("💸 Initializing Money Agent. Analyzing opportunities...");
         try {
-            const res = await handleMoneyCommand(text);
+            const res = await handleMoneyCommand(text, ctx.chat.id);
             await ctx.reply(res);
         } catch (err: any) {
             ctx.reply(`❌ Money Agent Error: ${err.message}`);
@@ -430,7 +430,7 @@ export function setupRouter(bot: Telegraf) {
         const text = ctx.message.text.trim().replace('/money_video', '/money-video');
         await ctx.reply("🎥 **Starting FBA YouTube Intelligence...**\nScraping trending videos, extracting transcripts, and scoring products. This may take 5-20 minutes depending on video length...");
         try {
-            const res = await handleMoneyVideoCommand(text);
+            const res = await handleMoneyVideoCommand(text, ctx.chat.id);
             await ctx.reply(res);
         } catch (err: any) {
             ctx.reply(`❌ Money Video Agent Error: ${err.message}`);

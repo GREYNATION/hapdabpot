@@ -154,7 +154,7 @@ export class VoiceService {
                 if (config.elevenKey) {
                     try {
                         log(`[voice] Generating premium chunk (${chunk.length} chars) via ElevenLabs...`);
-                        const voiceId = config.elevenVoiceId || "21m00Tcm4TlvDq8ikWAM"; // Rachel (High compatibility)
+                        const voiceId = config.elevenVoiceId; 
                         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
                             method: 'POST',
                             headers: {
@@ -163,8 +163,8 @@ export class VoiceService {
                             },
                             body: JSON.stringify({
                                 text: chunk,
-                                model_id: "eleven_monolingual_v1",
-                                voice_settings: { stability: 0.5, similarity_boost: 0.5 }
+                                model_id: "eleven_multilingual_v2",
+                                voice_settings: { stability: 0.5, similarity_boost: 0.8, style: 0.0, use_speaker_boost: true }
                             })
                         });
 

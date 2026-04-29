@@ -44,6 +44,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.cache ./.cache
 COPY --from=builder /app/src/agents/stuyza/openmontage/remotion-composer ./src/agents/stuyza/openmontage/remotion-composer
 COPY --from=builder /app/scripts ./scripts
+COPY *.py ./
+RUN ls -la video_agent.py
 COPY video-use ./video-use
 
 # Setup Python Virtual Environment and Install Dependencies
@@ -52,7 +54,7 @@ RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 RUN pip install --upgrade pip && \
     pip install -e ./video-use && \
-    pip install youtube-transcript-api yt-dlp
+    pip install youtube-transcript-api yt-dlp deap backtesting pandas numpy dill
 
 # Set environment to production
 ENV NODE_ENV=production

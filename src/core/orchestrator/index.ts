@@ -1,5 +1,6 @@
 import { log } from "../config.js";
 import { HarnessAgent } from "../../agents/harnessAgent/harnessAgent.js";
+import { GeneticTraderAgent } from "../../agents/trading/GeneticTraderAgent.js";
 import { exec } from "child_process";
 import { google } from "googleapis";
 // import { runTraderAgent } from "..."; // TODO: Implement
@@ -23,6 +24,9 @@ export async function orchestrate(agent: any) {
     case "scraper":
       // return runScraperAgent(agent);
       throw new Error("Scraper agent not yet implemented in orchestrate()");
+
+    case "genetics":
+      return runGeneticsAgent(agent);
 
     default:
       throw new Error(`Unknown agent: ${agent.id}`);
@@ -95,17 +99,49 @@ async function runVideoAnalysis(agent: any) {
 
   log(`[video] analyzing ${targetUrl}`);
 
-  // Step 1: Extract content (placeholder for your Python tool)
-  const transcript = await extractVideoTranscript(targetUrl);
+  // Step 1: Extract content
+  const transcriptData = await extractVideoTranscript(targetUrl);
+  let transcript = "";
+
+  if (transcriptData.error) {
+    log(`[video] Transcript failed: ${transcriptData.description}. Falling back to metadata...`);
+    // Fallback: Fetch video metadata (title/description)
+    const videoId = targetUrl.match(/(?:v=|\/shorts\/|\/embed\/)([^?&]+)/)?.[1];
+    if (videoId) {
+      try {
+        const youtube = google.youtube({
+          version: 'v3',
+          auth: process.env.YOUTUBE_API_KEY
+        });
+        const vidRes = await youtube.videos.list({
+          part: ['snippet'],
+          id: [videoId]
+        });
+        if (vidRes.data.items?.[0]) {
+          const snippet = vidRes.data.items[0].snippet;
+          transcript = `VIDEO TITLE: ${snippet?.title}\n\nDESCRIPTION: ${snippet?.description}`;
+          log(`[video] Metadata fallback successful.`);
+        }
+      } catch (e) {
+        log(`[video] Metadata fallback failed: ${e}`, "error");
+      }
+    }
+  } else {
+    transcript = transcriptData.transcript;
+  }
+
+  if (!transcript) {
+    throw new Error("Could not extract any content from video (no transcript or metadata).");
+  }
 
   // Step 2: Analyze for skills / strategies
   const insights = await analyzeVideoContent(transcript);
 
   let videoBonus = 0;
   const lowerTranscript = transcript.toLowerCase();
-  if (lowerTranscript.includes("viral") || lowerTranscript.includes("trending")) {
+  if (lowerTranscript.includes("viral") || lowerTranscript.includes("trending") || lowerTranscript.includes("winning")) {
     videoBonus += 20;
-    log(`[video] Viral/Trending keyword detected in transcript! Applying +20 bonus.`);
+    log(`[video] High-intent signals detected. Applying +20 bonus.`);
   }
 
   return {
@@ -115,19 +151,39 @@ async function runVideoAnalysis(agent: any) {
   };
 }
 
-function extractVideoTranscript(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
+function extractVideoTranscript(url: string): Promise<any> {
+  return new Promise((resolve) => {
     log(`[video] executing Python video_agent.py for ${url}...`);
     exec(`python video_agent.py "${url}"`, (err, stdout) => {
-      if (err) return reject(err);
-      resolve(stdout);
+      if (err) {
+        return resolve({ error: "exec_error", description: err.message });
+      }
+      try {
+        const data = JSON.parse(stdout);
+        resolve(data);
+      } catch (e) {
+        resolve({ error: "parse_error", description: "Failed to parse Python output" });
+      }
     });
   });
 }
 
 async function analyzeVideoContent(transcript: string) {
-  log(`[video] analyzing transcript: ${transcript}`);
-  return ["Placeholder insight 1: High engagement format detected", "Placeholder insight 2: Clear call-to-action used"];
+  const { askAI } = await import("../ai.js");
+  log(`[video] Analyzing content with AI...`);
+  
+  const response = await askAI(`
+    Analyze this YouTube video content and extract the top business/product insights.
+    Focus on:
+    1. Winning products mentioned or implied
+    2. Marketing strategies (hooks, angles)
+    3. Target audience and revenue potential
+
+    Content:
+    ${transcript.substring(0, 15000)}
+  `, "You are a professional e-commerce market researcher.");
+
+  return response.content.split("\n").filter(l => l.trim().length > 0);
 }
 
 type Opportunity = "private_label" | "dropship" | "print_on_demand";
@@ -231,7 +287,7 @@ export async function runMoneyVideoAgent(agent: any) {
   log(`[money-video] Starting analysis pipeline for ${agent.input.videoUrl}...`);
   const analysis = await runVideoAnalysis(agent);
 
-  const products = extractProductsFromInsights(analysis.insights);
+  const products = await extractProductsFromInsights(analysis.insights);
 
   const scored = products.map(p => {
     const scoredP = scoreProduct(p);
@@ -242,14 +298,26 @@ export async function runMoneyVideoAgent(agent: any) {
   });
   const winners = scored.filter(p => p.score > 70).sort((a, b) => b.score - a.score).slice(0, 5);
 
-  const formattedData = `🎬 MONEY VIDEO RESULTS\n\nTop Product Ideas from Video:\n\n` + 
+  const formattedData = `🎬 **MONEY VIDEO RESULTS**\n\nTop Product Ideas from Video:\n\n` + 
     winners.map((w, i) => 
-      `${i + 1}. ${w.title || "Unnamed Product"}\n` +
+      `${i + 1}. **${w.title || "Unnamed Product"}**\n` +
       `   Price: $${w.price.toFixed(2)}\n` +
       `   Reviews: ${w.reviews}\n` +
       `   Est Profit: $${w.estimatedProfit.toFixed(2)}\n` +
-      `   Score: ${w.score}`
+      `   **Score: ${w.score}**`
     ).join("\n\n");
+
+  // ASYNC NOTIFICATION
+  const { chatId } = agent.input || {};
+  if (chatId) {
+    try {
+      const { notifyUser } = await import("../../services/outreachService.js");
+      await notifyUser(chatId, formattedData);
+      log(`[money-video] Result notification sent to ${chatId}`);
+    } catch (err) {
+      log(`[money-video] Failed to send notification: ${err}`, "error");
+    }
+  }
 
   return {
     summary: `Found ${winners.length} winning products from video analysis`,
@@ -258,13 +326,39 @@ export async function runMoneyVideoAgent(agent: any) {
   };
 }
 
-function extractProductsFromInsights(insights: any) {
-  // Placeholder: normally uses an LLM to map insights into JSON product schema
-  return [
-    { title: "Viral Cleaning Putty", price: 15.99, reviews: 120, rating: 4.6, sales: 300 },
-    { title: "Desk Cord Organizer", price: 24.50, reviews: 60, rating: 4.4, sales: 150 },
-    { title: "RGB Light Bar", price: 45.00, reviews: 800, rating: 4.2, sales: 600 }
-  ];
+async function extractProductsFromInsights(insights: string[]) {
+  const { askAI } = await import("../ai.js");
+  log(`[video] Extracting structured product data from insights...`);
+
+  const response = await askAI(`
+    Based on these video insights, generate a list of 3-5 specific products to sell.
+    For each product, provide:
+    - title
+    - price (estimate)
+    - reviews (estimate based on popularity)
+    - rating (estimate)
+    - sales (estimate monthly)
+
+    Insights:
+    ${insights.join("\n")}
+
+    Return ONLY a JSON array of objects.
+  `, "You are a product sourcing specialist. Return only valid JSON.", { jsonMode: true });
+
+  try {
+    const data = JSON.parse(response.content);
+    return Array.isArray(data) ? data : (data.products || []);
+  } catch (e) {
+    log(`[video] Failed to parse product JSON. Using AI to retry extraction...`, "error");
+    // Try one more time with a very strict prompt
+    try {
+      const retry = await askAI(`Extract the product names from this text and return them as a comma-separated list: ${response.content}`, "Return only the list.");
+      const titles = retry.content.split(",").map(t => t.trim());
+      return titles.map(title => ({ title, price: 29.99, reviews: 100, rating: 4.5, sales: 200 }));
+    } catch (retryErr) {
+      return [];
+    }
+  }
 }
 
 function normalizeProducts(data: any[]): any[] {
@@ -305,4 +399,11 @@ function scoreProduct(p: any) {
     estimatedProfit: profit,
     score
   };
+}
+
+export async function runGeneticsAgent(agent: any) {
+    const { task } = agent;
+    const geneticsAgent = new GeneticTraderAgent();
+    const result = await geneticsAgent.ask(task);
+    return result;
 }

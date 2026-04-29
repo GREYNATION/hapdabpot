@@ -42,8 +42,8 @@ export const config = {
     deepseekModel: env.DEEPSEEK_MODEL || "deepseek-chat",
     aiProvider: env.AI_PROVIDER || (env.OPENROUTER_API_KEY ? "openrouter" : (env.OPENAI_API_KEY ? "openai" : "groq")),
     braveApiKey: env.BRAVE_API_KEY || "",
-    elevenKey: env.ELEVENLABS_API_KEY || env.ELEVEN_API_KEY || "",
-    elevenVoiceId: env.ELEVEN_VOICE_ID || "21m00Tcm4TlvDq8ikWAM", // Rachel (High compatibility)
+    elevenKey: env.ELEVEN_API_KEY || env.ELEVENLABS_API_KEY || "",
+    elevenVoiceId: env.ELEVEN_VOICE_ID || "pNInz6obpgmqS2C9hC7s", // Marcus (High fidelity)
     githubToken: env.GITHUB_TOKEN || "",
     apifyToken: env.APIFY_TOKEN || "",
     txActorId: env.TX_ACTOR_ID || "",

@@ -343,12 +343,21 @@ export async function triggerAICall(deal: any): Promise<void> {
  * Posts directly to the designated owner's telegram via the Telegram API
  */
 export async function sendTelegram(message: string): Promise<void> {
-    log(`[outreach] 📲 Sending Telegram Notification to Owner...`);
-    const token = process.env.TG_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TG_CHAT_ID || process.env.OWNER_CHAT_ID || process.env.TELEGRAM_OWNER_ID;
+    if (!chatId) throw new Error("Missing TG_CHAT_ID");
+    return notifyUser(chatId, message);
+}
+
+/**
+ * notifyUser
+ * General purpose direct Telegram message to any chatId
+ */
+export async function notifyUser(chatId: string | number, message: string): Promise<void> {
+    log(`[outreach] 📲 Notifying user ${chatId}...`);
+    const token = process.env.TG_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
     
     if (!token || !chatId) {
-        throw new Error("Missing TG_TOKEN or TG_CHAT_ID in environment variables");
+        throw new Error("Missing TG_TOKEN or chatId");
     }
 
     try {
@@ -357,11 +366,12 @@ export async function sendTelegram(message: string): Promise<void> {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 chat_id: chatId,
-                text: message
+                text: message,
+                parse_mode: 'Markdown'
             })
         });
     } catch (e: any) {
-        log(`[outreach] ⚠️ Failed to send Telegram: ${e.message}`, "error");
+        log(`[outreach] ⚠️ Failed to notify user: ${e.message}`, "error");
     }
 }
 
