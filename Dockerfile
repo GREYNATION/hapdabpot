@@ -44,8 +44,11 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.cache ./.cache
 COPY --from=builder /app/src/agents/stuyza/openmontage/remotion-composer ./src/agents/stuyza/openmontage/remotion-composer
 COPY --from=builder /app/scripts ./scripts
-COPY *.py ./
-RUN ls -la video_agent.py
+# Copy Python scripts to their expected relative paths
+COPY --from=builder /app/video_agent.py ./video_agent.py
+COPY --from=builder /app/src/agents/trading/genetics_core.py ./src/agents/trading/genetics_core.py
+RUN ls -la video_agent.py src/agents/trading/genetics_core.py
+RUN chmod +x video_agent.py src/agents/trading/genetics_core.py
 COPY video-use ./video-use
 
 # Setup Python Virtual Environment and Install Dependencies

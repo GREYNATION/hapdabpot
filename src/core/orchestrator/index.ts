@@ -154,7 +154,8 @@ async function runVideoAnalysis(agent: any) {
 function extractVideoTranscript(url: string): Promise<any> {
   return new Promise((resolve) => {
     log(`[video] executing Python video_agent.py for ${url}...`);
-    exec(`python video_agent.py "${url}"`, (err: any, stdout: string) => {
+    const scriptPath = path.resolve(process.cwd(), "video_agent.py");
+    exec(`python "${scriptPath}" "${url}"`, (err: any, stdout: string) => {
       if (err) {
         return resolve({ error: "exec_error", description: err.message });
       }
