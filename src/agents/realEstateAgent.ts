@@ -218,7 +218,12 @@ export class RealEstateAgent extends BaseAgent {
 
       if (isSpecificQuery) {
         log(`[realEstate] 🧠 Using AI-driven autonomous search for specific query: "${userMessage}"`);
-        return await this.chat(`Find motivated sellers or property leads based on this specific request: "${userMessage}". Use your tools to find live data if possible.`);
+        const res = await this.ask(
+          `Find motivated sellers or property leads based on this specific request: "${userMessage}". Use web_search or firecrawl_search to find live data.`,
+          [],
+          this.getSystemPrompt()
+        );
+        return res.content;
       }
 
       const { state, city } = this.parseLocation(lower);

@@ -389,7 +389,7 @@ export abstract class BaseAgent {
 4. MEMORY: Use 'add_memory' to persist important discoveries for future sessions.
 -------------------------------------`;
 
-        const tools = this.getTools();
+        const tools = this.getTools().slice(0, 4); // web_search, read_url, firecrawl_scrape, firecrawl_search only
         let messages = [...history, { role: "user", content: userText }] as any;
 
         try {
