@@ -1,7 +1,7 @@
 import { TraderAgent } from "./TraderAgent.js";
 import { ContentAgent } from "./ContentAgent.js";
 import { GeneticTraderAgent } from "./trading/GeneticTraderAgent.js";
-import { VisionAgent } from "./VisionAgent.js";
+import { VisionAgent } from "./visionAgent.js";
 import { aiRoute } from "./aiRouter.js";
 import { handle as dramaHandle } from "./drama/DramaAgent.js";
 
