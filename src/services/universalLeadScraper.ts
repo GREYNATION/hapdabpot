@@ -383,68 +383,8 @@ export async function findMotivatedSellers(
     return [];
   }
 
-  log(`[scraper] Running AI analysis for ${baseEnriched.length} leads...`);
-  const enrichedWithAI: Lead[] = [];
-
-  // Sequential enrichment with rate-limit delay (7.5s = max 8 req/min)
-  // Capping to Top 10 to prevent 90s system timeouts
-  const maxToEnrich = 10;
-  const processBatch = baseEnriched.slice(0, maxToEnrich);
-  
-  if (baseEnriched.length > maxToEnrich) {
-    log(`[scraper] Found ${baseEnriched.length} leads. Capping deep AI enrichment to Top ${maxToEnrich} to stay within execution limits.`);
-  }
-
-  for (let i = 0; i < processBatch.length; i++) {
-    const lead = processBatch[i];
-
-    // Skip clearly bad leads to save tokens
-    const preScore = calculateDealScore(lead);
-    if (preScore < 20) {
-      enrichedWithAI.push(lead);
-      continue;
-    }
-
-    // Rate-limit: wait 7.5s before each AI call (skip first)
-    if (i > 0) {
-      log(`[scraper] Rate limit delay (7.5s) before lead ${i + 1}/${baseEnriched.length}...`);
-      await delay(7500);
-    }
-
-    try {
-      const aiData = await enrichLeadWithAI(lead);
-      const enriched = { ...lead, ...aiData };
-      calculateDealScore(enriched);
-      enrichedWithAI.push(enriched);
-    } catch (err: any) {
-      log(`[scraper] AI enrichment failed for lead: ${err.message}`, "warn");
-      enrichedWithAI.push(lead);
-    }
-  }
-
-  // Filter and rank: Only 80+ "Hot List" and 60-79 "Watchlist"
-  const topDeals = filterTopDeals(enrichedWithAI);
-  log(`[scraper] Hot deals found: ${topDeals.filter(d => (d.dealScore || 0) >= 80).length}`);
-
-  // Auto-save to CRM
-  if (saveToCRM) autoSaveToCRM(topDeals);
-
-  // Telemetry: Log Top Deals
-  for (const deal of topDeals) {
-    const estProfit = (deal.arv || 0) - (deal.price || 0) - (deal.repairs || 0);
-    await logEvent({
-      type: "deal_found",
-      source: "real_estate_agent",
-      message: "High-motivation property found",
-      data: {
-        address: deal.address,
-        score: deal.dealScore || deal.qualityScore || 0,
-        est_profit: estProfit
-      }
-    }).catch(e => log(`[telemetry] Failed to log deal: ${e.message}`, "warn"));
-  }
-
-  return allDeals; // Per user request "return allDeals"
+  if (saveToCRM) autoSaveToCRM(baseEnriched);
+  return allDeals;
 }
 
 export function formatLeads(leads: Lead[], limit = 5): string {
