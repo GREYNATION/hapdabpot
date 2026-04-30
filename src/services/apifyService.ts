@@ -67,8 +67,7 @@ export class ApifyService {
                 {
                     zipCodes,
                     maxPrice,
-                    forSaleByAgent: true,
-                    forSaleByOwner: true,
+                    listingCategory: "house",
                     daysOnZillow: "7"
                 }
             );

@@ -447,4 +447,18 @@ export async function findMotivatedSellers(
   return allDeals; // Per user request "return allDeals"
 }
 
-export { formatFilteredLeads as formatLeads };
+export function formatLeads(leads: Lead[], limit = 5): string {
+  if (leads.length === 0) return "No leads found. Try a different market.";
+  const top = leads.slice(0, limit);
+  let out = `🏠 **${leads.length} leads found**\n\n`;
+  top.forEach((l, i) => {
+    out += `${i + 1}. **${l.address}**\n`;
+    out += `   📍 ${l.city}, ${l.state}\n`;
+    out += `   💰 ${l.price ? "$" + l.price.toLocaleString() : "Price N/A"}\n`;
+    out += `   🏷️ ${l.source} | ${l.type}\n`;
+    if (l.distressSignals?.length) out += `   🚨 ${l.distressSignals.join(", ")}\n`;
+    if (l.url) out += `   🔗 ${l.url}\n`;
+    out += "\n";
+  });
+  return out;
+}
