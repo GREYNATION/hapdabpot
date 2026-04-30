@@ -219,7 +219,10 @@ export class RealEstateAgent extends BaseAgent {
       if (isSpecificQuery) {
         log(`[realEstate] 🧠 Using AI-driven autonomous search for specific query: "${userMessage}"`);
         const res = await this.ask(
-          `Find motivated sellers or property leads based on this specific request: "${userMessage}". Use web_search or firecrawl_search to find live data.`,
+          `Find motivated sellers or property leads based on this specific request: "${userMessage}".
+           1. Use find_deals(state, city) first if a location is mentioned.
+           2. Use skip_trace(name, city) if you find an owner name but no phone.
+           3. Use web_search or firecrawl_search for additional live verification.`,
           [],
           this.getSystemPrompt()
         );

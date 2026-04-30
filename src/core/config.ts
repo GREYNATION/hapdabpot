@@ -56,8 +56,8 @@ export const config = {
     agentmailEmail: env.AGENTMAIL_EMAIL || "",
     kieAiApiKey: env.KIE_AI_API_KEY || "",
     runwayApiKey: env.RUNWAY_API_KEY || "",
-    ownerId: parseInt(env.OWNER_ID || "0"),
-    allowedUserIds: (env.ALLOWED_USER_IDS || "").split(",").map(id => parseInt(id.trim())).filter(id => !isNaN(id)),
+    ownerId: parseInt(env.OWNER_ID || env.TELEGRAM_OWNER_ID || "0"),
+    allowedUserIds: (env.ALLOWED_USER_IDS || env.TELEGRAM_ALLOWED_USER_IDS || "").split(",").map(id => parseInt(id.trim())).filter(id => !isNaN(id)),
     dbPath: process.env.DB_PATH || path.join(process.cwd(), "data", "memory.db"),
     brainDir: path.join(process.cwd(), "data", "brain"),
     anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
@@ -127,6 +127,12 @@ export async function initializeConfig() {
             if (row.key === "KIE_AI_API_KEY") config.kieAiApiKey = row.value;
             if (row.key === "RUNWAY_API_KEY") config.runwayApiKey = row.value;
             if (row.key === "FIRECRAWL_API_KEY") config.firecrawlApiKey = row.value;
+            if (row.key === "OWNER_ID" || row.key === "TELEGRAM_OWNER_ID") {
+                config.ownerId = parseInt(row.value);
+            }
+            if (row.key === "ALLOWED_USER_IDS" || row.key === "TELEGRAM_ALLOWED_USER_IDS") {
+                config.allowedUserIds = row.value.split(",").map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            }
         });
         log(`[config] Loaded ${data.length} credentials from Master Brain.`);
     }

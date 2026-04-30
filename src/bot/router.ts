@@ -36,18 +36,22 @@ export function setupRouter(bot: Telegraf) {
     
     // Global Middleware for Permission Check
     bot.use(async (ctx: any, next) => {
-        const allowedIds = (process.env.TELEGRAM_ALLOWED_USER_IDS || "").split(",").map(Number);
-        const ownerId = Number(process.env.TELEGRAM_OWNER_ID);
-        if (ownerId && !allowedIds.includes(ownerId)) allowedIds.push(ownerId);
+        const allowedIds = (process.env.TELEGRAM_ALLOWED_USER_IDS || "")
+            .split(",")
+            .map(id => parseInt(id.trim()))
+            .filter(id => !isNaN(id) && id > 0);
+            
+        const ownerId = parseInt(process.env.TELEGRAM_OWNER_ID || process.env.OWNER_ID || "0");
+        if (ownerId > 0 && !allowedIds.includes(ownerId)) {
+            allowedIds.push(ownerId);
+        }
 
         const userId = ctx.from?.id;
         if (!userId) return next();
 
         // If it's a command, enforce ownership
         if (ctx.message?.text?.startsWith("/")) {
-            // Check if we have actual IDs configured (not just empty or placeholders)
-            const hasAuthList = allowedIds.length > 0 && allowedIds.every(id => id > 10000000); // Simple check for likely real IDs
-
+            // Only block if we have a non-empty auth list
             if (allowedIds.length > 0 && !allowedIds.includes(userId)) {
                 log(`[router] Blocking unauthorized command attempt from UID: ${userId}`);
                 return ctx.reply(`❌ **Unauthorized Access**\n\nYour Telegram ID is: \`${userId}\`\n\nPlease add this ID to your \`TELEGRAM_ALLOWED_USER_IDS\` inRailway or the \`.env\` file to activate all commands.`, { parse_mode: 'Markdown' });

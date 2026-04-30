@@ -147,6 +147,16 @@ export abstract class BaseAgent {
             if (name === "tiktok_scrape") {
                 return await ApifyService.scrapeTikTok(args.url);
             }
+            if (name === "skip_trace") {
+                const { skipTrace } = await import("../services/outreachService.js");
+                const res = await skipTrace(args.name, args.city);
+                return `SkipTrace Result for ${args.name}: Phone ${res.phone}`;
+            }
+            if (name === "find_deals") {
+                const { findMotivatedSellers } = await import("../services/universalLeadScraper.js");
+                const leads = await findMotivatedSellers(args.state, args.city);
+                return JSON.stringify(leads.slice(0, 5));
+            }
             if (name === "generate_video") {
                 const { ContentAgent } = await import("./ContentAgent.js");
                 const agent = new ContentAgent();
@@ -249,6 +259,37 @@ export abstract class BaseAgent {
                             url: { type: "string", description: "The TikTok video URL to analyze" }
                         },
                         required: ["url"]
+                    }
+                }
+            },
+            },
+            {
+                type: "function",
+                function: {
+                    name: "skip_trace",
+                    description: "Find a property owner's phone number using skip tracing.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            name: { type: "string", description: "Full name of the owner" },
+                            city: { type: "string", description: "City or State for lookup context" }
+                        },
+                        required: ["name"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "find_deals",
+                    description: "Find motivated seller leads in a specific city or state using the high-performance local scraper.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            state: { type: "string", description: "Target state (e.g. NJ, PA, NY)" },
+                            city: { type: "string", description: "Optional target city" }
+                        },
+                        required: ["state"]
                     }
                 }
             },
@@ -389,12 +430,12 @@ export abstract class BaseAgent {
 4. MEMORY: Use 'add_memory' to persist important discoveries for future sessions.
 -------------------------------------`;
 
-        const tools = this.getTools().slice(0, 4); // web_search, read_url, firecrawl_scrape, firecrawl_search only
+        const tools = this.getTools().slice(0, 8); // Search, Read, Firecrawl, Tracing, Deal Finding only
         let messages = [...history, { role: "user", content: userText }] as any;
 
         try {
             let toolIteration = 0;
-            while (toolIteration < 5) {
+            while (toolIteration < 10) {
                 if (toolIteration === 0) {
                     await logToOpsConsole(name, `Processing: ${userText}`, "think");
                 }
