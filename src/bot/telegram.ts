@@ -98,11 +98,19 @@ export class TelegramBot {
                 const photo = msg.photo[msg.photo.length - 1];
                 const fileLink = await ctx.telegram.getFileLink(photo.file_id);
                 const response = await axios.get(fileLink.toString(), { responseType: 'arraybuffer' });
-                const base64 = Buffer.from(response.data).toString('base64');
+                const buffer = Buffer.from(response.data);
+                const base64 = buffer.toString('base64');
                 attachments.push({
                     type: "image_url",
                     image_url: { url: `data:image/jpeg;base64,${base64}` }
                 });
+
+                if (caption.toLowerCase().includes("save")) {
+                    const fileName = `Photo_${new Date().getTime()}.jpg`;
+                    await WikiService.saveMedia(fileName, buffer);
+                    await WikiService.saveFileNote(caption.replace(/save/gi, "").trim() || "Saved Photo", fileName, 'sources', ['photo-capture']);
+                    ctx.reply(`🖼️ **Photo saved to Obsidian**`);
+                }
             }
 
             if (msg.video || msg.video_note) {
@@ -162,16 +170,33 @@ export class TelegramBot {
             }
 
             if (msg.text?.startsWith("/save")) {
-                const title = msg.text.replace("/save", "").trim() || `Save_${new Date().getTime()}`;
+                const title = msg.text.replace("/save", "").trim() || `Chat_Summary_${new Date().getTime()}`;
                 await ctx.sendChatAction("typing");
                 
-                // Get history to save
                 const { getRecentMessages } = await import("../core/memory.js");
-                const history = getRecentMessages(chatId, 10);
-                const content = history.map(m => `**${m.role}**: ${m.content}`).join("\n\n");
+                const history = getRecentMessages(chatId, 15);
+                const content = history.map(m => `### ${m.role.toUpperCase()}\n${m.content}`).join("\n\n");
                 
-                await WikiService.saveNote(title, content, 'sources');
-                return ctx.reply(`✅ Conversation saved to wiki as: **${title}**`);
+                await WikiService.saveNote(title, content, 'sources', ['chat-log', 'telegram']);
+                return ctx.reply(`✅ **Conversation Captured**\n\nSaved to Obsidian as: **${title}**`);
+            }
+            
+            if (msg.text?.startsWith("/note")) {
+                const raw = msg.text.replace("/note", "").trim();
+                if (!raw) return ctx.reply("📔 Please provide content. Format: `/note Title\\nContent` or just `/note Content` (timestamp will be title)");
+                
+                const parts = raw.split("\n");
+                let title = parts[0];
+                let content = parts.slice(1).join("\n");
+                
+                if (!content) {
+                    content = title;
+                    title = `Note_${new Date().getTime()}`;
+                }
+                
+                await ctx.sendChatAction("typing");
+                await WikiService.saveNote(title, content, 'sources', ['quick-note', 'telegram']);
+                return ctx.reply(`📔 **Note Saved to Obsidian**\n\nTitle: ${title}`);
             }
 
             if (msg.text?.startsWith("/game")) {
@@ -219,6 +244,13 @@ export class TelegramBot {
                     const fileLink = await ctx.telegram.getFileLink(msg.voice.file_id);
                     const buffer = await VoiceService.downloadTelegramFile(fileLink.toString());
                     userText = await VoiceService.transcribe(buffer, '.oga');
+                    
+                    if (userText.toLowerCase().includes("save this") || userText.toLowerCase().includes("note this")) {
+                        const noteText = userText.replace(/save this/gi, "").replace(/note this/gi, "").trim();
+                        const title = `Voice_Note_${new Date().getTime()}`;
+                        await WikiService.saveNote(title, noteText, 'sources', ['voice-capture', 'telegram']);
+                        await ctx.reply(`🎙️ **Voice Note Captured to Obsidian**\n\n"${noteText.substring(0, 50)}..."`);
+                    }
                 } else if ("video" in msg || "video_note" in msg || "photo" in msg) {
                     const media = await this.handleMediaMessage(ctx);
                     userText = media.text;
@@ -226,11 +258,20 @@ export class TelegramBot {
                 } else if ("document" in msg) {
                     const fileLink = await ctx.telegram.getFileLink(msg.document.file_id);
                     const docResponse = await axios.get(fileLink.toString(), { responseType: "arraybuffer" });
+                    const buffer = Buffer.from(docResponse.data);
+                    
                     const sharedDir = path.join(process.cwd(), "data", "shared");
                     if (!fs.existsSync(sharedDir)) fs.mkdirSync(sharedDir, { recursive: true });
                     const filePath = path.join(sharedDir, msg.document.file_name);
-                    fs.writeFileSync(filePath, Buffer.from(docResponse.data));
+                    fs.writeFileSync(filePath, buffer);
+                    
                     userText = `Uploaded document: ${msg.document.file_name}`;
+
+                    if (msg.caption?.toLowerCase().includes("save")) {
+                        await WikiService.saveMedia(msg.document.file_name, buffer);
+                        await WikiService.saveFileNote(msg.caption.replace(/save/gi, "").trim() || msg.document.file_name, msg.document.file_name, 'sources', ['file-capture']);
+                        ctx.reply(`📎 **File saved to Obsidian**: ${msg.document.file_name}`);
+                    }
                 } else if ("text" in msg) {
                     userText = msg.text;
                 }
@@ -239,6 +280,15 @@ export class TelegramBot {
 
                 if (userText || attachments.length > 0) {
                     await ctx.sendChatAction("typing");
+                    
+                    // Auto-capture to Obsidian Inbox (mirrors Python logic provided)
+                    if (userText && userText.length > 10 && !msg.text?.startsWith("/") && !userText.toLowerCase().includes("save this")) {
+                        const datePrefix = new Date().toISOString().split('T')[0];
+                        const safeTitle = userText.substring(0, 30).replace(/[^a-z0-9]/gi, " ").trim();
+                        const noteTitle = `${datePrefix}_${safeTitle || "Inbox_Note"}`;
+                        await WikiService.saveNote(noteTitle, userText, 'sources', ['auto-capture', 'inbox']);
+                        log(`[bot] Auto-captured message to Obsidian Inbox: ${noteTitle}`);
+                    }
                     
                     try {
                         const { text, voiceBuffer } = await this.council.chatWithVoice(userText, chatId);

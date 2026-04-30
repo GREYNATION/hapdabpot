@@ -11,6 +11,8 @@ export class WikiService {
             'wiki/entities',
             'wiki/sources',
             'wiki/meta',
+            'wiki/attachments',
+            'wiki/inbox',
             '_templates'
         ];
 
@@ -29,16 +31,21 @@ export class WikiService {
         }
     }
 
-    public static async saveNote(title: string, content: string, category: 'concepts' | 'entities' | 'sources' = 'sources') {
+    public static async saveNote(title: string, content: string, category: 'concepts' | 'entities' | 'sources' | 'inbox' = 'sources', tags: string[] = []) {
         const fileName = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
         const filePath = path.join(this.vaultPath, 'wiki', category, fileName);
         
-        const timestamp = new Date().toISOString();
+        const timestamp = new Date().toISOString().split('T')[0];
+        const fullTimestamp = new Date().toISOString();
+        
         const frontmatter = `---
-title: ${title}
-created: ${timestamp}
+date: ${timestamp}
+created: ${fullTimestamp}
 category: ${category}
+source: Telegram
+tags: [${tags.join(', ')}]
 ---
+# ${title}
 
 `;
         fs.writeFileSync(filePath, frontmatter + content);
@@ -46,7 +53,10 @@ category: ${category}
         
         // Log to wiki/log.md
         const logPath = path.join(this.vaultPath, 'wiki/log.md');
-        const logEntry = `- [${timestamp}] Saved ${category}/${fileName}: ${title}\n`;
+        const logEntry = `- [${fullTimestamp}] Saved ${category}/${fileName}: ${title}\n`;
+        if (!fs.existsSync(logPath)) {
+            fs.writeFileSync(logPath, "# Wiki Log\n\n");
+        }
         fs.appendFileSync(logPath, logEntry);
     }
 
@@ -64,6 +74,18 @@ category: ${category}
             return fs.readFileSync(hotPath, 'utf8');
         }
         return "No recent context found.";
+    }
+
+    public static async saveMedia(fileName: string, buffer: Buffer): Promise<string> {
+        const filePath = path.join(this.vaultPath, 'wiki/attachments', fileName);
+        fs.writeFileSync(filePath, buffer);
+        log(`[wiki] Saved media to attachments: ${fileName}`);
+        return filePath;
+    }
+
+    public static async saveFileNote(title: string, fileName: string, category: 'concepts' | 'entities' | 'sources' | 'inbox' = 'sources', tags: string[] = []) {
+        const noteContent = `## Attachment\n![[${fileName}]]\n\n[File saved in attachments]`;
+        await this.saveNote(title, noteContent, category, [...tags, 'attachment']);
     }
 
     public static async search(query: string): Promise<string[]> {
