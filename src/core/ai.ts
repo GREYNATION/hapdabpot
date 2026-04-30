@@ -281,6 +281,54 @@ async function callGroq(
     }
 }
 
+// ── Anthropic ────────────────────────────────────────────────────────────────
+async function callAnthropic(
+    messages: OpenAI.ChatCompletionMessageParam[],
+    options: AIOptions
+): Promise<AIResponse> {
+    if (!anthropicClient) throw new Error("Anthropic client not initialized");
+
+    const model = options.model || config.anthropicModel || "claude-sonnet-4-5";
+    const systemMsg = messages.find(m => m.role === "system")?.content as string || "";
+    const nonSystem = messages.filter(m => m.role !== "system").map(m => ({
+        role: m.role as "user" | "assistant",
+        content: typeof m.content === "string" ? m.content : JSON.stringify(m.content)
+    }));
+
+    const tools = options.tools?.map(t => ({
+        name: t.function.name,
+        description: t.function.description,
+        input_schema: t.function.parameters
+    }));
+
+    const response = await anthropicClient.messages.create({
+        model,
+        max_tokens: options.maxTokens || 1024,
+        system: systemMsg,
+        messages: nonSystem as any,
+        tools: tools as any,
+        tool_choice: tools?.length ? { type: "auto" } : undefined
+    });
+
+    const textBlock = response.content.find((b: any) => b.type === "text");
+    const toolBlocks = response.content.filter((b: any) => b.type === "tool_use");
+
+    const tool_calls = toolBlocks.map((b: any) => ({
+        id: b.id,
+        type: "function" as const,
+        function: { name: b.name, arguments: JSON.stringify(b.input) }
+    }));
+
+    return {
+        content: (textBlock as any)?.text || "",
+        tool_calls: tool_calls.length ? tool_calls : undefined,
+        toolCalls: tool_calls.length ? tool_calls : undefined,
+        provider: "anthropic",
+        tokens: response.usage?.input_tokens + response.usage?.output_tokens,
+        model
+    };
+}
+
 // ── Fallbacks ─────────────────────────────────────────────────────────────────
 
 async function callOpenRouter(
@@ -328,6 +376,9 @@ export async function askAI(
 
     const task = async (): Promise<AIResponse> => {
         try {
+            if (config.aiProvider === "anthropic") {
+                return await withTimeout(callAnthropic(messages, options), 60_000, "askAI:anthropic");
+            }
             if (isGroqMode && !isExplicitCloud) {
                 const timeoutMs = options.tools?.length ? 120_000 : 60_000;
                 if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
