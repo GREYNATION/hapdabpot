@@ -27,7 +27,16 @@ export const TARGET_MARKETS = {
   ],
   brooklyn: [
     { city: "Brooklyn", state: "NY", craigslist: "newyork", county: "kings" }
-  ]
+  ],
+  newjersey: [
+    { city: "Camden", state: "NJ", craigslist: "southjersey", county: "camden" },
+    { city: "Trenton", state: "NJ", craigslist: "cnj", county: "mercer" },
+    { city: "Newark", state: "NJ", craigslist: "newjersey", county: "essex" }
+  ],
+  philadelphia: [
+    { city: "Philadelphia", state: "PA", craigslist: "philadelphia", county: "philadelphia" }
+  ] 
+
 };
 
 export interface Lead {
@@ -308,6 +317,36 @@ export async function findMotivatedSellers(
   }
 
   log(`[scraper] Searching ${markets.length} markets...`);
+  
+  // Zillow enrichment for NJ/PA/NY via Apify
+  const ZIP_MAP: Record<string, string[]> = {
+    NJ: ["08103", "08002", "08618", "07102", "07201"],
+    PA: ["19103", "19143", "19120"],
+    NY: ["11201", "11203", "11226"]
+  };
+  const targetStates = targetState ? [targetState.toUpperCase()] : ["NJ", "PA", "NY"];
+  const zips = targetStates.flatMap(s => ZIP_MAP[s] || []);
+  if (zips.length > 0) {
+    try {
+      const zillowResults = await ApifyService.scrapeZillowLeads(zips);
+      for (const r of zillowResults) {
+        allDeals.push({
+          address: r.address || r.streetAddress || "Unknown",
+          city: r.city || "",
+          state: r.state || targetState || "",
+          price: r.price || r.listingPrice,
+          source: "Zillow (Apify)",
+          type: r.homeType || "For Sale",
+          url: r.detailUrl || r.url,
+          description: `${r.beds || "?"}bd/${r.baths || "?"}ba | ${r.livingArea || "?"}sqft | ${r.brokerName || ""}`,
+          distressSignals: scoreDistress((r.description || "") + " " + (r.homeType || ""))
+        });
+      }
+      log(`[scraper] Zillow added ${zillowResults.length} leads`);
+    } catch (e: any) {
+      log(`[scraper] Zillow fetch failed: ${e.message}`, "warn");
+    }
+  }
 
   // Run all in parallel
   const marketPromises = markets.map(async (market) => {

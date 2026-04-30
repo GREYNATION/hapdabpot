@@ -8,8 +8,8 @@ import { config, log } from "../core/config.js";
 
 // Mapping of States to specific Apify Actor IDs from config
 const STATE_ACTOR_MAP: Record<string, string | undefined> = {
-    "TX": config.txActorId, 
-    "FL": config.flActorId, 
+    "TX": config.txActorId,
+    "FL": config.flActorId,
     "GA": config.gaActorId,
     "NJ": config.njActorId
 };
@@ -32,7 +32,7 @@ export class ApifyService {
         }
 
         log(`[apifyService] 🚀 Triggering cloud scan for ${stateKey}/${county} using actor ${actorId}`);
-        
+
         try {
             const response = await axios.post(
                 `https://api.apify.com/v2/acts/${actorId}/runs?token=${token}`,
@@ -53,6 +53,56 @@ export class ApifyService {
     }
 
     /**
+     * Scrapes Zillow listings by ZIP code for motivated seller leads.
+     */
+    static async scrapeZillowLeads(zipCodes: string[], maxPrice = 400000): Promise<any[]> {
+        const token = config.apifyToken;
+        if (!token) { log("[apifyService] APIFY_TOKEN missing.", "error"); return []; }
+
+        log(`[apifyService] 🏠 Scraping Zillow for ZIPs: ${zipCodes.join(", ")}`);
+
+        try {
+            const runRes = await axios.post(
+                `https://api.apify.com/v2/acts/17auNT3I30CssRrvO/runs?token=${token}`,
+                {
+                    zipCodes,
+                    maxPrice,
+                    forSaleByAgent: true,
+                    forSaleByOwner: true,
+                    daysOnZillow: "7"
+                }
+            );
+
+            const runId = runRes.data.data.id;
+            log(`[apifyService] ✅ Zillow run started: ${runId}. Polling...`);
+
+            // Poll up to 30s
+            for (let i = 0; i < 6; i++) {
+                await new Promise(r => setTimeout(r, 5000));
+                const statusRes = await axios.get(
+                    `https://api.apify.com/v2/acts/17auNT3I30CssRrvO/runs/${runId}?token=${token}`
+                );
+                const status = statusRes.data.data.status;
+                log(`[apifyService] Zillow run status: ${status}`);
+                if (status === "SUCCEEDED") break;
+                if (status === "FAILED" || status === "ABORTED") {
+                    log("[apifyService] Zillow run failed.", "error");
+                    return [];
+                }
+            }
+
+            const items = await axios.get(
+                `https://api.apify.com/v2/acts/17auNT3I30CssRrvO/runs/${runId}/dataset/items?token=${token}&limit=20`
+            );
+
+            return items.data || [];
+        } catch (err: any) {
+            log(`[apifyService] Zillow scrape error: ${err.message}`, "error");
+            return [];
+        }
+    }
+
+    /**
      * Scrapes a TikTok video for metadata and content using the standard scraper.
      */
     static async scrapeTikTok(url: string): Promise<string> {
@@ -60,7 +110,7 @@ export class ApifyService {
         if (!token) return "Error: APIFY_TOKEN missing.";
 
         log(`[apifyService] 🎵 Scraping TikTok: ${url}`);
-        
+
         try {
             // Use the standard TikTok scraper actor
             const response = await axios.post(
@@ -78,19 +128,19 @@ export class ApifyService {
 
             // Poll for results (simple version)
             await new Promise(r => setTimeout(r, 8000));
-            
+
             const results = await axios.get(
                 `https://api.apify.com/v2/acts/clockworks~tiktok-scraper/runs/${runId}/dataset/items?token=${token}`
             );
 
             if (!results.data || results.data.length === 0) return "No content found for this TikTok URL.";
-            
+
             const item = results.data[0];
             return `### TIKTOK ANALYSIS: ${item.text?.substring(0, 500)}...\n` +
-                   `- **Author**: @${item.authorMeta?.name}\n` +
-                   `- **Stats**: ${item.diggCount} likes, ${item.commentCount} comments, ${item.playCount} views\n` +
-                   `- **Hashtags**: ${item.hashtags?.map((h: any) => h.name).join(", ")}\n` +
-                   `- **Sound**: ${item.musicMeta?.musicName}`;
+                `- **Author**: @${item.authorMeta?.name}\n` +
+                `- **Stats**: ${item.diggCount} likes, ${item.commentCount} comments, ${item.playCount} views\n` +
+                `- **Hashtags**: ${item.hashtags?.map((h: any) => h.name).join(", ")}\n` +
+                `- **Sound**: ${item.musicMeta?.musicName}`;
         } catch (err: any) {
             log(`[apifyService] ❌ TikTok Scrape Failed: ${err.message}`, "error");
             return `Error scraping TikTok: ${err.message}`;
