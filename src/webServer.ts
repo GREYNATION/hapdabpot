@@ -102,6 +102,28 @@ app.post('/api/command', async (req: Request, res: Response) => {
   return res.json({ success: true, message: 'Command accepted for processing.' });
 });
 
+// ── Librarian API (Obsidian Capture) ────────────────────────────────────────
+app.post('/api/archive', async (req: Request, res: Response) => {
+  const { url, text, chatId } = req.body;
+  if (!url && !text) return res.status(400).json({ success: false, error: 'URL or text required' });
+
+  log(`[Librarian] API Archive request received: ${url || 'Raw Text'}`);
+  
+  const cid = chatId || 0;
+  const input = url || text;
+  
+  // Use CouncilOrchestrator fast-path
+  orchestrator.chat(`[LIBRARIAN ARCHIVE] ${input}`, cid).then((result) => {
+    log(`[Librarian] API Archive processed: ${url || 'Text'}`);
+    if (cid > 0) sendTelegram(`📚 **Archive Complete**:\n${result}`, cid);
+  }).catch(err => {
+    log(`[Librarian] API Archive failed: ${err.message}`, "error");
+    if (cid > 0) sendTelegram(`❌ **Archive Failed**:\n${err.message}`, cid);
+  });
+
+  return res.json({ success: true, message: 'Content queued for archiving.' });
+});
+
 import { createAgentRouter } from './routes/agent.js';
 import gamificationRouter from './web/routes/gamification.js';
 

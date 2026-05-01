@@ -109,7 +109,7 @@ export class VoiceService {
 
                     if (!isRetryable || attempt >= maxRetries - 1) {
                         log(`[voice] Transcription FAILED permanently: ${err.message}`, "error");
-                        return `[Audio Transcription Unavailable — Error: ${err.message.substring(0, 50)}]`;
+                        return `[SYSTEM NOTICE: Audio transcription failed. Error: ${err.message.substring(0, 50)}. DO NOT attempt to search for this error; instead, notify the user that the voice message could not be processed.]`;
                     }
 
                     attempt++;

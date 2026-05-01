@@ -2,6 +2,7 @@
 import { Lead } from "./universalLeadScraper.js";
 import { askAI } from "../core/ai.js";
 import { config } from "../core/config.js";
+import { humanize } from "../core/humanizer.js";
 
 // --- Types ----------------------------------------------------------------------
 
@@ -190,10 +191,14 @@ Format as JSON:
     });
     
     const analysis = JSON.parse(aiResponse.content);
+    
+    // Humanize the AI-generated summary for better presentation
+    const humanizedSummary = await humanize(analysis.aiSummary);
+
     return {
       aiCondition: analysis.aiCondition,
       aiUrgency: analysis.aiUrgency,
-      aiSummary: analysis.aiSummary
+      aiSummary: humanizedSummary || analysis.aiSummary
     };
   } catch (err: any) {
     console.error(`[ai-lead] Enrichment failed: ${err.message}`);

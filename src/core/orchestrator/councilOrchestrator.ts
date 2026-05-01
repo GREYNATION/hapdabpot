@@ -48,6 +48,32 @@ export class CouncilOrchestrator {
             return `**[Game Studio]**: ${result.content || result}`;
         }
 
+        if (userInput.startsWith("[LIBRARIAN ARCHIVE]")) {
+            const cleanInput = userInput.replace("[LIBRARIAN ARCHIVE]", "").trim();
+            log(`[council] Fast-path: routing to Researcher (Librarian)`);
+            const agent = new ResearcherAgent();
+            const { getRecentMessages } = await import("../memory.js");
+            const history = getRecentMessages(chatId, 6);
+            const hotCache = WikiService.getHotCache();
+            const { getSkill } = await import("../skills.js");
+            const skill = getSkill("knowledge-librarian");
+            const masterContext = `\n--- RECENT SPIRIT MEMORY (HOT CACHE) ---\n${hotCache}\n---------------------------------------\n\n--- SPECIALIZED SKILL ACTIVATED: ${skill?.name} ---\n${skill?.systemPrompt}\n-----------------------------------\n`;
+            const result = await agent.ask(`ARCHIVE THIS CONTENT: ${cleanInput}`, history, masterContext);
+            return result.content || result;
+        }
+
+        if (userInput.startsWith("[LIBRARIAN SEARCH]")) {
+            const cleanInput = userInput.replace("[LIBRARIAN SEARCH]", "").trim();
+            log(`[council] Fast-path: routing to Researcher (Librarian Search)`);
+            const agent = new ResearcherAgent();
+            const { getRecentMessages } = await import("../memory.js");
+            const history = getRecentMessages(chatId, 6);
+            const hotCache = WikiService.getHotCache();
+            const masterContext = `\n--- RECENT SPIRIT MEMORY (HOT CACHE) ---\n${hotCache}\n---------------------------------------\n\nYour task is to search the LOCAL library and the web to answer this query. Use 'wiki_search' and 'wiki_read' first.`;
+            const result = await agent.ask(cleanInput, history, masterContext);
+            return result.content || result;
+        }
+
         // 1. Route the intent
         const routeResult = await this.router.route(userInput);
         const { tasks, goal, skillId } = routeResult;

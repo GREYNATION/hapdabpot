@@ -11,10 +11,14 @@
             "id": "387e01c1d88a7c62",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Graph view"
+              "type": "markdown",
+              "state": {
+                "file": "claude-mem/node_modules/@modelcontextprotocol/sdk/README.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "README"
             }
           }
         ]
@@ -177,5 +181,10 @@
     }
   },
   "active": "387e01c1d88a7c62",
-  "lastOpenFiles": []
+  "lastOpenFiles": [
+    "src/commands/kimi.ts",
+    "src/commands/humanize.ts",
+    "src/core/humanizer.ts",
+    "humanizer"
+  ]
 }

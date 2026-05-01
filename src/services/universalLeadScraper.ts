@@ -4,6 +4,9 @@ import { filterAndRankLeads, formatFilteredLeads, filterTopDeals, enrichLeadWith
 import { CrmManager } from "../core/crm.js";
 import { logEvent } from "../core/telemetry.js";
 import { ApifyService } from "./apifyService.js";
+import { HarnessAgent } from "../agents/harnessAgent/harnessAgent.js";
+import { humanize } from "../core/humanizer.js";
+import { puterService } from "../core/puter.js";
 
 // Rate-limit helper: 7.5s between AI calls = max 8 req/min
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -252,6 +255,39 @@ function autoSaveToCRM(leads: Lead[]): number {
   return saved;
 }
 
+/**
+ * Stage 3: Deep Research (Harness Integration)
+ * Uses the autonomous browser to find contact info and hidden details.
+ */
+async function deepResearchLead(lead: Lead): Promise<Lead> {
+  if (!lead.url) return lead;
+
+  log(`[scraper] 🕵️ Deep researching lead: ${lead.address}`);
+  const harness = HarnessAgent.getInstance();
+
+  const researchTask = `Research this property listing: ${lead.url}. 
+  Try to find:
+  1. Seller or Listing Agent contact information (Name, Phone, Email).
+  2. Any hidden distress signals (e.g. fire damage, back taxes, owner divorce, "urgent").
+  3. Notes on condition or recent price drops.
+  Return your findings as a concise summary.`;
+
+  try {
+    // Only 3 steps to keep it fast but effective
+    const rawResult = await harness.browse(lead.url, researchTask, 3);
+    const result = await humanize(rawResult);
+
+    return {
+      ...lead,
+      description: (lead.description || "") + "\n\n[DEEP RESEARCH FINDINGS]:\n" + (result || rawResult),
+      aiUrgency: result.toLowerCase().includes("urgent") || rawResult.toLowerCase().includes("urgent") || result.toLowerCase().includes("must sell") ? "High" : lead.aiUrgency
+    };
+  } catch (e: any) {
+    log(`[scraper] Deep research failed for ${lead.address}: ${e.message}`, "warn");
+    return lead;
+  }
+}
+
 // Dedicated Auction Extraction mapping for Surplus Phase
 export async function findAuctionDeals(city: string): Promise<Lead[]> {
   const targetMarket = Object.values(TARGET_MARKETS).flat().find(m => m.city.toLowerCase() === city.toLowerCase());
@@ -384,6 +420,32 @@ export async function findMotivatedSellers(
   }
 
   if (saveToCRM) autoSaveToCRM(baseEnriched);
+
+  // Stage 3: Deep Research for the Top 2 candidates
+  const topCandidates = baseEnriched
+    .filter(l => l.distressSignals.length >= 2)
+    .sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0))
+    .slice(0, 2);
+
+  if (topCandidates.length > 0) {
+    log(`[scraper] 🔍 Running deep research on top ${topCandidates.length} candidates...`);
+    for (let i = 0; i < topCandidates.length; i++) {
+        const leadIndex = allDeals.findIndex(d => d.address === topCandidates[i].address);
+        if (leadIndex !== -1) {
+            allDeals[leadIndex] = await deepResearchLead(allDeals[leadIndex]);
+        }
+    }
+  }
+
+  // Final Stage: Decentralized Backup (Puter Cloud)
+  try {
+    const backupPath = `leads_backup_${Date.now()}.json`;
+    await puterService.saveFile(backupPath, JSON.stringify(allDeals, null, 2));
+    log(`[scraper] ☁️ Backup synced to Puter Cloud: ${backupPath}`);
+  } catch (err: any) {
+    log(`[scraper] Puter backup failed: ${err.message}`, "error");
+  }
+
   return allDeals;
 }
 

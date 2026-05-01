@@ -8,6 +8,7 @@ import { PermissionEnforcer } from "./core/runtime/permission.js";
 import { ConversationRuntime } from "./core/runtime/conversation.js";
 import { PropertyScraper } from "./services/PropertyScraper.js";
 import { rufloEngine } from "./core/memory/ruflo-memory.js";
+import { jarvisService } from "./services/jarvisService.js";
 
 async function bootstrap() {
     await initializeConfig();
@@ -91,6 +92,13 @@ Sound like a trustworthy, short-sentenced human assistant.
                 }
             } catch (err: any) {
                 return `❌ Ruflo Engine Error: ${err.message}`;
+            }
+
+        case "jarvis":
+            try {
+                return await jarvisService.ask(userInput);
+            } catch (err: any) {
+                return `❌ Jarvis Error: ${err.message}`;
             }
 
         case "status":

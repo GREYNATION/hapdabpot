@@ -1,5 +1,5 @@
-// vision-agent.ts — GREYNATION Vision System
 // Captures screen → sends to Claude multimodal → returns what it sees
+import 'dotenv/config';
 
 // @ts-ignore
 import screenshot from 'screenshot-desktop';
@@ -14,9 +14,14 @@ const client = new Anthropic({
 const SCREENSHOT_PATH = path.join(process.cwd(), 'screen-capture.jpg');
 
 export async function captureScreen(): Promise<string> {
-  const imgBuffer = await screenshot({ format: 'jpg' });
-  fs.writeFileSync(SCREENSHOT_PATH, imgBuffer);
-  return imgBuffer.toString('base64');
+  try {
+    const imgBuffer = await screenshot({ format: 'jpg' });
+    fs.writeFileSync(SCREENSHOT_PATH, imgBuffer);
+    return imgBuffer.toString('base64');
+  } catch (err: any) {
+    console.error(`[vision] Screenshot capture failed: ${err.message}`);
+    throw new Error(`Screen capture failed: ${err.message}`);
+  }
 }
 
 export async function analyzeScreen(prompt: string = 'What is on the screen right now? Describe everything you see in detail.'): Promise<string> {
@@ -26,7 +31,7 @@ export async function analyzeScreen(prompt: string = 'What is on the screen righ
 
     console.log('[vision] Sending to Claude...');
     const response = await client.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-3-5-sonnet-20240620',
       max_tokens: 1024,
       messages: [
         {

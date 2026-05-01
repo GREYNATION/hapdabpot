@@ -38,7 +38,7 @@ export const config = {
     openaiApiKey: env.OPENAI_API_KEY || "",
     openaiModel: env.OPENAI_MODEL || "gpt-4o",
     groqModel: env.GROQ_MODEL || "llama-3.3-70b-versatile",
-    anthropicModel: env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+    anthropicModel: env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20240620",
     deepseekModel: env.DEEPSEEK_MODEL || "deepseek-chat",
     aiProvider: env.AI_PROVIDER || (env.OPENROUTER_API_KEY ? "openrouter" : (env.OPENAI_API_KEY ? "openai" : "groq")),
     braveApiKey: env.BRAVE_API_KEY || "",
@@ -56,6 +56,7 @@ export const config = {
     agentmailEmail: env.AGENTMAIL_EMAIL || "",
     kieAiApiKey: env.KIE_AI_API_KEY || "",
     runwayApiKey: env.RUNWAY_API_KEY || "",
+    puterAuthToken: env.PUTER_AUTH_TOKEN || "",
     ownerId: parseInt(env.OWNER_ID || env.TELEGRAM_OWNER_ID || "0"),
     allowedUserIds: (env.ALLOWED_USER_IDS || env.TELEGRAM_ALLOWED_USER_IDS || "").split(",").map(id => parseInt(id.trim())).filter(id => !isNaN(id)),
     dbPath: process.env.DB_PATH || path.join(process.cwd(), "data", "memory.db"),
@@ -65,6 +66,7 @@ export const config = {
     STITCH_MASTER_PROJECT_ID: process.env.STITCH_MASTER_PROJECT_ID ?? "",
     firecrawlApiKey: env.FIRECRAWL_API_KEY || "",
     openaiBaseUrl: env.OPENAI_BASE_URL || "",
+    kimiApiKey: env.KIMI_API_KEY || "",
 };
 
 // ── AI Clients (Exports are updated by initializeClients) ──────────────────
@@ -75,6 +77,10 @@ export let openai = new OpenAI({
 });
 export let groq = new Groq({ apiKey: env.GROQ_API_KEY || "placeholder" });
 export let anthropic = env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : null;
+export let kimi = new OpenAI({ 
+    apiKey: env.KIMI_API_KEY || "placeholder",
+    baseURL: "https://api.moonshot.cn/v1"
+});
 
 /**
  * Fetches dynamic credentials from Supabase table 'hapda_credentials'.
@@ -132,6 +138,16 @@ export async function initializeConfig() {
             }
             if (row.key === "ALLOWED_USER_IDS" || row.key === "TELEGRAM_ALLOWED_USER_IDS") {
                 config.allowedUserIds = row.value.split(",").map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            }
+            if (row.key === "KIMI_API_KEY") {
+                kimi = new OpenAI({ 
+                    apiKey: row.value,
+                    baseURL: "https://api.moonshot.cn/v1"
+                });
+                config.kimiApiKey = row.value;
+            }
+            if (row.key === "PUTER_AUTH_TOKEN") {
+                config.puterAuthToken = row.value;
             }
         });
         log(`[config] Loaded ${data.length} credentials from Master Brain.`);

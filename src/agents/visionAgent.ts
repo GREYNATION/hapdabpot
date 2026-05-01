@@ -66,7 +66,7 @@ export class VisionAgent extends BaseAgent {
             const base64Image = await this.captureScreen();
             
             const response = await this.anthropic.messages.create({
-                model: "claude-3-5-sonnet-latest", // Upgraded to latest sonnet
+                model: "claude-3-5-sonnet-20240620",
                 max_tokens: 1024,
                 messages: [
                     {

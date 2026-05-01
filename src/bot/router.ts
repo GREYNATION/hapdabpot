@@ -4,10 +4,16 @@ import { MasterTraderAgent } from '../agents/MasterTraderAgent.js';
 import { realEstateAgent } from '../agents/realEstateAgent.js';
 import { AdsAgent } from '../agents/ads/AdsAgent.js';
 import { registerWebsiteCommand } from '../agents/website/websiteCommand.js';
+import { TradingSwarmAgent } from '../agents/trading/TradingSwarmAgent.js';
 import * as dramaAgent from '../agents/drama/DramaAgent.js';
 import { registerLeadCommands } from '../commands/leads.js';
 import { registerCinemaCommands } from '../agents/cinema/cinemaCommand.js';
 import { registerStuyzaCommands } from '../agents/stuyza/stuyzaCommand.js';
+import { registerHumanizeCommand } from '../commands/humanize.js';
+import { registerKimiCommand } from '../commands/kimi.js';
+import { registerJarvisCommand } from '../commands/jarvis.js';
+import { registerArchiveCommand } from '../commands/archive.js';
+import { handleKBCommand } from '../commands/kb.js';
 import { PropertyScraper } from '../services/PropertyScraper.js';
 import { handleHapdaCommand } from '../hapda_bot.js';
 import { ExecutiveManager } from '../core/executive/executiveManager.js';
@@ -81,8 +87,14 @@ export function setupRouter(bot: Telegraf) {
         "/triage - Manual email/task triage\n" +
         "/n8n [list|templates|trigger] - n8n Workflow Intelligence\n" +
         "/prompts [list|read] - AI Prompt Library\n" +
-        "/harness [url] [task] - Browser Intelligence Harness"
+        "/harness [url] [task] - Browser Intelligence Harness\n" +
+        "/jarvis [query] - OpenJarvis Multi-Agent Intelligence\n" +
+        "/archive [url] - Obsidian Knowledge Librarian\n" +
+        "/library [query] - Search Council Knowledge Base\n" +
+        "/kb [url] - Direct Obsidian Save (Markdown)"
     ));
+
+    bot.command('kb', handleKBCommand);
 
 
     // 3. Real Estate Commands
@@ -106,9 +118,28 @@ export function setupRouter(bot: Telegraf) {
 
     // 4. Trading Commands
     bot.command('trade', async (ctx: any) => {
-        await ctx.reply("📈 Fetching Strategic Finance status. Please wait...");
-        const res = await new MasterTraderAgent().ask("Give me a trading account summary and current session.");
-        ctx.reply(String(res.content));
+        const symbol = ctx.message.text.replace('/trade', '').trim().toUpperCase();
+        
+        if (symbol) {
+            await ctx.reply(`🦅 **Deploying Trading Swarm for ${symbol}...**\nAnalyzing fundamentals, technicals, and sentiment. This may take a minute.`);
+            try {
+                const result = await TradingSwarmAgent.analyze(symbol);
+                const report = TradingSwarmAgent.formatReport(result);
+                
+                if (report.length <= 4096) {
+                    await ctx.reply(report, { parse_mode: 'Markdown' });
+                } else {
+                    const chunks = report.match(/[\s\S]{1,4000}/g) ?? [report];
+                    for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => {});
+                }
+            } catch (err: any) {
+                ctx.reply(`❌ **Swarm Failed**: ${err.message}`);
+            }
+        } else {
+            await ctx.reply("📈 Fetching Strategic Finance status. Please wait...");
+            const res = await new MasterTraderAgent().ask("Give me a trading account summary and current session.");
+            ctx.reply(String(res.content));
+        }
     });
 
     // 5. Ads Agent
@@ -171,6 +202,18 @@ export function setupRouter(bot: Telegraf) {
 
     // 9. Stuyza Productions / OpenMontage Video System
     registerStuyzaCommands(bot);
+
+    // 9.5 Humanizer Service
+    registerHumanizeCommand(bot);
+
+    // 9.6 Kimi Reasoning specialist
+    registerKimiCommand(bot);
+
+    // 9.7 OpenJarvis Intelligence
+    registerJarvisCommand(bot);
+
+    // 9.8 Knowledge Librarian (Obsidian)
+    registerArchiveCommand(bot);
 
     // 10. System Status & App Management
     bot.command('stats', (ctx) => {

@@ -200,6 +200,51 @@ export const SKILLS: Skill[] = [
         primaryAgent: "researcher",
         systemPrompt: "You are a Browser Intelligence Harness Specialist. You provide low-level browser automation capabilities, allowing AI agents to navigate web pages, click buttons, and perform deep scans of live websites. When the user needs a thorough browse or interaction with a site, suggest using the /harness command."
     },
+    {
+        id: "knowledge-librarian",
+        name: "Knowledge Librarian",
+        description: "Specialist in organizing raw information into structured, cross-linked Obsidian markdown files.",
+        primaryAgent: "researcher",
+        systemPrompt: `You are a knowledge base librarian. When you receive raw content (article, tweet thread, research paper, URL, or pasted text), convert it into a structured Obsidian markdown file using EXACTLY this format:
+        
+        ---
+        title: [concise title]
+        date: [today YYYY-MM-DD]
+        type: [article | paper | thread | repo | video]
+        source: [URL or "pasted"]
+        tags: [#tag1 #tag2 #tag3]
+        related: []
+        ---
+        
+        ## Summary
+        2-3 sentence plain English summary. What is the core insight?
+        
+        ## Key Points
+        - Point 1
+        - Point 2
+        - Point 3
+        (max 7 points, each 1-2 sentences)
+        
+        ## Concepts
+        **Concept Name** — brief definition as it applies here
+        (list all new/important concepts)
+        
+        ## Quotes / Highlights
+        > "exact quote or key line worth saving"
+        
+        ## My Take
+        [leave blank — I will fill this in]
+        
+        ## Backlinks
+        [[]] (leave empty — I will link manually)
+        
+        Rules:
+        - Output ONLY the markdown. No preamble, no explanation.
+        - Tags must be lowercase with #
+        - Keep it scannable. Dense > verbose.
+        - If content is a tweet thread, preserve the thread structure under Key Points.
+        - Use the 'wiki_save' tool to persist the note.`
+    },
     ...CLAUDE_SKILLS,
     ...SUPERPOWER_SKILLS
 ];
@@ -266,6 +311,7 @@ export function findSkillByIntent(message: string): Skill | undefined {
     if (lower.includes("n8n") || lower.includes("workflow") || lower.includes("automation") || lower.includes("trigger")) return getSkill("automation-n8n");
     if (lower.includes("prompt") || lower.includes("system prompt") || lower.includes("cursor") || lower.includes("lovable")) return getSkill("ai-prompt-intel");
     if (lower.includes("harness") || lower.includes("browse") || lower.includes("deep scan") || lower.includes("chrome control")) return getSkill("browser-harness");
+    if (lower.includes("archive") || lower.includes("library") || lower.includes("save to vault") || lower.includes("summarize and link")) return getSkill("knowledge-librarian");
 
     return undefined;
 }

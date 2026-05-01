@@ -1,4 +1,4 @@
-﻿import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk";
 import { config, log } from './config.js';
 
 export interface AnthropicMessage {
@@ -35,7 +35,7 @@ export class AnthropicProvider {
       log(`[Anthropic] Calling Anthropic SDK...`, 'info');
       
       const response = await this.anthropic.messages.create({
-        model: "claude-3-5-sonnet-latest",
+        model: "claude-3-5-sonnet-20240620",
         max_tokens: 4096,
         system: systemMessage,
         messages: conversationMessages,

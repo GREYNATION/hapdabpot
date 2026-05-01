@@ -177,6 +177,28 @@ export abstract class BaseAgent {
             if (name === "get_memory") {
                 return await SearchOrchestrator.search(args.query, args.domain || "global");
             }
+            // ─── Wiki / Obsidian Tools ──────────────────────────────────────────
+            if (name === "wiki_save") {
+                const { WikiService } = await import("../services/wikiService.js");
+                await WikiService.saveStructuredNote({
+                    title: args.title,
+                    summary: args.summary,
+                    concepts: args.concepts || [],
+                    content: args.content,
+                    sourceUrl: args.sourceUrl,
+                    tags: args.tags || []
+                });
+                return `Note '${args.title}' saved to library with automatic backlinking.`;
+            }
+            if (name === "wiki_search") {
+                const { WikiService } = await import("../services/wikiService.js");
+                const results = await WikiService.search(args.query);
+                return results.length > 0 ? `Found in library:\n${results.join("\n")}` : "No matches found in library.";
+            }
+            if (name === "wiki_read") {
+                const { WikiService } = await import("../services/wikiService.js");
+                return await WikiService.getLibraryContext(args.query, 1);
+            }
             return "Unknown tool";
         } catch (e: any) {
             return `Error executing tool: ${e.message}`;
@@ -402,6 +424,49 @@ export abstract class BaseAgent {
                         required: ["query"]
                     }
                 }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "wiki_save",
+                    description: "Save a structured markdown note to the Obsidian vault library.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            title: { type: "string" },
+                            summary: { type: "string" },
+                            concepts: { type: "array", items: { type: "string" }, description: "Concepts for [[linking]]" },
+                            content: { type: "string", description: "The deep analysis content" },
+                            sourceUrl: { type: "string" },
+                            tags: { type: "array", items: { type: "string" } }
+                        },
+                        required: ["title", "summary", "content"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "wiki_search",
+                    description: "Search the local Obsidian library for relevant notes.",
+                    parameters: {
+                        type: "object",
+                        properties: { query: { type: "string" } },
+                        required: ["query"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "wiki_read",
+                    description: "Read the full content of a specific note from the library.",
+                    parameters: {
+                        type: "object",
+                        properties: { query: { type: "string", description: "Search query or file name" } },
+                        required: ["query"]
+                    }
+                }
             }
         ];
     }
@@ -429,7 +494,7 @@ export abstract class BaseAgent {
 4. MEMORY: Use 'add_memory' to persist important discoveries for future sessions.
 -------------------------------------`;
 
-        const tools = this.getTools().slice(0, 8); // Search, Read, Firecrawl, Tracing, Deal Finding only
+        const tools = this.getTools().slice(0, 12); // Include Wiki tools
         let messages = [...history, { role: "user", content: userText }] as any;
 
         try {

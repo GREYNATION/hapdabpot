@@ -8,6 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import { config, log } from "./config.js";
 import { withTimeout, getErrorMessage, delay } from "./timeout.js";
+import { puterService } from "./puter.js";
 
 // ── Clients (Re-initialized via initializeClients) ───────────────────────────
 import * as cfg from "./config.js";
@@ -18,6 +19,7 @@ export let openai = cfg.openai;
 let groqClient = cfg.groq;
 export let openRouterClient: OpenAI;
 let anthropicClient = cfg.anthropic;
+let kimiClient = cfg.kimi;
 
 /**
  * Re-initialize AI clients after config is fetched from Supabase.
@@ -28,6 +30,7 @@ export function initializeClients() {
     openai = cfg.openai;
     groqClient = cfg.groq;
     anthropicClient = cfg.anthropic;
+    kimiClient = cfg.kimi;
 
     openRouterClient = new OpenAI({
         apiKey: process.env.OPENROUTER_API_KEY || "placeholder",
@@ -80,8 +83,23 @@ class CircuitBreaker {
         this.failures++;
         this.lastFailure = Date.now();
 
+        // Extract retry delay from headers if available (Cline pattern)
+        const retryAfter = 
+            err.headers?.["retry-after"] || 
+            err.headers?.["x-ratelimit-reset"] || 
+            err.headers?.["ratelimit-reset"];
+        
+        if (retryAfter) {
+            const delaySec = parseInt(retryAfter);
+            if (!isNaN(delaySec)) {
+                // If it's a large number, it might be a timestamp
+                const actualDelay = delaySec > 1000000 ? (delaySec * 1000 - Date.now()) : (delaySec * 1000);
+                this.cooldown = Math.max(actualDelay, 5000); // at least 5s
+            }
+        }
+
         if (this.state === "HALF_OPEN" || this.failures >= this.threshold) {
-          log(`[ai] Circuit Breaker OPEN (rate limit reached). Pausing for ${this.cooldown/1000}s.`, "error");
+          log(`[ai] Circuit Breaker OPEN (rate limit reached). Pausing for ${Math.round(this.cooldown/1000)}s.`, "error");
           this.state = "OPEN";
         }
       }
@@ -288,12 +306,36 @@ async function callAnthropic(
 ): Promise<AIResponse> {
     if (!anthropicClient) throw new Error("Anthropic client not initialized");
 
-    const model = options.model || config.anthropicModel || "claude-sonnet-4-5";
+    const model = options.model || config.anthropicModel || "claude-3-5-sonnet-20240620";
     const systemMsg = messages.find(m => m.role === "system")?.content as string || "";
-    const nonSystem = messages.filter(m => m.role !== "system").map(m => ({
-        role: m.role as "user" | "assistant",
-        content: typeof m.content === "string" ? m.content : JSON.stringify(m.content)
-    }));
+    const nonSystem = messages.filter(m => m.role !== "system").map(m => {
+        if (typeof m.content === "string") {
+            return { role: m.role as "user" | "assistant", content: m.content };
+        }
+        
+        // Handle Multimodal Content
+        const content = (m.content as any[]).map(item => {
+            if (item.type === "text") return item;
+            if (item.type === "image_url") {
+                // OpenAI format: { type: 'image_url', image_url: { url: 'data:image/png;base64,...' } }
+                // Anthropic format: { type: 'image', source: { type: 'base64', media_type: 'image/png', data: '...' } }
+                const url = item.image_url.url;
+                const match = url.match(/^data:(image\/\w+);base64,(.+)$/);
+                if (match) {
+                    return {
+                        type: "image",
+                        source: {
+                            type: "base64",
+                            media_type: match[1],
+                            data: match[2]
+                        }
+                    };
+                }
+            }
+            return item;
+        });
+        return { role: m.role as "user" | "assistant", content };
+    });
 
     const tools = options.tools?.map(t => ({
         name: t.function.name,
@@ -301,13 +343,24 @@ async function callAnthropic(
         input_schema: t.function.parameters
     }));
 
-    const response = await anthropicClient.messages.create({
+    const response = await (anthropicClient as any).messages.create({
         model,
         max_tokens: options.maxTokens || 1024,
-        system: systemMsg,
+        system: [
+            {
+                type: "text",
+                text: systemMsg,
+                cache_control: { type: "ephemeral" }
+            }
+        ],
         messages: nonSystem as any,
         tools: tools as any,
-        tool_choice: tools?.length ? { type: "auto" } : undefined
+        tool_choice: tools?.length ? { type: "auto" } : undefined,
+        // Support for Claude's thinking mode if budget is provided in options
+        thinking: (options as any).thinkingBudget ? { type: "enabled", budget_tokens: (options as any).thinkingBudget } : undefined,
+    }, {
+        // Headers for beta features like prompt caching if needed (though now standard)
+        headers: { "anthropic-beta": "prompt-caching-2024-07-31" }
     });
 
     const textBlock = response.content.find((b: any) => b.type === "text");
@@ -324,10 +377,46 @@ async function callAnthropic(
         tool_calls: tool_calls.length ? tool_calls : undefined,
         toolCalls: tool_calls.length ? tool_calls : undefined,
         provider: "anthropic",
-        tokens: response.usage?.input_tokens + response.usage?.output_tokens,
+        tokens: (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0),
         model
     };
 }
+
+// ── Kimi-K2 ──────────────────────────────────────────────────────────────────
+
+async function callKimi(
+    messages: OpenAI.ChatCompletionMessageParam[],
+    options: AIOptions
+): Promise<AIResponse> {
+    const model = options.model || "moonshot-v1-128k"; // Standard high-context model
+
+    const completion = await kimiClient.chat.completions.create({
+        model,
+        messages: messages as any,
+        temperature: options.temperature ?? 0.3, // Kimi prefers lower temp for reasoning
+        max_tokens: options.maxTokens || 4096,
+        tools: options.tools as any,
+        tool_choice: (options.toolChoice ?? "auto") as any,
+        response_format: options.jsonMode ? { type: "json_object" } : undefined,
+    });
+
+    const msg = completion.choices[0].message;
+    const tool_calls = msg.tool_calls?.map((tc: any) => ({
+        id: tc.id,
+        type: "function" as const,
+        function: { name: tc.function.name, arguments: tc.function.arguments },
+    }));
+
+    return {
+        content: msg.content || "",
+        tool_calls,
+        toolCalls: tool_calls,
+        provider: "kimi",
+        tokens: completion.usage?.total_tokens,
+        model,
+    };
+}
+
 
 // ── Fallbacks ─────────────────────────────────────────────────────────────────
 
@@ -336,21 +425,31 @@ async function callOpenRouter(
     options: AIOptions
 ): Promise<AIResponse> {
     const isMultimodal = messages.some(m => Array.isArray(m.content));
-    const model = isMultimodal 
+    const model = options.model || (isMultimodal 
         ? "openai/gpt-4o" 
-        : ("meta-llama/llama-3.3-70b-instruct:free");
+        : "meta-llama/llama-3.3-70b-instruct:free");
 
     const completion = await openRouterClient.chat.completions.create({
         model,
         messages: messages as any,
         temperature: options.temperature ?? 0.7,
         max_tokens: options.maxTokens || 1000,
+        tools: options.tools as any,
+        tool_choice: (options.toolChoice ?? "auto") as any,
         response_format: options.jsonMode ? { type: "json_object" } : undefined,
     });
 
     const msg = completion.choices[0].message;
+    const tool_calls = msg.tool_calls?.map((tc: any) => ({
+        id: tc.id,
+        type: "function" as const,
+        function: { name: tc.function.name, arguments: tc.function.arguments },
+    }));
+
     return {
         content: msg.content || "",
+        tool_calls: tool_calls?.length ? tool_calls : undefined,
+        toolCalls: tool_calls?.length ? tool_calls : undefined,
         provider: "openrouter",
         tokens: completion.usage?.total_tokens,
         model,
@@ -378,6 +477,9 @@ export async function askAI(
         try {
             if (config.aiProvider === "anthropic") {
                 return await withTimeout(callAnthropic(messages, options), 60_000, "askAI:anthropic");
+            }
+            if (config.aiProvider === "kimi") {
+                return await withTimeout(callKimi(messages, options), 90_000, "askAI:kimi");
             }
             if (isGroqMode && !isExplicitCloud) {
                 const timeoutMs = options.tools?.length ? 120_000 : 60_000;
@@ -416,7 +518,17 @@ export async function askAI(
                 try {
                     return await withTimeout(callOpenRouter(messages, { ...options }), 90_000, "askAI:openrouter:fallback");
                 } catch (fallbackErr: any) {
-                    log(`[ai] All fallbacks failed.`, "error");
+                    log(`[ai] OpenRouter fallback failed. Attempting emergency Puter fallback...`, "warn");
+                    try {
+                        const puterContent = await puterService.ask(prompt || messages[messages.length-1].content as string);
+                        return {
+                            content: puterContent,
+                            provider: "groq", // Mapping to groq for compatibility if needed, or update AIResponse
+                            model: "puter-gpt-4o"
+                        } as any;
+                    } catch (puterErr: any) {
+                        log(`[ai] All fallbacks including Puter failed.`, "error");
+                    }
                 }
             }
             throw err;

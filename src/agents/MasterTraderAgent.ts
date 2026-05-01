@@ -110,7 +110,7 @@ Always prioritize capital preservation over aggressive trading.`;
   private async chat(userMessage: string, systemPrompt?: string): Promise<string> {
     try {
       const response = await this.client.messages.create({
-        model: 'claude-3-5-sonnet-latest',
+        model: 'claude-3-5-sonnet-20240620',
         max_tokens: 1000,
         system: systemPrompt || this.getSystemPrompt(),
         messages: this.conversationHistory as any,
