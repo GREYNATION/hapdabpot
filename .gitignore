@@ -40,3 +40,6 @@ src/verify_*.js
 n8n-templates/
 ai-prompts/
 browser-harness/
+TradingAgents/
+Kimi-K2/
+cline/
