@@ -188,17 +188,6 @@ export class HarnessAgent {
         }
     }
 
-        } catch (err: any) {
-            log(`[harness] Error: ${err.message}`, "error");
-            // Reset browser on error so next call gets a fresh instance
-            if (this.browser) {
-                await this.browser.close().catch(() => {});
-                this.browser = null;
-            }
-            return `Harness Error: ${err.message}`;
-        }
-    }
-
     public async shutdown() {
         if (this.browser) {
             await this.browser.close();
