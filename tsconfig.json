@@ -15,5 +15,14 @@
     "sourceMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "src/agents/superpowers", "src/agents/stuyza/openmontage/remotion-composer", "src/hands-agent.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/agents/superpowers",
+    "src/agents/stuyza/openmontage/remotion-composer",
+    "src/hands-agent.ts",
+    "src/components/**/*",
+    "src/web/**/*",
+    "**/*.tsx"
+  ]
 }

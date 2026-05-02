@@ -192,6 +192,8 @@ export interface AIOptions {
     messages?: OpenAI.ChatCompletionMessageParam[];
     stream?: boolean;
     onChunk?: (chunk: string) => void;
+    provider?: "groq" | "openrouter" | "anthropic"; // explicit provider override
+    freeTierOnly?: boolean; // new flag for free-tier restrictions
 }
 
 // ── Message Helpers ───────────────────────────────────────────────────────────
@@ -306,7 +308,10 @@ async function callAnthropic(
 ): Promise<AIResponse> {
     if (!anthropicClient) throw new Error("Anthropic client not initialized");
 
-    const model = options.model || config.anthropicModel || "claude-3-5-sonnet-20240620";
+    let model = options.model || config.anthropicModel || "claude-3-5-sonnet-20241022";
+    if (model.includes("-latest")) {
+        model = model.replace("-latest", "-20241022");
+    }
     const systemMsg = messages.find(m => m.role === "system")?.content as string || "";
     const nonSystem = messages.filter(m => m.role !== "system").map(m => {
         if (typeof m.content === "string") {
@@ -411,7 +416,7 @@ async function callKimi(
         content: msg.content || "",
         tool_calls,
         toolCalls: tool_calls,
-        provider: "kimi",
+        provider: "openrouter",
         tokens: completion.usage?.total_tokens,
         model,
     };
@@ -475,8 +480,16 @@ export async function askAI(
 
     const task = async (): Promise<AIResponse> => {
         try {
-            if (config.aiProvider === "anthropic") {
+            const effectiveProvider = options.provider || config.aiProvider;
+            if (effectiveProvider === "anthropic") {
                 return await withTimeout(callAnthropic(messages, options), 60_000, "askAI:anthropic");
+            }
+            if (effectiveProvider === "groq") {
+                const timeoutMs = options.tools?.length ? 120_000 : 60_000;
+                if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
+                    options.model = config.groqModel || "llama-3.3-70b-versatile";
+                }
+                return await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
             }
             if (config.aiProvider === "kimi") {
                 return await withTimeout(callKimi(messages, options), 90_000, "askAI:kimi");

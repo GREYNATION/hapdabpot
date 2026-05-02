@@ -38,7 +38,7 @@ export const config = {
     openaiApiKey: env.OPENAI_API_KEY || "",
     openaiModel: env.OPENAI_MODEL || "gpt-4o",
     groqModel: env.GROQ_MODEL || "llama-3.3-70b-versatile",
-    anthropicModel: env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20240620",
+    anthropicModel: env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20241022",
     deepseekModel: env.DEEPSEEK_MODEL || "deepseek-chat",
     aiProvider: env.AI_PROVIDER || (env.OPENROUTER_API_KEY ? "openrouter" : (env.OPENAI_API_KEY ? "openai" : "groq")),
     braveApiKey: env.BRAVE_API_KEY || "",
@@ -67,6 +67,7 @@ export const config = {
     firecrawlApiKey: env.FIRECRAWL_API_KEY || "",
     openaiBaseUrl: env.OPENAI_BASE_URL || "",
     kimiApiKey: env.KIMI_API_KEY || "",
+    freeTierOnly: env.FREE_TIER === "true" || !env.OPENAI_API_KEY && !env.ANTHROPIC_API_KEY, // Default to true if major paid keys missing
 };
 
 // ── AI Clients (Exports are updated by initializeClients) ──────────────────

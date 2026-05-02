@@ -16,12 +16,20 @@ export interface AgentResponse {
 export abstract class BaseAgent {
     protected model: string;
     protected systemPrompt: string;
+    private _agentProvider?: "groq" | "openrouter" | "anthropic";
 
     constructor(name: string, systemPrompt: string) {
         if (config.aiProvider === "groq") {
             this.model = config.groqModel;
         } else if (config.aiProvider === "openrouter") {
-            this.model = "meta-llama/llama-3.3-70b-instruct:free";
+            if (config.freeTierOnly) {
+                // Force Groq for free tier to avoid XML tool-call issues on OpenRouter
+                this.model = config.groqModel || "llama-3.3-70b-versatile";
+                this._agentProvider = "groq";
+                log(`[agent] ${name} forced to Groq due to Free Tier restrictions.`);
+            } else {
+                this.model = "meta-llama/llama-3.3-70b-instruct:free";
+            }
         } else {
             this.model = config.openaiModel;
         }
@@ -504,7 +512,9 @@ export abstract class BaseAgent {
                     await logToOpsConsole(name, `Processing: ${userText}`, "think");
                 }
                 const aiResponse = await askAI("", systemPrompt, {
-                    messages, tools, model: this.model
+                    messages, tools, model: this.model,
+                    provider: this._agentProvider,
+                    freeTierOnly: config.freeTierOnly
                 });
 
                 if (!aiResponse.tool_calls) {

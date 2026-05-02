@@ -108,27 +108,41 @@ Always prioritize capital preservation over aggressive trading.`;
   }
 
   private async chat(userMessage: string, systemPrompt?: string): Promise<string> {
-    try {
-      const response = await this.client.messages.create({
-        model: 'claude-3-5-sonnet-20240620',
-        max_tokens: 1000,
-        system: systemPrompt || this.getSystemPrompt(),
-        messages: this.conversationHistory as any,
-      });
+    const models = [
+      'claude-3-5-sonnet-20241022',
+      'claude-3-5-sonnet-20240629',
+      'claude-3-haiku-20240307'
+    ];
 
-      const assistantMessage =
-        response.content[0].type === 'text' ? response.content[0].text : '';
+    let lastError: any;
+    for (const model of models) {
+      try {
+        const response = await this.client.messages.create({
+          model,
+          max_tokens: 1000,
+          system: systemPrompt || this.getSystemPrompt(),
+          messages: this.conversationHistory as any,
+        });
 
-      this.conversationHistory.push({
-        role: 'assistant',
-        content: assistantMessage,
-      });
+        const assistantMessage =
+          response.content[0].type === 'text' ? response.content[0].text : '';
 
-      return assistantMessage;
-    } catch (e: any) {
-      console.error("Failed Anthropic Request:", e);
-      throw e;
+        this.conversationHistory.push({
+          role: 'assistant',
+          content: assistantMessage,
+        });
+
+        return assistantMessage;
+      } catch (e: any) {
+        if (e?.status === 404 || e?.message?.includes("not found")) {
+          console.warn(`[MasterTrader] Model ${model} not found, trying fallback...`);
+          lastError = e;
+          continue;
+        }
+        throw e;
+      }
     }
+    throw lastError;
   }
 
   async analyzePriceAction(priceData: PriceLevel): Promise<string> {
@@ -203,7 +217,8 @@ Provide:
       );
       return { content: `**[Strategic Finance]**: ${response}` };
     } catch (e: any) {
-      return { content: "📡 **[Strategic Finance]**: I am currently recalibrating my predictive engines. Please stand by." };
+      const errorMsg = e?.message || "Unknown recalibration error";
+      return { content: `📡 **[Strategic Finance]**: Error in predictive engines: \`${errorMsg}\`. Please check logs.` };
     }
   }
 

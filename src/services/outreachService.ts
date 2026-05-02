@@ -342,10 +342,10 @@ export async function triggerAICall(deal: any): Promise<void> {
  * Owner Direct Notification
  * Posts directly to the designated owner's telegram via the Telegram API
  */
-export async function sendTelegram(message: string): Promise<void> {
-    const chatId = process.env.TG_CHAT_ID || process.env.OWNER_CHAT_ID || process.env.TELEGRAM_OWNER_ID;
-    if (!chatId) throw new Error("Missing TG_CHAT_ID");
-    return notifyUser(chatId, message);
+export async function sendTelegram(message: string, chatId?: string | number): Promise<void> {
+    const target = chatId || process.env.TG_CHAT_ID || process.env.OWNER_CHAT_ID || process.env.TELEGRAM_OWNER_ID;
+    if (!target) throw new Error("Missing TG_CHAT_ID");
+    return notifyUser(target, message);
 }
 
 /**

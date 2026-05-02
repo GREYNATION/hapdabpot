@@ -35,6 +35,10 @@ import { handleHarnessCommand } from '../agents/harnessAgent/harnessAgent.js';
 import { handleMoneyCommand, handleMoneyVideoCommand } from '../agents/moneyAgent.js';
 import { runAgentTask } from '../core/ai.js';
 import { executeWithTier } from '../services/orchestrator.js';
+import { systemBuilderAgent } from '../agents/SystemBuilderAgent.js';
+import { systemBuilderService } from '../services/systemBuilder.service.js';
+import { registerComfyCommands } from '../agents/comfy/comfyCommand.js';
+
 
 
 export function setupRouter(bot: Telegraf) {
@@ -91,7 +95,15 @@ export function setupRouter(bot: Telegraf) {
         "/jarvis [query] - OpenJarvis Multi-Agent Intelligence\n" +
         "/archive [url] - Obsidian Knowledge Librarian\n" +
         "/library [query] - Search Council Knowledge Base\n" +
-        "/kb [url] - Direct Obsidian Save (Markdown)"
+        "/kb [url] - Direct Obsidian Save (Markdown)\n" +
+        "/buildsystem [business] - Architect Open-Stack AI System\n" +
+        "/listsystems - View all built client systems\n" +
+        "/viewsystem [id] - Pull full config for a client\n" +
+        "/proposal [id] - Generate PDF contract\n" +
+        "/imagine <prompt> - ComfyUI text-to-image (SD1.5)\n" +
+        "/imagine flux <prompt> - FLUX.1 high-quality image gen\n" +
+        "/upscale <url> - 4x AI image upscaler\n" +
+        "/comfy [status|models|queue] - ComfyUI server controls"
     ));
 
     bot.command('kb', handleKBCommand);
@@ -121,7 +133,7 @@ export function setupRouter(bot: Telegraf) {
         const symbol = ctx.message.text.replace('/trade', '').trim().toUpperCase();
         
         if (symbol) {
-            await ctx.reply(`🦅 **Deploying Trading Swarm for ${symbol}...**\nAnalyzing fundamentals, technicals, and sentiment. This may take a minute.`);
+            await ctx.reply(`📈 **Fetching Strategic Finance status for ${symbol}...**\nAnalyzing fundamentals, technicals, and sentiment. This may take a minute.`, { parse_mode: 'Markdown' });
             try {
                 const result = await TradingSwarmAgent.analyze(symbol);
                 const report = TradingSwarmAgent.formatReport(result);
@@ -133,12 +145,18 @@ export function setupRouter(bot: Telegraf) {
                     for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => {});
                 }
             } catch (err: any) {
-                ctx.reply(`❌ **Swarm Failed**: ${err.message}`);
+                const msg = err?.message || "Unknown swarm error";
+                ctx.reply(`❌ **Swarm Failed**: \`${msg}\`\n\nThis is usually a model-name or API-key issue.`, { parse_mode: 'Markdown' });
             }
         } else {
-            await ctx.reply("📈 Fetching Strategic Finance status. Please wait...");
-            const res = await new MasterTraderAgent().ask("Give me a trading account summary and current session.");
-            ctx.reply(String(res.content));
+            await ctx.reply("📊 **Fetching Strategic Finance summary...**", { parse_mode: 'Markdown' });
+            try {
+                const res = await new MasterTraderAgent().ask("Give me a trading account summary and current session.");
+                await ctx.reply(String(res.content), { parse_mode: 'Markdown' });
+            } catch (err: any) {
+                const msg = err?.message || "Unknown agent error";
+                ctx.reply(`⚠️ **Agent Failed**: \`${msg}\``, { parse_mode: 'Markdown' });
+            }
         }
     });
 
@@ -512,6 +530,141 @@ export function setupRouter(bot: Telegraf) {
             ctx.reply(`❌ **Ruflo Swarm Failed**: ${err.message}`, { parse_mode: 'Markdown' });
         }
     });
+
+    // 21. HADES Funnel System Builder
+    bot.command('buildfunnel', async (ctx: any) => {
+        const text = ctx.message.text.replace('/buildfunnel', '').trim();
+        if (!text) {
+            return ctx.reply("🔥 **HADES System Builder**\n\nUsage: `/buildfunnel [business description]`\nExample: `/buildfunnel A MedSpa in Miami with 3 locations`", { parse_mode: 'Markdown' });
+        }
+        
+        await ctx.reply("🏗️ **Architecting HADES Funnel...**\nProvisionsing bots, mapping workflows, and generating your agency proposal. Please wait...");
+        try {
+            const res = await systemBuilderAgent.handle(text, ctx.from?.id, ctx.chat?.id);
+            if (res.length <= 4096) {
+                await ctx.reply(res, { parse_mode: 'Markdown' });
+            } else {
+                const chunks = res.match(/[\s\S]{1,4000}/g) ?? [res];
+                for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => {});
+            }
+        } catch (err: any) {
+            ctx.reply(`❌ **Builder Failed**: ${err.message}`);
+        }
+    });
+
+    // 22. Open-Stack System Builder
+    bot.command('buildsystem', async (ctx: any) => {
+        const text = ctx.message.text.replace('/buildsystem', '').trim();
+        if (!text) {
+            return ctx.reply("🏗️ **Open-Stack System Builder**\n\nUsage: `/buildsystem [business, location]`\nExample: `/buildsystem Roofing Pros, Dallas TX`", { parse_mode: 'Markdown' });
+        }
+        
+        await ctx.reply("🌐 **Architecting Open-Stack Ecosystem...**\nMapping Vapi + Cal.com + Chatwoot workflows. Saving to Supabase vault.");
+        try {
+            const res = await systemBuilderAgent.handle(text, ctx.from?.id, ctx.chat?.id);
+            if (res.length <= 4096) {
+                await ctx.reply(res, { parse_mode: 'Markdown' });
+            } else {
+                const chunks = res.match(/[\s\S]{1,4000}/g) ?? [res];
+                for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => {});
+            }
+        } catch (err: any) {
+            ctx.reply(`❌ **System Build Failed**: ${err.message}`);
+        }
+    });
+
+    // 23. PDF Proposal Generator
+    bot.command('proposal', async (ctx: any) => {
+        const clientId = ctx.message.text.replace('/proposal', '').trim();
+        if (!clientId) {
+            return ctx.reply("📄 **Proposal Generator**\n\nUsage: `/proposal [clientId]`\n_You can get the clientId from the /buildsystem output._", { parse_mode: 'Markdown' });
+        }
+
+        await ctx.reply(`📄 **Generating Professional PDF Proposal...**\nFetching Client ID: \`${clientId}\``, { parse_mode: 'Markdown' });
+        
+        try {
+            const pdfBuffer = await systemBuilderService.generateProposalPDF(clientId);
+            await ctx.replyWithDocument({
+                source: pdfBuffer,
+                filename: `HADES_Proposal_${clientId.substring(0,8)}.pdf`
+            }, {
+                caption: `✅ **Proposal Ready**\n\nHere is your professional HADES System Architecture proposal. Ready to send to the client.`
+            });
+        } catch (err: any) {
+            ctx.reply(`❌ **Proposal Failed**: ${err.message}`);
+        }
+    });
+
+    // 24. System Management: List
+    bot.command('listsystems', async (ctx: any) => {
+        await ctx.reply("📂 **Fetching Client Systems...**", { parse_mode: 'Markdown' });
+        try {
+            const { getSupabase } = await import('../core/supabase.js');
+            const supabase = getSupabase();
+            if (!supabase) {
+                return ctx.reply("⚠️ Database not configured.");
+            }
+            const { data, error } = await supabase
+                .from("client_systems")
+                .select("id, business_name, tier, monthly_price, status, created_at")
+                .order("created_at", { ascending: false })
+                .limit(10);
+
+            if (error || !data?.length) {
+                return ctx.reply("⚠️ No systems built yet. Try `/buildsystem Dallas Roofing`", { parse_mode: 'Markdown' });
+            }
+
+            const lines = data.map((s: any, i: number) =>
+                `${i + 1}. *${s.business_name}* — ${s.tier} — $${s.monthly_price}/mo — ${s.status}`
+            ).join("\n");
+
+            await ctx.reply(`⚡ **YOUR CLIENT SYSTEMS**\n\n${lines}\n\nUse \`/viewsystem [id]\` to see details.`, { parse_mode: 'Markdown' });
+        } catch (err: any) {
+            ctx.reply(`❌ **List Failed**: ${err.message}`);
+        }
+    });
+
+    // 25. System Management: View Detail
+    bot.command('viewsystem', async (ctx: any) => {
+        const clientId = ctx.message.text.replace('/viewsystem', '').trim();
+        if (!clientId) {
+            return ctx.reply("🔍 Usage: `/viewsystem [clientId]`", { parse_mode: 'Markdown' });
+        }
+
+        try {
+            const { getSupabase } = await import('../core/supabase.js');
+            const supabase = getSupabase();
+            if (!supabase) {
+                return ctx.reply("⚠️ Database not configured.");
+            }
+            const { data, error } = await supabase
+                .from("client_systems")
+                .select("*")
+                .eq("id", clientId)
+                .single();
+
+            if (error || !data) {
+                return ctx.reply("❌ **System not found.** Check the ID and try again.");
+            }
+
+            const msg_text = `🗂 **${data.business_name.toUpperCase()}** — ${data.tier}\n` +
+                `-----------------------------------\n` +
+                `📍 **Industry**: ${data.industry}\n` +
+                `🏢 **Status**: ${data.status}\n` +
+                `💵 **Monthly**: $${data.monthly_price}/mo\n` +
+                `🤖 **Agents**: ${Array.isArray(data.agents) ? data.agents.join(", ") : 'CSR, ASSISTANT'}\n` +
+                `📅 **Created**: ${new Date(data.created_at).toLocaleDateString()}\n` +
+                `-----------------------------------\n` +
+                `Use \`/proposal ${clientId}\` to generate the PDF contract.`;
+
+            await ctx.reply(msg_text, { parse_mode: 'Markdown' });
+        } catch (err: any) {
+            ctx.reply(`❌ **View Failed**: ${err.message}`);
+        }
+    });
+
+    // 26. ComfyUI — Local AI Media Generation
+    registerComfyCommands(bot);
 
     log("[router] Routes configured.");
 

@@ -28,7 +28,7 @@ export class JarvisService {
     return new Promise((resolve, reject) => {
       log(`[jarvis] Querying OpenJarvis: "${query}"...`, 'info');
       
-      const process = spawn(this.pythonPath, [this.bridgePath, query], {
+      const child = spawn(this.pythonPath, [this.bridgePath, query], {
         env: {
           ...process.env,
           PYTHONPATH: path.join(process.cwd(), 'OpenJarvis', 'src')
@@ -38,15 +38,15 @@ export class JarvisService {
       let stdout = '';
       let stderr = '';
 
-      process.stdout.on('data', (data) => {
+      child.stdout.on('data', (data: Buffer) => {
         stdout += data.toString();
       });
 
-      process.stderr.on('data', (data) => {
+      child.stderr.on('data', (data: Buffer) => {
         stderr += data.toString();
       });
 
-      process.on('close', (code) => {
+      child.on('close', (code: number | null) => {
         if (code !== 0) {
           log(`[jarvis] Process exited with code ${code}. Stderr: ${stderr}`, 'error');
           resolve(`Error: OpenJarvis failed with code ${code}`);
@@ -55,7 +55,7 @@ export class JarvisService {
         }
       });
 
-      process.on('error', (err) => {
+      child.on('error', (err: Error) => {
         log(`[jarvis] Failed to start process: ${err.message}`, 'error');
         reject(err);
       });
