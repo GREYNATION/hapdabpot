@@ -41,8 +41,6 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.env ./
-COPY --from=builder /app/.env ./.env
 COPY --from=builder /app/.cache ./.cache
 COPY --from=builder /app/src/agents/stuyza/openmontage/remotion-composer ./src/agents/stuyza/openmontage/remotion-composer
 COPY --from=builder /app/scripts ./scripts
