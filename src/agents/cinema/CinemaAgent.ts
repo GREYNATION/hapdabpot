@@ -92,7 +92,7 @@ class MuapiClient {
     for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
       try {
-        const { data } = await axios.get(MUAPI_BASE + "/status/" + jobId, { headers: this.headers });
+        const { data } = await axios.get(MUAPI_BASE + "/predictions/" + jobId, { headers: this.headers });
         const s = (data?.status ?? "pending").toLowerCase();
         if (["complete", "completed", "succeeded", "success"].includes(s)) {
           const url = data?.output_url ?? data?.url ?? data?.result?.url ?? data?.outputs?.[0];
