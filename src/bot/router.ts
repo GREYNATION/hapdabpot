@@ -39,6 +39,7 @@ import { systemBuilderAgent } from '../agents/SystemBuilderAgent.js';
 import { systemBuilderService } from '../services/systemBuilder.service.js';
 import { registerComfyCommands } from '../agents/comfy/comfyCommand.js';
 import { registerSpiderCommands } from '../agents/spider/spiderCommand.js';
+import { registerGildedCommands } from '../agents/drama/gildedCommand.js';
 
 
 
@@ -224,6 +225,9 @@ export function setupRouter(bot: Telegraf) {
 
     // 9.7 Spider Jr. Cartoon Production
     registerSpiderCommands(bot);
+
+    // 9.8 Gilded Claws Luxury Drama
+    registerGildedCommands(bot);
 
     // 9.5 Humanizer Service
     registerHumanizeCommand(bot);

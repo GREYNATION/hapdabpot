@@ -61,12 +61,28 @@ export interface GeneratedScene {
   error?: string;
 }
 
-export const SERIES_STYLE = {
-  aesthetic:   "urban street drama, South Brooklyn, cinematic golden hour lighting, shallow depth of field",
-  colorGrade:  "warm shadows, teal highlights, Moonlight 2016 color palette",
-  lens:        "35mm anamorphic cinematic",
-  aperture:    "f/2.0",
-  aspectRatio: "9:16",
+export const STYLE_REGISTRY: Record<string, typeof SERIES_STYLE> = {
+  "Out the Way": {
+    aesthetic: "urban street drama, South Brooklyn, cinematic golden hour lighting, shallow depth of field",
+    colorGrade: "warm shadows, teal highlights, Moonlight 2016 color palette",
+    lens: "35mm anamorphic cinematic",
+    aperture: "f/2.0",
+    aspectRatio: "9:16",
+  },
+  "Gilded Claws": {
+    aesthetic: "Pixar-style 3D animation render, photorealistic fur and skin texture, vertical 9:16 format, luxury Elitewood aesthetic, ultra-high detail",
+    colorGrade: "vibrant colors, dramatic rim lighting, gold and velvet accents, shallow depth of field bokeh",
+    lens: "50mm luxury cinema prime",
+    aperture: "f/1.4",
+    aspectRatio: "9:16",
+  },
+  "Spider Jr": {
+    aesthetic: "3D animated kids cartoon, bright vibrant colors, friendly characters, simple clean shapes, high contrast",
+    colorGrade: "sunny and cheerful, no harsh shadows",
+    lens: "wide-angle friendly lens",
+    aperture: "f/4.0",
+    aspectRatio: "1:1",
+  }
 };
 
 class MuapiClient {
@@ -141,44 +157,53 @@ class MuapiClient {
 export class CinemaAgent {
   private muapi = new MuapiClient();
 
-  buildPrompt(s: Scene): string {
+  buildPrompt(s: Scene, seriesName: string): string {
+    const style = STYLE_REGISTRY[seriesName] || SERIES_STYLE;
     return [
       s.description,
       s.character ? "Character: " + s.character : "",
       s.location  ? "Location: " + s.location : "",
       s.mood      ? "Mood: " + s.mood : "",
-      "Lens: " + (s.camera?.lens ?? SERIES_STYLE.lens),
-      "Aperture: " + (s.camera?.aperture ?? SERIES_STYLE.aperture),
+      "Lens: " + (s.camera?.lens ?? style.lens),
+      "Aperture: " + (s.camera?.aperture ?? style.aperture),
       "Camera: " + (s.camera?.movement ?? "subtle cinematic motion"),
-      "Style: " + SERIES_STYLE.aesthetic,
-      "Color: " + SERIES_STYLE.colorGrade,
-      "Aspect: " + SERIES_STYLE.aspectRatio + ", photorealistic, cinematic quality",
+      "Style: " + style.aesthetic,
+      "Color: " + style.colorGrade,
+      "Aspect: " + style.aspectRatio + ", photorealistic, cinematic quality",
     ].filter(Boolean).join(". ");
   }
 
-  async generateImage(s: Scene): Promise<string> {
-    console.log("[Cinema] Image - Scene " + s.id);
-    const prompt = this.buildPrompt(s);
+  async generateImage(s: Scene, seriesName: string): Promise<string> {
+    console.log("[Cinema] Image - Scene " + s.id + " (" + seriesName + ")");
+    const prompt = this.buildPrompt(s, seriesName);
+    const style = STYLE_REGISTRY[seriesName] || SERIES_STYLE;
     try {
       console.log(`[Cinema] Using Pollinations AI for Scene ${s.id}...`);
       const encodedPrompt = encodeURIComponent(`${prompt}. Cinematic, dramatic lighting, photorealistic, 8k resolution, no watermarks, vertical formatting.`);
-      // Fixed purely to Vertical TikTok/Reels size
-      const imageWidth = 1024;
-      const imageHeight = 1792;
-      return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${imageWidth}&height=${imageHeight}&nologo=true`;
+      
+      // Determine size from style
+      let width = 1024;
+      let height = 1024;
+      if (style.aspectRatio === "9:16") {
+          width = 1024;
+          height = 1792;
+      }
+
+      return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true`;
     } catch (err: any) {
       console.warn(`[Cinema] Error generating image: ${err.message}`);
       return "";
     }
   }
 
-  async animateImage(s: Scene, imageUrl: string): Promise<string> {
+  async animateImage(s: Scene, imageUrl: string, seriesName: string): Promise<string> {
     console.log("[Cinema] Animate - Scene " + s.id);
+    const style = STYLE_REGISTRY[seriesName] || SERIES_STYLE;
     const payload = {
       image_url:    imageUrl,
       prompt:       [s.camera?.movement, s.mood, "cinematic"].filter(Boolean).join(", "),
       duration:     5,
-      aspect_ratio: SERIES_STYLE.aspectRatio,
+      aspect_ratio: style.aspectRatio,
     };
     try {
       return await this.muapi.run(ENDPOINTS.I2V_QUALITY, payload);
@@ -217,11 +242,11 @@ export class CinemaAgent {
     }
   }
 
-  async processScene(s: Scene): Promise<GeneratedScene> {
-    const r: GeneratedScene = { sceneId: s.id, prompt: this.buildPrompt(s), status: "pending" };
+  async processScene(s: Scene, seriesName: string): Promise<GeneratedScene> {
+    const r: GeneratedScene = { sceneId: s.id, prompt: this.buildPrompt(s, seriesName), status: "pending" };
     try {
-      r.imageUrl   = await this.generateImage(s);
-      r.videoUrl   = await this.animateImage(s, r.imageUrl);
+      r.imageUrl   = await this.generateImage(s, seriesName);
+      r.videoUrl   = await this.animateImage(s, r.imageUrl, seriesName);
       r.lipSyncUrl = await this.lipSync(s, r.videoUrl);
       r.status     = "complete";
       console.log("[Cinema] Scene " + s.id + " complete");
@@ -236,11 +261,13 @@ export class CinemaAgent {
   async produceEpisode(ep: Episode): Promise<GeneratedScene[]> {
     console.log("[Cinema] Starting: " + ep.series + " Ep" + ep.episodeNumber + ": " + ep.title);
     const results: GeneratedScene[] = [];
-    const dir = path.join(process.cwd(), "out_the_way_output");
+    // Dynamic output directory based on series
+    const seriesSlug = ep.series.toLowerCase().replace(/\s+/g, "_");
+    const dir = path.join(process.cwd(), `videos/${seriesSlug}`);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
     for (const s of ep.scenes) {
-      results.push(await this.processScene(s));
+      results.push(await this.processScene(s, ep.series));
       // Checkpoint after every scene
       fs.writeFileSync(
         path.join(dir, "ep" + ep.episodeNumber + "_manifest.json"),

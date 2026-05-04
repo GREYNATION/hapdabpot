@@ -27,17 +27,20 @@ const POST_SCHEDULE = {
 };
 
 // ─── TYPES ──────────────────────────────────────────────────
-export interface SpideyEpisode {
+export interface EpisodeEntry {
+  series:   string;
   ep:       string;
   title:    string;
   emoji:    string;
   theme:    string;
   hashtags: string[];
   caption:  string;
-  filename: string;  // local file in VIDEO_UPLOAD_DIR
+  filename: string;  // local file in series directory
   posted:   boolean;
   postedAt?: string;
 }
+
+export type SpideyEpisode = EpisodeEntry; // Backwards compat
 
 interface PostResult {
   success:   boolean;
@@ -45,10 +48,10 @@ interface PostResult {
   error?:    string;
 }
 
-// ─── SEASON 1 EPISODE REGISTRY ──────────────────────────────
-// Add your rendered Veo video filenames here as they're generated
-export const SEASON_1: SpideyEpisode[] = [
+// ─── SPIDEY SEASON 1 REGISTRY ──────────────────────────────
+export const SEASON_1: EpisodeEntry[] = [
   {
+    series: 'Spider Jr',
     ep: 'S01E01', title: 'First Swing!', emoji: '🌅',
     theme: 'Origin Story',
     hashtags: ['SpideyJr','KidsCartoon','SpiderManKids','AnimatedShorts','KidsYouTube','SuperheroKids','CartoonForToddlers','3DAnimation'],
@@ -57,6 +60,7 @@ export const SEASON_1: SpideyEpisode[] = [
     posted: false
   },
   {
+    series: 'Spider Jr',
     ep: 'S01E02', title: 'Butterfly Rescue', emoji: '🦋',
     theme: 'Kindness',
     hashtags: ['SpideyJr','KidsCartoon','Kindness','AnimatedShorts','KidsYouTube','NatureKids','GentleHero'],
@@ -65,6 +69,7 @@ export const SEASON_1: SpideyEpisode[] = [
     posted: false
   },
   {
+    series: 'Spider Jr',
     ep: 'S01E03', title: 'Birthday Surprise', emoji: '🎈',
     theme: 'Friendship',
     hashtags: ['SpideyJr','KidsCartoon','Birthday','AnimatedShorts','KidsYouTube','Friendship','SuperheroKids'],
@@ -73,6 +78,7 @@ export const SEASON_1: SpideyEpisode[] = [
     posted: false
   },
   {
+    series: 'Spider Jr',
     ep: 'S01E04', title: 'Rainy Day Hero', emoji: '🌧️',
     theme: 'Empathy',
     hashtags: ['SpideyJr','KidsCartoon','RainyDay','AnimatedShorts','KidsYouTube','Empathy','DuckRescue'],
@@ -81,6 +87,7 @@ export const SEASON_1: SpideyEpisode[] = [
     posted: false
   },
   {
+    series: 'Spider Jr',
     ep: 'S01E05', title: 'Lost Puppy', emoji: '🐶',
     theme: 'Responsibility',
     hashtags: ['SpideyJr','KidsCartoon','LostPuppy','AnimatedShorts','KidsYouTube','PuppyLove','SuperheroKids'],
@@ -89,6 +96,7 @@ export const SEASON_1: SpideyEpisode[] = [
     posted: false
   },
   {
+    series: 'Spider Jr',
     ep: 'S01E06', title: 'Rainbow After Rain', emoji: '🌈',
     theme: 'Hope & Wonder',
     hashtags: ['SpideyJr','KidsCartoon','Rainbow','AnimatedShorts','KidsYouTube','Magic','Wonder'],
@@ -97,6 +105,7 @@ export const SEASON_1: SpideyEpisode[] = [
     posted: false
   },
   {
+    series: 'Spider Jr',
     ep: 'S01E07', title: 'Lunch Hero', emoji: '🍎',
     theme: 'Sharing',
     hashtags: ['SpideyJr','KidsCartoon','Sharing','AnimatedShorts','KidsYouTube','Funny','LunchTime'],
@@ -105,11 +114,43 @@ export const SEASON_1: SpideyEpisode[] = [
     posted: false
   },
   {
+    series: 'Spider Jr',
     ep: 'S01E08', title: 'Bedtime Patrol', emoji: '🌙',
     theme: 'Safety & Care',
     hashtags: ['SpideyJr','KidsCartoon','Bedtime','AnimatedShorts','KidsYouTube','SeasonFinale','GoodNight'],
     caption: '🌙⭐ Season 1 Finale! Spidey\'s last patrol before bedtime... 🕷️😴\n\n#SpideyJr #KidsCartoon #Bedtime #SeasonFinale #AnimatedShorts',
     filename: 's01e08_bedtime.mp4',
+    posted: false
+  }
+];
+
+// ─── GILDED CLAWS SEASON 1 REGISTRY ──────────────────────────────
+export const GILDED_SEASON_1: EpisodeEntry[] = [
+  {
+    series: 'Gilded Claws',
+    ep: 'S01E01', title: 'The Deal', emoji: '🖋️',
+    theme: 'Infiltration',
+    hashtags: ['GildedClaws','Drama','BillionaireRomance','MiniDrama','TikTokSeries','LuxuryLife','WolfFamily'],
+    caption: '🖋️ My father owed the Blackmanes everything. I’m here to take it back. 🐺✨\n\n#GildedClaws #MiniDrama #BillionaireRomance #Luxury',
+    filename: 'ep1_the_deal.mp4',
+    posted: false
+  },
+  {
+    series: 'Gilded Claws',
+    ep: 'S01E02', title: 'The Invitation', emoji: '✉️',
+    theme: 'High Society',
+    hashtags: ['GildedClaws','Drama','EliteSociety','MiniDrama','TikTokSeries','GalaNight'],
+    caption: '✉️ Tonight, I am whoever they need me to be. 🦊💃\n\n#GildedClaws #EliteSociety #Drama #Transformation',
+    filename: 'ep2_invitation.mp4',
+    posted: false
+  },
+  {
+    series: 'Gilded Claws',
+    ep: 'S01E03', title: 'First Contact', emoji: '💥',
+    theme: 'Encounter',
+    hashtags: ['GildedClaws','Drama','FirstMeeting','EnemiesToLovers','MiniDrama'],
+    caption: '💥 Watch where you’re going, Roman. 🐺🦊\n\n#GildedClaws #FirstMeeting #Drama #Tension',
+    filename: 'ep3_first_contact.mp4',
     posted: false
   }
 ];
