@@ -23,7 +23,7 @@ const MAX_POLLS        = 90;
 const ENDPOINTS = {
   I2V_QUALITY: "kling-v2.6-pro-i2v",
   I2V_FAST:    "wan2.5-image-to-video",
-  LIPSYNC:     "lipsync-video",
+  LIPSYNC:     "wav2lip-hq",
 } as const;
 
 export interface CameraSettings {
