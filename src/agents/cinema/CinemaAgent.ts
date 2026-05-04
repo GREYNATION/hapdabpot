@@ -21,9 +21,9 @@ const MAX_POLLS        = 90;
 
 // Muapi.ai - Only used for Video Animation and LipSync
 const ENDPOINTS = {
-  I2V_QUALITY: "kling-v2.1-pro-i2v",
-  I2V_FAST:    "wan2.1-image-to-video",
-  LIPSYNC:     "gen-v1-lip-sync",
+  I2V_QUALITY: "kling-v2.6-pro-i2v",
+  I2V_FAST:    "wan2.5-image-to-video",
+  LIPSYNC:     "lipsync-video",
 } as const;
 
 export interface CameraSettings {
@@ -276,4 +276,25 @@ export async function runOutTheWayEpisode(epNum = 1): Promise<string[]> {
   if (!ep) throw new Error("Episode " + epNum + " not defined yet");
   const agent = new CinemaAgent();
   return agent.getPostableClips(await agent.produceEpisode(ep));
+}
+
+/**
+ * Produce any dynamic episode (e.g. Gilded Claws)
+ */
+export async function produceDynamicEpisode(series: string, epNum: number, title: string, scenes: any[]): Promise<string[]> {
+  const agent = new CinemaAgent();
+  const episode: Episode = {
+    series,
+    episodeNumber: epNum,
+    title,
+    scenes: scenes.map((s, i) => ({
+      id: i + 1,
+      description: s.description || s.action || `Scene ${i+1}`,
+      character: Array.isArray(s.characters) ? s.characters.join(", ") : s.character || "Unknown",
+      location: s.location || "Unknown",
+      mood: s.mood || "Cinematic",
+      dialogue: s.dialogue?.[0]?.line || (Array.isArray(s.dialogue) ? s.dialogue.map((d: any) => d.line).join(" ") : s.dialogue),
+    }))
+  };
+  return agent.getPostableClips(await agent.produceEpisode(episode));
 }

@@ -3,6 +3,7 @@ import { log } from "../../core/config.js";
 import { SupabaseCrm } from "../../core/supabaseCrm.js";
 import { CrmManager } from "../../core/crm.js";
 import { AdsAgent } from "../ads/AdsAgent.js";
+import { isDramaCommand, routeToDramaAgent } from "../drama/DramaAgent.js";
 
 // Intent Types
 type Intent = "trading" | "real_estate" | "drama" | "ads" | "general";
@@ -114,7 +115,14 @@ export class OrchestratorAgent extends BaseAgent {
     };
   }
 
-  async route(userMessage: string, attachments: any[] = []): Promise<RouteResult> {
+  async route(userMessage: string, attachments: any[] = [], chatId: string = "user"): Promise<RouteResult> {
+    // 1. Fast-path for Drama Commands
+    if (isDramaCommand(userMessage)) {
+      log(`[orchestrator] Drama Fast-path Triggered: ${userMessage.slice(0, 40)}`);
+      const dramaResponse = await routeToDramaAgent(userMessage, chatId);
+      return { intent: "drama", confidence: "high", response: dramaResponse };
+    }
+
     const { intent, confidence } = this.detectIntent(userMessage);
 
     log(`[orchestrator] Intent: ${intent} (${confidence}) — "${userMessage.slice(0, 60)}"`);

@@ -55,6 +55,9 @@ export class TelegramBot {
         this.setupHandlers();
         this.setupDashboardHandlers();
 
+        // Initialize background watchers
+        DealWatcher.init();
+
         log("[bot] Telegram handlers initialized.");
     }
 
@@ -410,7 +413,6 @@ export class TelegramBot {
     }
 
     public async launch(retries = 10, delayMs = 5000) {
-        DealWatcher.init();
 
         try {
             // dropPendingUpdates: true fixes 409 Conflict on Railway redeploys

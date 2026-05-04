@@ -666,6 +666,88 @@ export function setupRouter(bot: Telegraf) {
     // 26. ComfyUI — Local AI Media Generation
     registerComfyCommands(bot);
 
+    bot.command("drama_episode", async (ctx) => {
+        const args = ctx.message.text.split(" ").slice(1);
+        const agent = new dramaAgent.DramaAgent();
+        const reply = await agent.handleTelegramCommand("/drama_episode", args);
+        if (reply.length <= 4096) {
+            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
+        } else {
+            const chunks = reply.match(/[\s\S]{1,4000}/g) ?? [reply];
+            for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
+            return;
+        }
+    });
+
+    bot.command("drama_batch", async (ctx) => {
+        const args = ctx.message.text.split(" ").slice(1);
+        const agent = new dramaAgent.DramaAgent();
+        await ctx.reply("⏳ Generating episode batch...");
+        const reply = await agent.handleTelegramCommand("/drama_batch", args);
+        if (reply.length <= 4096) {
+            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
+        } else {
+            const chunks = reply.match(/[\s\S]{1,4000}/g) ?? [reply];
+            for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
+            return;
+        }
+    });
+
+    bot.command("drama_hook", async (ctx) => {
+        const args = ctx.message.text.split(" ").slice(1);
+        const agent = new dramaAgent.DramaAgent();
+        const reply = await agent.handleTelegramCommand("/drama_hook", args);
+        if (reply.length <= 4096) {
+            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
+        } else {
+            const chunks = reply.match(/[\s\S]{1,4000}/g) ?? [reply];
+            for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
+            return;
+        }
+    });
+
+    bot.command("drama_prompts", async (ctx) => {
+        const args = ctx.message.text.split(" ").slice(1);
+        const agent = new dramaAgent.DramaAgent();
+        const reply = await agent.handleTelegramCommand("/drama_prompts", args);
+        if (reply.length <= 4096) {
+            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
+        } else {
+            const chunks = reply.match(/[\s\S]{1,4000}/g) ?? [reply];
+            for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
+            return;
+        }
+    });
+
+    bot.command("drama_season", async (ctx) => {
+        const args = ctx.message.text.split(" ").slice(1);
+        const agent = new dramaAgent.DramaAgent();
+        await ctx.reply("⏳ Generating season outline...");
+        const reply = await agent.handleTelegramCommand("/drama_season", args);
+        // Split if too long
+        if (reply.length <= 4096) {
+            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
+        } else {
+            const chunks = reply.match(/[\s\S]{1,4000}/g) ?? [reply];
+            for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
+            return;
+        }
+    });
+
+    bot.command("drama_status", async (ctx) => {
+        try {
+            log("[router] Executing /drama_status");
+            const agent = new dramaAgent.DramaAgent();
+            const reply = await agent.handleTelegramCommand("/drama_status", []);
+            log(`[router] /drama_status reply length: ${reply.length}`);
+            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
+        } catch (err: any) {
+            log(`[router] /drama_status error: ${err.message}`, "error");
+            ctx.reply(`❌ Drama Status Error: ${err.message}`);
+        }
+    });
+
+
     log("[router] Routes configured.");
 
 }

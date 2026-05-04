@@ -13,6 +13,7 @@ import { log } from "../config.js";
 import { RequestQueue } from "../queue.js";
 import { WikiService } from "../../services/wikiService.js";
 import { askAI } from "../ai.js";
+import { isDramaCommand, routeToDramaAgent } from "../../agents/drama/DramaAgent.js";
 
 export class CouncilOrchestrator {
     private router = new CommandRouter();
@@ -72,6 +73,17 @@ export class CouncilOrchestrator {
             const masterContext = `\n--- RECENT SPIRIT MEMORY (HOT CACHE) ---\n${hotCache}\n---------------------------------------\n\nYour task is to search the LOCAL library and the web to answer this query. Use 'wiki_search' and 'wiki_read' first.`;
             const result = await agent.ask(cleanInput, history, masterContext);
             return result.content || result;
+        }
+
+        // --- DRAMA FAST-PATH (GILDED CLAWS) ---
+        if (isDramaCommand(userInput)) {
+            log(`[council] Drama Intent detected. Routing to DramaAgent.`);
+            try {
+                return await routeToDramaAgent(userInput, String(chatId));
+            } catch (err: any) {
+                log(`[council] Drama Route failed: ${err.message}`, "error");
+                // Fall back to normal routing if drama agent fails
+            }
         }
 
         // 1. Route the intent
@@ -190,7 +202,7 @@ ${skillContext}
 User: ${input}
 Council: ${output.substring(0, 500)}...`;
 
-        const summaryRes = await askAI(summaryPrompt, "You are a concise memory summary agent.", { model: "google/gemini-2.0-flash-001" });
+        const summaryRes = await askAI(summaryPrompt, "You are a concise memory summary agent.", { model: "google/gemini-2.0-flash-exp:free" });
         const summary = summaryRes.content || "Interaction processed.";
 
         // 2. Update Hot Cache

@@ -27,13 +27,15 @@ export function registerCinemaCommands(bot: Telegraf) {
       .join("\n");
 
     await ctx.reply(
-      `🎬 *${SERIES_NAME}* — Mini Drama Series\n\n` +
-      `Street drama. South Brooklyn/Jersey. Raw & cinematic.\n\n` +
-      `*Episodes:*\n${episodeList}\n\n` +
-      `*Commands:*\n` +
-      `/produce ep 1 — produce full episode 1\n` +
-      `/produce scene <description> — quick single scene\n` +
-      `/scene 1 3 — generate scene 3 from episode 1`,
+      `🎬 **DRAMA HUB**\n\n` +
+      `**1. Gilded Claws (Active)**\n` +
+      `Status: Production Ready\n` +
+      `Commands: /drama_status, /drama_episode, /drama_season\n\n` +
+      `**2. Out the Way (Legacy)**\n` +
+      `Status: Suspended\n` +
+      `Episodes:\n${episodeList}\n` +
+      `Commands: /produce, /scene\n\n` +
+      `Use /drama_status for the current main production.`,
       { parse_mode: "Markdown" }
     );
   });

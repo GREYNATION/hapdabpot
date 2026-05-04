@@ -23,6 +23,7 @@ import {
     buildTxt2ImgWorkflow,
     buildFluxTxt2ImgWorkflow,
     buildUpscaleWorkflow,
+    buildLtxVideoWorkflow,
     WORKFLOW_DESCRIPTIONS,
 } from "./comfyWorkflows.js";
 
@@ -236,6 +237,61 @@ export class ComfyAgent {
         }
     }
 
+    // ─── Text to Video (LTX-Video) ──────────────────────────────────────────
+
+    async video(
+        rawPrompt: string,
+        options: {
+            model?: string;
+            duration?: number;
+            resolution?: string;
+            fps?: number;
+        } = {}
+    ): Promise<{ text: string; videoBuffers: Buffer[] }> {
+        await logToOpsConsole(AGENT_NAME, `Generating video: "${rawPrompt.slice(0, 80)}"`, "think");
+
+        const online = await comfyClient.isOnline().catch(() => false);
+        if (!online) {
+            return {
+                text: "❌ **ComfyUI is offline.**",
+                videoBuffers: [],
+            };
+        }
+
+        const workflow = buildLtxVideoWorkflow({
+            prompt: rawPrompt,
+            model: options.model,
+            duration: options.duration || 2,
+            resolution: options.resolution || "512x512",
+            fps: options.fps || 24,
+        });
+
+        try {
+            const result = await comfyClient.run(workflow);
+            const videoOutputs = result.outputs.filter(o => o.type === "video");
+
+            if (!videoOutputs.length) {
+                return { text: "⚠️ Video generation completed but no file produced.", videoBuffers: [] };
+            }
+
+            const videoBuffers: Buffer[] = [];
+            for (const output of videoOutputs) {
+                try {
+                    const buf = await comfyClient.downloadOutput(output);
+                    videoBuffers.push(buf);
+                } catch {}
+            }
+
+            return {
+                text: `🎬 **Video Generated (LTX-V)**\n\n📝 **Prompt**: ${rawPrompt}\n📐 **Res**: ${options.resolution || "512x512"}\n⏱️ **Duration**: ${options.duration || 2}s`,
+                videoBuffers,
+            };
+        } catch (err: any) {
+            await logToOpsConsole(AGENT_NAME, `Video failed: ${err.message}`, "error");
+            return { text: `❌ **Video Failed**: ${err.message}`, videoBuffers: [] };
+        }
+    }
+
     // ─── Help text ────────────────────────────────────────────────────────────
 
     getHelp(): string {
@@ -248,6 +304,7 @@ export class ComfyAgent {
             `**Commands:**\n` +
             `/imagine <prompt> — Generate an image (SD1.5)\n` +
             `/imagine flux <prompt> — Generate via FLUX.1\n` +
+            `/video <prompt> — Generate text-to-video (LTX-V)\n` +
             `/upscale <url> — 4x AI upscale an image URL\n` +
             `/comfy status — Check ComfyUI server health\n` +
             `/comfy models — List available checkpoints\n` +

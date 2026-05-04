@@ -43,7 +43,7 @@ export const config = {
     aiProvider: env.AI_PROVIDER || (env.OPENROUTER_API_KEY ? "openrouter" : (env.OPENAI_API_KEY ? "openai" : "groq")),
     braveApiKey: env.BRAVE_API_KEY || "",
     elevenKey: env.ELEVEN_API_KEY || env.ELEVENLABS_API_KEY || "",
-    elevenVoiceId: env.ELEVEN_VOICE_ID || "pNInz6obpgmqS2C9hC7s", // Marcus (High fidelity)
+    elevenVoiceId: env.ELEVEN_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb", // New default voice (Adam)
     githubToken: env.GITHUB_TOKEN || "",
     apifyToken: env.APIFY_TOKEN || "",
     txActorId: env.TX_ACTOR_ID || "",
@@ -91,14 +91,24 @@ export async function initializeConfig() {
     log("[config] 🏛️ STARTING COUNCIL OF SPIRITS ENGINE");
     log("[config] Initializing dynamic config from Supabase...");
     const client = getSupabase();
-    if (!client || process.env.SKIP_DB_CONFIG === 'true') {
-        log("[config] Using local .env for configuration.");
+    const skipDb = process.env.SKIP_DB_CONFIG;
+    if (!client || skipDb === 'true' || skipDb === '1') {
+        log(`[config] Skipping Supabase config fetch (SKIP_DB_CONFIG=${skipDb}). Using local .env.`);
         return;
     }
 
-    const { data, error } = await client.from("hapda_credentials").select("key, value");
+    let data: any = null;
+    let error: any = null;
+    try {
+        const res = await client.from("hapda_credentials").select("key, value");
+        data = res.data;
+        error = res.error;
+    } catch (err: any) {
+        error = err;
+    }
     if (error) {
-        log(`[config] Failed to fetch credentials: ${error.message}`, "error");
+        log(`[config] ⚠️ Could not fetch remote credentials: ${error.message}`, "warn");
+        log("[config] Falling back to local environment variables.");
         return;
     }
 

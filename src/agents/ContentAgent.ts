@@ -264,12 +264,20 @@ export class ContentAgent extends BaseAgent {
           await ctx.reply("❌ All scenes failed. Check logs for Muapi errors.");
           return;
         }
-        await ctx.reply(
-          `✅ Episode ${epNum} produced!\n` +
-          `📹 ${clips.length} clips ready\n\n` +
-          clips.map((url, i) => `Scene ${i + 1}: ${url}`).join("\n") +
-          `\n\nReply /post tiktok to publish all clips.`
-        );
+        const clipList = clips.map((url, i) => `Scene ${i + 1}: ${url}`).join("\n");
+        const baseMsg = `✅ Episode ${epNum} produced!\n📹 ${clips.length} clips ready\n\n`;
+        const footer = `\n\nReply /post tiktok to publish all clips.`;
+
+        if ((baseMsg + clipList + footer).length <= 4096) {
+          await ctx.reply(baseMsg + clipList + footer);
+        } else {
+          await ctx.reply(baseMsg);
+          const chunks = clipList.match(/[\s\S]{1,4000}/g) ?? [clipList];
+          for (const chunk of chunks) {
+            await ctx.reply(chunk).catch(() => {});
+          }
+          await ctx.reply(footer);
+        }
       } catch (err: any) {
         await ctx.reply(`❌ Production failed: ${err.message}`);
       }

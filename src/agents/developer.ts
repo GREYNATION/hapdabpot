@@ -52,7 +52,7 @@ RULES:
 `;
 
   const response = await askAI("Compose the website code based on the provided data.", systemPrompt, {
-    jsonMode: true, model: config.openaiModel || "google/gemini-2.0-flash-001"
+    jsonMode: true, model: config.openaiModel || "google/gemini-2.0-flash-exp:free"
   });
 
   if (!response || !response.content) {

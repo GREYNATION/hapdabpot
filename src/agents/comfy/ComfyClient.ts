@@ -91,7 +91,7 @@ export class ComfyClient extends EventEmitter {
 
     waitForCompletion(
         promptId: string,
-        timeoutMs = 300_000
+        timeoutMs = 3_600_000 // 1 hour for CPU video
     ): Promise<void> {
         return new Promise((resolve, reject) => {
             let ws: WebSocket;

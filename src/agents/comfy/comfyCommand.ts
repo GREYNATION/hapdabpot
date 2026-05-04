@@ -70,6 +70,42 @@ export function registerComfyCommands(bot: Telegraf) {
         }
     });
 
+    // ─── /video <prompt> ─────────────────────────────────────────────────────
+
+    bot.command("video", async (ctx: any) => {
+        const prompt = ctx.message.text.replace("/video", "").trim();
+
+        if (!prompt) {
+            return ctx.reply(
+                "🎬 **LTX-Video Generator**\n\n" +
+                "Usage: `/video <prompt>`\n\n" +
+                "Example:\n`/video Spider Jr walking through a futuristic city, cartoon style`",
+                { parse_mode: "Markdown" }
+            );
+        }
+
+        await ctx.reply("🎬 **Generating Video (LTX-V)...**\nThis will take a significant amount of time on CPU (10–30 mins). Please be patient!", { parse_mode: "Markdown" });
+
+        try {
+            const { text, videoBuffers } = await comfyAgent.video(prompt);
+
+            if (videoBuffers.length > 0) {
+                for (const buf of videoBuffers) {
+                    await ctx.replyWithVideo(
+                        { source: buf },
+                        { caption: text, parse_mode: "Markdown" }
+                    ).catch(async () => {
+                        await ctx.reply(text + "\n\n⚠️ _Video too large for direct send._", { parse_mode: "Markdown" });
+                    });
+                }
+            } else {
+                await ctx.reply(text, { parse_mode: "Markdown" });
+            }
+        } catch (err: any) {
+            await ctx.reply(`❌ **Video Error**: ${err.message}`, { parse_mode: "Markdown" });
+        }
+    });
+
     // ─── /upscale <url> ──────────────────────────────────────────────────────
 
     bot.command("upscale", async (ctx: any) => {
@@ -157,5 +193,5 @@ export function registerComfyCommands(bot: Telegraf) {
         }
     });
 
-    log("[comfy] ComfyUI commands registered: /imagine, /upscale, /comfy");
+    log("[comfy] ComfyUI commands registered: /imagine, /video, /upscale, /comfy");
 }

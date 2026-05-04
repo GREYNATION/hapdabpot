@@ -187,12 +187,66 @@ export function buildUpscaleWorkflow(opts: UpscaleOptions): Record<string, any> 
     };
 }
 
+// ─── LTX-Video Text to Video (LTX-V 2B / 0.9) ────────────────────────────────
+
+export interface LtxVideoOptions {
+    prompt: string;
+    /** Model name e.g. "LTXV/ltx-video-2b-v0.9.safetensors" */
+    model?: string;
+    /** Duration in seconds */
+    duration?: number;
+    /** Resolution e.g. "768x512" or "512x512" */
+    resolution?: string;
+    fps?: number;
+}
+
+export function buildLtxVideoWorkflow(opts: LtxVideoOptions): Record<string, any> {
+    const {
+        prompt,
+        model = "LTXV/ltx-video-2b-v0.9.safetensors",
+        duration = 2,
+        resolution = "512x512",
+        fps = 24
+    } = opts;
+
+    return {
+        "1": {
+            class_type: "CheckpointLoaderSimple",
+            inputs: { ckpt_name: model },
+        },
+        "2": {
+            class_type: "LtxvApiTextToVideo",
+            inputs: {
+                model: ["1", 0],
+                prompt: prompt,
+                duration: duration,
+                resolution: resolution,
+                fps: fps,
+                generate_audio: false
+            },
+        },
+        "3": {
+            class_type: "VHS_VideoCombine",
+            inputs: {
+                images: ["2", 0],
+                frame_rate: fps,
+                loop_count: 0,
+                filename_prefix: "spider_jr_video",
+                format: "video/h264-mp4",
+                pingpong: false,
+                save_output: true
+            },
+        }
+    };
+}
+
 // ─── Workflow Template Registry ───────────────────────────────────────────────
 
-export type WorkflowType = "txt2img" | "flux" | "upscale";
+export type WorkflowType = "txt2img" | "flux" | "upscale" | "video";
 
 export const WORKFLOW_DESCRIPTIONS: Record<WorkflowType, string> = {
     txt2img: "Standard Stable Diffusion text-to-image (512x512–1024x1024)",
     flux:    "FLUX.1 high-quality text-to-image (schnell=fast, dev=quality)",
     upscale: "4x AI upscaling of an existing image URL",
+    video:   "LTX-Video text-to-video generation (v0.9 2B)",
 };

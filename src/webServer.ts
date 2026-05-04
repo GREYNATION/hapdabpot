@@ -18,7 +18,8 @@ import { createLeadsRouter } from './routes/leads.js';
 import { CouncilOrchestrator } from './core/orchestrator/councilOrchestrator.js';
 import cors from 'cors';
 import fs from 'fs';
-import { WebSocketServer, WebSocket } from 'ws';
+import ws from 'ws';
+const { WebSocketServer } = ws;
 import { getSupabase } from './core/supabase.js';
 const orchestrator = new CouncilOrchestrator();
 
