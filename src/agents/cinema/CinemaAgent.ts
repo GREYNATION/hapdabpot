@@ -61,14 +61,16 @@ export interface GeneratedScene {
   error?: string;
 }
 
+export const SERIES_STYLE = {
+  aesthetic: "urban street drama, South Brooklyn, cinematic golden hour lighting, shallow depth of field",
+  colorGrade: "warm shadows, teal highlights, Moonlight 2016 color palette",
+  lens: "35mm anamorphic cinematic",
+  aperture: "f/2.0",
+  aspectRatio: "9:16",
+};
+
 export const STYLE_REGISTRY: Record<string, typeof SERIES_STYLE> = {
-  "Out the Way": {
-    aesthetic: "urban street drama, South Brooklyn, cinematic golden hour lighting, shallow depth of field",
-    colorGrade: "warm shadows, teal highlights, Moonlight 2016 color palette",
-    lens: "35mm anamorphic cinematic",
-    aperture: "f/2.0",
-    aspectRatio: "9:16",
-  },
+  "Out the Way": SERIES_STYLE,
   "Gilded Claws": {
     aesthetic: "Pixar-style 3D animation render, photorealistic fur and skin texture, vertical 9:16 format, luxury Elitewood aesthetic, ultra-high detail",
     colorGrade: "vibrant colors, dramatic rim lighting, gold and velvet accents, shallow depth of field bokeh",

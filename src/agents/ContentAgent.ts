@@ -299,7 +299,7 @@ export class ContentAgent extends BaseAgent {
         location: "Brooklyn, cinematic environment",
         mood: "dramatic",
         character: "protagonist",
-      });
+      }, "Out the Way");
 
       if (result.status === "complete") {
         const url = result.lipSyncUrl ?? result.videoUrl ?? result.imageUrl;

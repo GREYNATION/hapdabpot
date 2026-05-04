@@ -69,7 +69,7 @@ export function registerCinemaCommands(bot: Telegraf) {
 
     try {
       const agent = new CinemaAgent();
-      const result = await agent.processScene(scene);
+      const result = await agent.processScene(scene, ep.series);
 
       if (result.status === "complete") {
         const url = result.lipSyncUrl ?? result.videoUrl ?? result.imageUrl;
