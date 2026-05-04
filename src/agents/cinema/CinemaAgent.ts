@@ -102,14 +102,16 @@ class MuapiClient {
             res = await axios.get(`${MUAPI_BASE}/predictions/${jobId}/result`, { headers: this.headers });
         }
 
-        const data = res.data;
+        const data = res?.data;
+        if (!data) continue;
+        
         const s = (data?.status ?? "pending").toLowerCase();
         
         if (["complete", "completed", "succeeded", "success"].includes(s)) {
           const url = data?.output_url ?? data?.url ?? data?.result?.url ?? data?.outputs?.[0] ?? data?.output;
           if (!url) {
               // Final fallback: check /result if we haven't yet
-              if (!res.config.url?.endsWith("/result")) {
+              if (res && !res.config.url?.endsWith("/result")) {
                   const resultRes = await axios.get(`${MUAPI_BASE}/predictions/${jobId}/result`, { headers: this.headers });
                   const resultUrl = resultRes.data?.output_url ?? resultRes.data?.url ?? resultRes.data?.outputs?.[0];
                   if (resultUrl) return resultUrl;
