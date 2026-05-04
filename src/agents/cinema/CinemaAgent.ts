@@ -10,8 +10,9 @@
  */
 
 import fs from "fs";
+import path from "path";
 import OpenAI from "openai";
-import { getSupabase } from '../core/supabase.js';
+import { getSupabase } from '../../core/supabase.js';
 import axios from "axios";
 import { openai } from "../../core/config.js";
 
