@@ -482,10 +482,10 @@ export async function askAI(
         try {
             const effectiveProvider = options.provider || config.aiProvider;
             if (effectiveProvider === "anthropic") {
-                return await withTimeout(callAnthropic(messages, options), 60_000, "askAI:anthropic");
+                return await withTimeout(callAnthropic(messages, options), 30_000, "askAI:anthropic");
             }
             if (effectiveProvider === "groq") {
-                const timeoutMs = options.tools?.length ? 120_000 : 60_000;
+                const timeoutMs = options.tools?.length ? 45_000 : 30_000;
                 if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
                     options.model = config.groqModel || "llama-3.3-70b-versatile";
                 }
@@ -503,11 +503,11 @@ export async function askAI(
             }
 
             if (isOpenRouterMode || isExplicitCloud) {
-                return await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
+                return await withTimeout(callOpenRouter(messages, options), 45_000, "askAI:openrouter");
             }
 
             // Default fallback
-            return await withTimeout(callOpenRouter(messages, options), 90_000, "askAI:openrouter");
+            return await withTimeout(callOpenRouter(messages, options), 45_000, "askAI:openrouter");
         } catch (err: any) {
             const isCreditOrModelError = err.status === 402 || 
                                         err.status === 400 || 
