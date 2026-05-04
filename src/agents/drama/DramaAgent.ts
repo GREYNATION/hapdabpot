@@ -217,7 +217,8 @@ Focus on the rivalry between Luna and Victor, and the mystery of Eli's true pare
 
   async handleTelegramCommand(
     command: string,
-    args: string[]
+    args: string[],
+    ctx?: any
   ): Promise<string> {
     try {
       switch (command) {
@@ -265,6 +266,8 @@ Focus on the rivalry between Luna and Victor, and the mystery of Eli's true pare
           const num = parseInt(args[0]) || 1;
           const script = await this.generateEpisode(num);
           
+          if (ctx) await ctx.reply(`🎬 *Script Ready:* S${script.season}E${script.episode} - "${script.title}"\nStarting visual production...`, { parse_mode: 'Markdown' });
+
           // Trigger visual production
           const clips = await produceDynamicEpisode(
             this.config.series,
@@ -273,7 +276,14 @@ Focus on the rivalry between Luna and Victor, and the mystery of Eli's true pare
             script.scenes
           );
           
-          return `🎬 *Visual Production Complete for S${script.season}E${script.episode}*\n\nGenerated ${clips.length} scenes. Check the output folder or Muapi dashboard for video status.`;
+          // Post clips if ctx is available
+          if (ctx && clips.length > 0) {
+            for (const clip of clips) {
+              await ctx.reply(clip).catch((e: any) => log(`[Drama] Clip post failed: ${e.message}`, "error"));
+            }
+          }
+          
+          return `✅ *Visual Production Complete for S${script.season}E${script.episode}*\n\nGenerated ${clips.length} scenes.`;
         }
 
         default:

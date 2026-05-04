@@ -749,10 +749,9 @@ export function setupRouter(bot: Telegraf) {
 
     bot.command("drama_produce", async (ctx) => {
         const args = ctx.message.text.split(" ").slice(1);
-        await ctx.reply("🎬 *Initiating full visual production for Gilded Claws...*\nThis involves script generation, image creation, animation, and lipsync. Please wait.", { parse_mode: "Markdown" });
         try {
             const agent = new dramaAgent.DramaAgent();
-            const reply = await agent.handleTelegramCommand("/drama_produce", args);
+            const reply = await agent.handleTelegramCommand("/drama_produce", args, ctx);
             return ctx.reply(reply, { parse_mode: "Markdown" });
         } catch (err: any) {
             ctx.reply(`❌ Production Failed: ${err.message}`);
@@ -763,14 +762,14 @@ export function setupRouter(bot: Telegraf) {
         const args = ctx.message.text.split(" ").slice(1);
         await ctx.reply("📦 *Starting batch script generation...*", { parse_mode: "Markdown" });
         const agent = new dramaAgent.DramaAgent();
-        const reply = await agent.handleTelegramCommand("/drama_batch", args);
+        const reply = await agent.handleTelegramCommand("/drama_batch", args, ctx);
         return ctx.reply(reply, { parse_mode: "Markdown" });
     });
 
     bot.command("drama_hook", async (ctx) => {
         const args = ctx.message.text.split(" ").slice(1);
         const agent = new dramaAgent.DramaAgent();
-        const reply = await agent.handleTelegramCommand("/drama_hook", args);
+        const reply = await agent.handleTelegramCommand("/drama_hook", args, ctx);
         return ctx.reply(reply, { parse_mode: "Markdown" });
     });
 
