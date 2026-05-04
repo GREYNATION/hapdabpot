@@ -94,20 +94,38 @@ class MuapiClient {
     for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
       try {
-        const { data } = await axios.get(MUAPI_BASE + "/predictions/" + jobId + "/result", { headers: this.headers });
+        // Try standard status endpoint first
+        let res = await axios.get(`${MUAPI_BASE}/predictions/${jobId}`, { headers: this.headers }).catch(() => null);
+        
+        // If 404 or 400, try the /result suffix (some aggregators use this)
+        if (!res || res.status >= 400) {
+            res = await axios.get(`${MUAPI_BASE}/predictions/${jobId}/result`, { headers: this.headers });
+        }
+
+        const data = res.data;
         const s = (data?.status ?? "pending").toLowerCase();
+        
         if (["complete", "completed", "succeeded", "success"].includes(s)) {
-          const url = data?.output_url ?? data?.url ?? data?.result?.url ?? data?.outputs?.[0];
-          if (!url) throw new Error("Done but no URL in response: " + JSON.stringify(data));
+          const url = data?.output_url ?? data?.url ?? data?.result?.url ?? data?.outputs?.[0] ?? data?.output;
+          if (!url) {
+              // Final fallback: check /result if we haven't yet
+              if (!res.config.url?.endsWith("/result")) {
+                  const resultRes = await axios.get(`${MUAPI_BASE}/predictions/${jobId}/result`, { headers: this.headers });
+                  const resultUrl = resultRes.data?.output_url ?? resultRes.data?.url ?? resultRes.data?.outputs?.[0];
+                  if (resultUrl) return resultUrl;
+              }
+              throw new Error("Done but no URL found in response.");
+          }
           console.log("[Muapi] Done -> " + url);
           return url;
         }
+        
         if (["failed", "error", "cancelled"].includes(s)) {
-          throw new Error("Job " + jobId + " " + s + ": " + JSON.stringify(data));
+          throw new Error(`Job ${jobId} ${s}: ${data?.error || "Unknown error"}`);
         }
-        console.log("[Muapi] " + jobId + " - " + s + " (" + (i + 1) + "/" + MAX_POLLS + ")");
+        console.log(`[Muapi] ${jobId} - ${s} (${i + 1}/${MAX_POLLS})`);
       } catch (err: any) {
-        console.warn("[Muapi] Poll error: " + err.message);
+        console.warn("[Muapi] Poll attempt failed: " + err.message);
       }
     }
     throw new Error("Timeout: " + jobId);
