@@ -27,7 +27,7 @@ const POST_SCHEDULE = {
 };
 
 // ─── TYPES ──────────────────────────────────────────────────
-interface SpideyEpisode {
+export interface SpideyEpisode {
   ep:       string;
   title:    string;
   emoji:    string;
@@ -47,7 +47,7 @@ interface PostResult {
 
 // ─── SEASON 1 EPISODE REGISTRY ──────────────────────────────
 // Add your rendered Veo video filenames here as they're generated
-const SEASON_1: SpideyEpisode[] = [
+export const SEASON_1: SpideyEpisode[] = [
   {
     ep: 'S01E01', title: 'First Swing!', emoji: '🌅',
     theme: 'Origin Story',
