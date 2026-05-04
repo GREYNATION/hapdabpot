@@ -4,6 +4,7 @@
 
 import { askAI } from "../../core/ai.js";
 import { log } from "../../core/config.js";
+import { produceDynamicEpisode } from "../cinema/CinemaAgent.js";
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -259,6 +260,21 @@ Focus on the rivalry between Luna and Victor, and the mystery of Eli's true pare
 
         case "/drama_status":
           return this.getProductionStatus();
+
+        case "/drama_produce": {
+          const num = parseInt(args[0]) || 1;
+          const script = await this.generateEpisode(num);
+          
+          // Trigger visual production
+          const clips = await produceDynamicEpisode(
+            this.config.series,
+            script.episode,
+            script.title,
+            script.scenes
+          );
+          
+          return `🎬 *Visual Production Complete for S${script.season}E${script.episode}*\n\nGenerated ${clips.length} scenes. Check the output folder or Muapi dashboard for video status.`;
+        }
 
         default:
           return `❌ Unknown drama command: ${command}`;
