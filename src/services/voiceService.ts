@@ -3,6 +3,7 @@ import path from 'path';
 import { openai, config, log } from '../core/config.js';
 import { openRouterClient } from '../core/ai.js';
 import OpenAI from "openai";
+import { getSupabase } from '../core/supabase.js';
 
 // Lazy-initialized TTS client — must NOT be created at module load time
 // because OPENAI_API_KEY arrives from Supabase after boot.
@@ -267,5 +268,27 @@ export class VoiceService {
 export const generateVoice = (text: string) => VoiceService.synthesize(text, "onyx");
 
 export async function uploadAudioAndGetUrl(file: Buffer): Promise<string> {
-    return "https://placeholder-url.com/audio.mp3";
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not available for audio upload");
+
+    const fileName = `voice_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
+    const { data, error } = await supabase.storage
+        .from('audio')
+        .upload(fileName, file, {
+            contentType: 'audio/mpeg',
+            cacheControl: '3600',
+            upsert: false
+        });
+
+    if (error) {
+        log(`[voice] Supabase upload failed: ${error.message}`, "error");
+        throw error;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+        .from('audio')
+        .getPublicUrl(fileName);
+
+    log(`[voice] Audio uploaded: ${publicUrl}`);
+    return publicUrl;
 }

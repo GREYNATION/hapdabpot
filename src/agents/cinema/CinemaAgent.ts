@@ -10,7 +10,8 @@
  */
 
 import fs from "fs";
-import path from "path";
+import OpenAI from "openai";
+import { getSupabase } from '../core/supabase.js';
 import axios from "axios";
 import { openai } from "../../core/config.js";
 
@@ -175,10 +176,23 @@ export class CinemaAgent {
     if (!s.dialogue) return videoUrl;
     console.log("[Cinema] LipSync - Scene " + s.id);
     try {
-      return await this.muapi.run(ENDPOINTS.LIPSYNC, { video_url: videoUrl, text: s.dialogue });
+      const { generateVoice, uploadAudioAndGetUrl } = await import("../../services/voiceService.js");
+      
+      // 1. Generate ElevenLabs Audio
+      const audioBuffer = await generateVoice(s.dialogue);
+      if (!audioBuffer) throw new Error("Failed to generate voice audio");
+
+      // 2. Upload to Public URL
+      const audioUrl = await uploadAudioAndGetUrl(audioBuffer);
+
+      // 3. Submit to Muapi for LipSync (Audio + Video)
+      return await this.muapi.run(ENDPOINTS.LIPSYNC, { 
+        video_url: videoUrl, 
+        audio_url: audioUrl 
+      });
     } catch (err: any) {
-      console.warn("[Cinema] LipSync failed (likely credit exhaustion): " + err.message);
-      return videoUrl; // non-fatal fallback
+      console.warn("[Cinema] LipSync failed (falling back to original video): " + err.message);
+      return videoUrl; 
     }
   }
 

@@ -408,9 +408,20 @@ export async function routeToDramaAgent(message: string, chatId: string): Promis
     const parts = message.split(" ");
     return agent.handleTelegramCommand(parts[0], parts.slice(1));
   }
-  const response = await askAI(message, "Route to drama command. Respond with ONLY the command.", { model: "claude-3-5-sonnet-20241022", maxTokens: 50 });
-  const cmd = response.content.trim().split(" ");
-  return agent.handleTelegramCommand(cmd[0], cmd.slice(1));
+  
+  const routingPrompt = `You are the Drama Orchestrator. Map the user intent to ONE of these commands:
+  - /drama_produce [ep_number]: Create a full video episode (default 1)
+  - /drama_episode [ep_number]: Generate just the script text
+  - /drama_status: Show production status
+  - /drama_season: Generate a new season outline
+  
+  User said: "${message}"
+  
+  Respond with ONLY the command and arguments. Example: /drama_produce 1`;
+
+  const response = await askAI(routingPrompt, "Drama Command Router", { model: "claude-3-5-sonnet-20241022", maxTokens: 50 });
+  const cmdLine = response.content.trim().replace(/\//g, "/").split(" ");
+  return agent.handleTelegramCommand(cmdLine[0], cmdLine.slice(1));
 }
 
 /**
