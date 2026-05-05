@@ -37,6 +37,8 @@ export function initializeClients() {
         baseURL: "https://openrouter.ai/api/v1",
         defaultHeaders: { "HTTP-Referer": "https://hapdabot.railway.app" },
     });
+
+    log(`[ai] 🚀 Infrastructure version: 1.0.2 (Fixed Anthropic roles & HiveMind schema)`);
 }
 
 // ── Rate Limiting & Throttling ───────────────────────────────────────────────
@@ -312,35 +314,69 @@ async function callAnthropic(
     if (model.includes("-latest")) {
         model = model.replace("-latest", "-20241022");
     }
-    const systemMsg = messages.find(m => m.role === "system")?.content as string || "";
-    const nonSystem = messages.filter(m => m.role !== "system").map(m => {
-        if (typeof m.content === "string") {
-            return { role: m.role as "user" | "assistant", content: m.content };
-        }
+    const systemMsgRaw = messages.find(m => m.role === "system")?.content as string || "";
+    const systemMsg = systemMsgRaw.trim();
+    
+    // Convert OpenAI messages to Anthropic format
+    const nonSystem: any[] = [];
+    
+    for (const m of messages) {
+        if (m.role === "system") continue;
         
-        // Handle Multimodal Content
-        const content = (m.content as any[]).map(item => {
-            if (item.type === "text") return item;
-            if (item.type === "image_url") {
-                // OpenAI format: { type: 'image_url', image_url: { url: 'data:image/png;base64,...' } }
-                // Anthropic format: { type: 'image', source: { type: 'base64', media_type: 'image/png', data: '...' } }
-                const url = item.image_url.url;
-                const match = url.match(/^data:(image\/\w+);base64,(.+)$/);
-                if (match) {
-                    return {
-                        type: "image",
-                        source: {
-                            type: "base64",
-                            media_type: match[1],
-                            data: match[2]
-                        }
-                    };
+        if (m.role === "tool") {
+            // Anthropic tool result must follow the tool_use it responds to
+            nonSystem.push({
+                role: "user",
+                content: [
+                    {
+                        type: "tool_result",
+                        tool_use_id: (m as any).tool_call_id,
+                        content: m.content
+                    }
+                ]
+            });
+            continue;
+        }
+
+        let content: any = m.content;
+        
+        if (Array.isArray(m.content)) {
+            content = (m.content as any[]).map(item => {
+                if (item.type === "text") return item;
+                if (item.type === "image_url") {
+                    const url = item.image_url.url;
+                    const match = url.match(/^data:(image\/\w+);base64,(.+)$/);
+                    if (match) {
+                        return {
+                            type: "image",
+                            source: {
+                                type: "base64",
+                                media_type: match[1],
+                                data: match[2]
+                            }
+                        };
+                    }
                 }
-            }
-            return item;
-        });
-        return { role: m.role as "user" | "assistant", content };
-    });
+                return item;
+            });
+        }
+
+        if (m.role === "assistant" && (m as any).tool_calls) {
+            const toolUseContent = (m as any).tool_calls.map((tc: any) => ({
+                type: "tool_use",
+                id: tc.id,
+                name: tc.function.name,
+                input: JSON.parse(tc.function.arguments)
+            }));
+            
+            nonSystem.push({
+                role: "assistant",
+                content: m.content ? [{ type: "text", text: m.content }, ...toolUseContent] : toolUseContent
+            });
+        } else {
+            nonSystem.push({ role: m.role as "user" | "assistant", content });
+        }
+    }
 
     const tools = options.tools?.map(t => ({
         name: t.function.name,
@@ -351,13 +387,13 @@ async function callAnthropic(
     const response = await (anthropicClient as any).messages.create({
         model,
         max_tokens: options.maxTokens || 1024,
-        system: [
+        system: systemMsg.length > 0 ? [
             {
                 type: "text",
                 text: systemMsg,
                 cache_control: { type: "ephemeral" }
             }
-        ],
+        ] : undefined,
         messages: nonSystem as any,
         tools: tools as any,
         tool_choice: tools?.length ? { type: "auto" } : undefined,
@@ -432,7 +468,7 @@ async function callOpenRouter(
     const isMultimodal = messages.some(m => Array.isArray(m.content));
     const model = options.model || (isMultimodal 
         ? "openai/gpt-4o" 
-        : "meta-llama/llama-3.3-70b-instruct:free");
+        : "google/gemini-2.0-flash-001");
 
     const completion = await openRouterClient.chat.completions.create({
         model,
@@ -461,6 +497,21 @@ async function callOpenRouter(
     };
 }
 
+/**
+ * mapModel — Ensure model names have correct provider prefixes for OpenRouter
+ */
+function mapModel(model: string): string {
+    if (!model) return "google/gemini-2.0-flash-001"; // Default OR model
+    if (model.includes("/")) return model; // Already has prefix
+    
+    if (model.startsWith("claude-")) return `anthropic/${model}`;
+    if (model.startsWith("gpt-")) return `openai/${model}`;
+    if (model.startsWith("gemini-")) return `google/${model}`;
+    if (model.startsWith("llama-")) return `meta-llama/${model}`;
+    
+    return model;
+}
+
 // ── Main Interface ────────────────────────────────────────────────────────────
 
 export async function askAI(
@@ -473,7 +524,7 @@ export async function askAI(
         { role: "user", content: prompt },
     ];
 
-    const model = options.model || "";
+    let model = options.model || "";
     const isExplicitCloud = model.includes("google/") || model.includes("anthropic/");
     const isGroqMode = config.aiProvider === "groq";
     const isOpenRouterMode = config.aiProvider === "openrouter";
@@ -494,6 +545,13 @@ export async function askAI(
             if (config.aiProvider === "kimi") {
                 return await withTimeout(callKimi(messages, options), 90_000, "askAI:kimi");
             }
+            
+            // OpenRouter Logic
+            if (isOpenRouterMode || isExplicitCloud) {
+                options.model = mapModel(model);
+                return await withTimeout(callOpenRouter(messages, options), 45_000, "askAI:openrouter");
+            }
+
             if (isGroqMode && !isExplicitCloud) {
                 const timeoutMs = options.tools?.length ? 120_000 : 60_000;
                 if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
@@ -502,21 +560,21 @@ export async function askAI(
                 return await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
             }
 
-            if (isOpenRouterMode || isExplicitCloud) {
-                return await withTimeout(callOpenRouter(messages, options), 45_000, "askAI:openrouter");
-            }
-
             // Default fallback
+            options.model = mapModel(model);
             return await withTimeout(callOpenRouter(messages, options), 45_000, "askAI:openrouter");
         } catch (err: any) {
             const isCreditOrModelError = err.status === 402 || 
                                         err.status === 400 || 
+                                        err.status === 404 ||
+                                        err.status === 429 ||
                                         err.message?.toLowerCase().includes("credit") ||
-                                        err.message?.toLowerCase().includes("not exist");
+                                        err.message?.toLowerCase().includes("not exist") ||
+                                        err.message?.toLowerCase().includes("not_found_error") ||
+                                        err.message?.toLowerCase().includes("rate limit");
 
             if (isCreditOrModelError) {
                 log(`[ai] Provider issue (${err.status}): ${err.message}. Triggering emergency Groq fallback...`, "error");
-                // Explicitly force Groq fallback if OpenRouter/Anthropic fails due to credits
                 try {
                     return await withTimeout(callGroq(messages, { ...options, model: GROQ_MODEL }), 60_000, "askAI:emergency:groq");
                 } catch (groqErr: any) {
@@ -524,19 +582,18 @@ export async function askAI(
                 }
             }
 
-            // Don't retry the fallback if the error is retryable (since withRetry handles retries inherently).
-            // We only do the general fallback if it's NOT a rate limit.
-            if (!model.includes("openrouter") && !isRetryable(err)) {
+            if (!model.includes("openrouter")) {
                 log(`[ai] AI call failed: ${err.message}. Attempting general fallback...`, "error");
                 try {
+                    options.model = "google/gemini-2.0-flash-001"; // Rock solid fallback
                     return await withTimeout(callOpenRouter(messages, { ...options }), 90_000, "askAI:openrouter:fallback");
                 } catch (fallbackErr: any) {
                     log(`[ai] OpenRouter fallback failed. Attempting emergency Puter fallback...`, "warn");
                     try {
-                        const puterContent = await puterService.ask(prompt || messages[messages.length-1].content as string);
+                        const puterContent = await puterService.ask(prompt || messages[messages.length-1].content as string || "Analyze this task.");
                         return {
-                            content: puterContent,
-                            provider: "groq", // Mapping to groq for compatibility if needed, or update AIResponse
+                            content: puterContent || "Emergency response failed.",
+                            provider: "groq",
                             model: "puter-gpt-4o"
                         } as any;
                     } catch (puterErr: any) {

@@ -37,12 +37,13 @@ async function wrapAuth<T>(fn: () => Promise<T>): Promise<T> {
     try {
         return await fn();
     } catch (err: any) {
-        if (err.message?.includes('invalid_grant')) {
+        if (err.message?.includes('invalid_grant') || err.message?.includes('insufficient authentication scopes')) {
             if (!googleAuthBroken) {
-                log("⚠️ CRITICAL: Google OAuth 'invalid_grant' detected. TOKEN REVOKED OR EXPIRED.", "error");
+                log("⚠️ CRITICAL: Google OAuth issue detected (invalid_grant or missing scopes).", "error");
                 log("ACTION REQUIRED: User must regenerate GOOGLE_REFRESH_TOKEN.", "warn");
                 googleAuthBroken = true;
             }
+            throw new Error("Google Auth is currently broken (needs re-authentication).");
         }
         throw err;
     }

@@ -93,7 +93,7 @@ const DISTRESS_KEYWORDS = [
 ];
 
 function scoreDistress(text: string): string[] {
-  const lower = text.toLowerCase();
+  const lower = (text || "").toLowerCase();
   return DISTRESS_KEYWORDS.filter(k => lower.includes(k));
 }
 
@@ -280,7 +280,7 @@ async function deepResearchLead(lead: Lead): Promise<Lead> {
     return {
       ...lead,
       description: (lead.description || "") + "\n\n[DEEP RESEARCH FINDINGS]:\n" + (result || rawResult),
-      aiUrgency: result.toLowerCase().includes("urgent") || rawResult.toLowerCase().includes("urgent") || result.toLowerCase().includes("must sell") ? "High" : lead.aiUrgency
+      aiUrgency: (result || "").toLowerCase().includes("urgent") || (rawResult || "").toLowerCase().includes("urgent") || (result || "").toLowerCase().includes("must sell") ? "High" : lead.aiUrgency
     };
   } catch (e: any) {
     log(`[scraper] Deep research failed for ${lead.address}: ${e.message}`, "warn");
@@ -342,7 +342,7 @@ export async function findMotivatedSellers(
       for (const m of marketList) {
         if (
           (stateUpper && m.state === stateUpper) ||
-          (targetCity && m.city.toLowerCase().includes(targetCity.toLowerCase()))
+          (targetCity && (m.city || "").toLowerCase().includes(targetCity.toLowerCase()))
         ) {
           markets.push(m);
         }

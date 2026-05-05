@@ -16,7 +16,7 @@ export interface AgentResponse {
 export abstract class BaseAgent {
     protected model: string;
     protected systemPrompt: string;
-    private _agentProvider?: "groq" | "openrouter" | "anthropic";
+    protected _agentProvider?: "groq" | "openrouter" | "anthropic";
 
     constructor(name: string, systemPrompt: string) {
         if (config.aiProvider === "groq") {
@@ -360,7 +360,7 @@ export abstract class BaseAgent {
                         properties: {
                             active_mission: { type: "string" },
                             objectives: { type: "array", items: { type: "string" } },
-                            agent_handoffs: { type: "object" }
+                            agent_handoffs: { type: "array", items: { type: "string" }, description: "List of tasks or handoff instructions for other agents." }
                         }
                     }
                 }

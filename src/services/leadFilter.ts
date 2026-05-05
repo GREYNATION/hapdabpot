@@ -64,17 +64,17 @@ export function scoreListingQuality(lead: Lead): number {
   const content = (lead.address + " " + (lead.description || "")).toLowerCase();
 
   // 1. Domain Check
-  if (BLOCKED_DOMAINS.some(d => domain.includes(d))) return 0;
-  if (TRUSTED_DOMAINS.some(d => domain.includes(d))) score += 5;
+  if (BLOCKED_DOMAINS.some(d => (domain || "").includes(d))) return 0;
+  if (TRUSTED_DOMAINS.some(d => (domain || "").includes(d))) score += 5;
 
   // 2. Listing Signals (+1 each)
   LISTING_SIGNALS.forEach(s => {
-    if (content.includes(s)) score += 1;
+    if ((content || "").includes(s)) score += 1;
   });
 
   // 3. Noise Signals (-2 each)
   NOISE_SIGNALS.forEach(s => {
-    if (content.includes(s)) score -= 2;
+    if ((content || "").includes(s)) score -= 2;
   });
 
   // 4. Entity Checks (Simple titles like "10 Best..." are low quality)
@@ -82,8 +82,8 @@ export function scoreListingQuality(lead: Lead): number {
   if (/^(\d+ )?best|top|how to/i.test(lead.address)) score -= 5;
   
   // 5. Seller/Source Check
-  if (lead.source.includes("FSBO")) score += 2;
-  if (lead.source.includes("Direct")) score += 3;
+  if ((lead.source || "").includes("FSBO")) score += 2;
+  if ((lead.source || "").includes("Direct")) score += 3;
 
   return score;
 }
@@ -112,7 +112,7 @@ export function calculateDealScore(lead: Lead): number {
   const mediumSignals = ["motivated", "must sell", "price reduced", "estate sale", "quick sale"];
   
   lead.distressSignals.forEach(signal => {
-    const s = signal.toLowerCase();
+    const s = (signal || "").toLowerCase();
     if (strongSignals.some(high => s.includes(high))) motivationScore += 10;
     else if (mediumSignals.some(mid => s.includes(mid))) motivationScore += 5;
     else motivationScore += 2;
@@ -314,7 +314,7 @@ export function formatFilteredLeads(leads: Lead[], limit = 5): string {
  * Simple Rule-Based NLP for Lead Intent Classification
  */
 export function classifyLead(text: string): "interested" | "not_interested" | "unknown" {
-  const t = text.toLowerCase();
+  const t = (text || "").toLowerCase();
   if (t.includes("yes")) return "interested";
   if (t.includes("not")) return "not_interested";
   return "unknown";
