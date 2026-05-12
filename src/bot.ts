@@ -1,113 +1,65 @@
-import "./core/init.js";
-import "dotenv/config";
-import { processUserInput } from "./taskOrchestrator.js";
-import { PropertyScraper } from "./services/PropertyScraper.js";
-import { runAutonomousPipeline } from "./core/orchestrator/clawOrchestrator.js";
-import { CouncilOrchestrator } from "./core/orchestrator/councilOrchestrator.js";
-import { getStuyzaLeads, getStuyzaLeadStats } from "./db/leads.js";
-import { db } from "./core/memory.js";
+import TelegramBot from 'node-telegram-bot-api';
+import dotenv from 'dotenv';
+import { getDb } from './db/index.js';
+import { getStuyzaLeads, getStuyzaLeadStats, getStuyzaLeadById, updateStuyzaLeadStatus } from './db/leads.js';
+import { quickZillowSearch } from './services/universalLeadScraper.js';
+import { AutomationService } from './services/automationService.js';
 
-const COMMAND_PREFIX = "/";
-const council = new CouncilOrchestrator();
+dotenv.config();
 
-async function handleCommand(input: string, userId: string = "default-user") {
-  if (!input.startsWith("/")) return;
+const token = process.env.TELEGRAM_BOT_TOKEN;
+if (!token) {
+  console.error("❌ TELEGRAM_BOT_TOKEN not found in .env");
+  process.exit(1);
+}
 
-  const [command, ...args] = input.slice(1).split(" ");
+const bot = new TelegramBot(token, { polling: true });
+const db = getDb();
+const automation = new AutomationService();
 
-  switch (command) {
-    case "auto":
-      const userInput = args.join(" ");
-      try {
-        const agentResponse = await runAutonomousPipeline(userInput);
-        return `🤖 Autonomous Pipeline Complete
+console.log("🚀 Hermes Acquisition Bot is online!");
 
-${agentResponse}`;
-      } catch (err: any) {
-        return `🤖 Autonomous Pipeline failed: ${err.message}`;
-      }
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+  bot.sendMessage(chatId, "🔥 **Hermes Acquisition Engine v1.0**\n\nCommands:\n/leads - View latest Stuyza leads\n/scrape [url] - Quick Zillow scrape\n/10x [cmd] - Hyper-Automation Scaling", { parse_mode: 'Markdown' });
+});
 
-    case "insights":
-      try {
-        const targetCity = args[0] || "Houston";
-        const { tools } = await import("./core/tools/index.js");
-        const { runClawAgent } = await import("./agents/claw/runClaw.js");
-        
-        const deals = await tools.findDeals({ city: targetCity });
-        const insights = await runClawAgent(`
-Analyze past deals for ${targetCity}:
+bot.onText(/\/(leads|scrape|10x)(.*)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const command = match?.[1];
+  const args = match?.[2]?.trim().split(" ") || [];
 
-${JSON.stringify(deals)}
+  bot.sendMessage(chatId, "⏳ Processing request...");
 
-Which types convert best?
-`);
-        return `📊 Real Estate Insights (${targetCity})\n\n${insights}`;
-      } catch (err: any) {
-        return `❌ Insights failed: ${err.message}`;
-      }
+  const response = await handleCommand(command || "", args);
+  bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+});
 
-    case "surplus":
-      try {
-        const targetCity = args[0] || "Houston";
-        const { runSurplusAgent } = await import("./core/surplus/runSurplusAgent.js");
-        const opportunities = await runSurplusAgent(targetCity);
-        
-        return `🏛️ Surveillance Complete
-Found ${opportunities.length} high-margin >$10k surplus overages in ${targetCity}. Check your direct DMs for the Alerts!`;
-      } catch (err: any) {
-        return `❌ Surplus run failed: ${err.message}`;
-      }
-case "prompts":
-      try {
-        const { handlePromptsCommand } = await import("./agents/promptsAgent/promptsAgent.js");
-        const promptsResult = await handlePromptsCommand(args.join(" "));
-        return promptsResult;
-      } catch (err: any) {
-        return `❌ Prompts command failed: ${err.message}`;
-      }
-
-    case "n8n":
-    case "n8n":
-      try {
-        const { handleN8nCommand } = await import("./agents/n8nAgent/n8nAgent.js");
-        const n8nResult = await handleN8nCommand(args.join(" "));
-        return n8nResult;
-      } catch (err: any) {
-        return `❌ n8n command failed: ${err.message}`;
-      }
-
-    case "build":
-
-      const result = await processUserInput(args.join(" "), userId);
-      return result.response;
-
+async function handleCommand(cmd: string, args: string[]): Promise<string> {
+  switch (cmd) {
     case "scrape":
-      const url = args[0];
-      if (!url) {
-        return "❌ Please provide a URL to scrape. Usage: /scrape [url]";
+      if (!args[0]) return "❌ Please provide a Zillow URL.";
+      try {
+        const lead = await quickZillowSearch(args[0]);
+        if (!lead) return "❌ No data found or blocked by Zillow.";
+        return `✅ **Zillow Lead Captured**\n\n**Address:** ${lead.address}\n**Price:** ${lead.price}\n**Agent:** ${lead.agent_name || 'N/A'}`;
+      } catch (err: any) {
+        return `❌ Scrape failed: ${err.message}`;
       }
-      const data = await PropertyScraper.scrapeListings(url);
-      if (data.length === 0) {
-        return "❌ No listings found. Check the URL or CSS selectors.";
-      }
-      return data.map((p, i) => `${i + 1}. ${p.title}\n   💰 ${p.price}\n   📍 ${p.address}\n   🔗 ${p.link}`).join("\n\n");
 
-    case "agents":
-      return listAgents();
-
-      case "leads":
+    case "leads":
       try {
         const stats = getStuyzaLeadStats(db);
         const leads = getStuyzaLeads(db, 10);
         
-        let report = `📈 **STUYZA LEAD PIPELINE**\n`;
+        let report = `📊 **STUYZA LEAD PIPELINE**\n`;
         report += `Total: ${stats.total} | New: ${stats.new_leads || 0} | Booked: ${stats.booked || 0}\n\n`;
         
         if (leads.length === 0) {
           report += "_No leads captured yet._";
         } else {
           leads.forEach((l: any, i: number) => {
-            report += `${i+1}. **${l.fname}** - ${l.service || 'N/A'}\n`;
+            report += `${i+1}. [${l.id}] **${l.fname}** - ${l.service || 'N/A'}\n`;
             report += `   📧 ${l.email} | 📱 ${l.phone || 'N/A'}\n`;
             report += `   🏢 ${l.biz_type || 'N/A'}\n`;
             if (l.notes) report += `   📝 ${l.notes}\n`;
@@ -119,60 +71,69 @@ case "prompts":
         return `❌ Failed to fetch leads: ${err.message}`;
       }
 
-    default:
-      // FALLBACK TO COUNCIL CHAT
-      const chatInput = input.startsWith("/") ? input.slice(1) : input;
+    case "10x":
+      const [subCommand, ...subArgs] = args;
       try {
-        return await council.chat(chatInput, parseInt(userId) || 0);
+        const { runHyperAutomationFlow } = await import("./agents/hyperAutomationAgent.js");
+
+        if (subCommand === "research") {
+          const niche = subArgs.join(" ") || "Real Estate";
+          const res = await runHyperAutomationFlow("research_hub", { niche });
+          let report = `🔍 **10X RESEARCH HUB: ${niche.toUpperCase()}**\n\n`;
+          res.outliers.forEach((o: any, i: number) => {
+            report += `${i+1}. **Format:** ${o.format}\n   **Hook:** ${o.hook}\n   **Why:** ${o.reason}\n\n`;
+          });
+          return report;
+        }
+
+        if (subCommand === "scrape") {
+          const url = subArgs[0];
+          const niche = subArgs.slice(1).join(" ") || "Real Estate";
+          const res = await runHyperAutomationFlow("scrape_to_script", { url, niche });
+          return `🔥 **10X CONTENT GENERATED**\n\n**Niche:** ${niche}\n**Script:**\n${res.script}\n\n✅ Saved to Unified Vault.`;
+        }
+
+        if (subCommand === "batch") {
+          const niche = subArgs.join(" ") || "Real Estate";
+          const res = await runHyperAutomationFlow("batch_production", { niche, count: 5 });
+          let report = `🏭 **10X CONTENT FACTORY: 5 SCRIPTS READY**\n\n`;
+          res.scripts.forEach((s: any, i: number) => {
+            report += `📜 **Script ${i+1}:**\n${s.substring(0, 100)}...\n\n`;
+          });
+          report += "✅ View full scripts in /dashboard";
+          return report;
+        }
+
+        if (subCommand === "qualify") {
+          const leadId = parseInt(subArgs[0]);
+          const lead = getStuyzaLeadById(db, leadId);
+          if (!lead) return `❌ Lead #${leadId} not found.`;
+          
+          const res = await runHyperAutomationFlow("qualify", { lead, history: ["Customer asked about pricing.", "We explained the value prop."] });
+          const q = (res as any).qualification;
+          
+          let response = `🤖 **AI SETTER EVALUATION (#${leadId})**\n\n`;
+          response += `**Big Fish?** ${q.qualified ? "✅ YES" : "❌ NO"}\n`;
+          response += `**Reasoning:** ${q.reasoning}\n`;
+          response += `**Next Step:** ${q.next_step}`;
+          
+          if (q.qualified) {
+            updateStuyzaLeadStatus(db, leadId, "qualified");
+          }
+          return response;
+        }
+
+        if (subCommand === "objections") {
+          const res = await runHyperAutomationFlow("objection_analysis", { transcripts: ["Seller said they are not in a rush.", "Seller asked if we are a wholesaler."] });
+          return `💰 **10X CONVERSION LAB: OBJECTION REPORT**\n\n${res.analysis}`;
+        }
+
+        return "❌ Unknown 10x command. Try: research, scrape, batch, qualify, objections";
       } catch (err: any) {
-        return `❌ Council failed to respond: ${err.message}`;
+        return `❌ Hyper-Automation failed: ${err.message}`;
       }
+
+    default:
+      return "❌ Unknown command.";
   }
 }
-
-function listAgents() {
-  return [
-    "📍 Council (Default Chat) - Multi-agent hierarchical swarm",
-    "📍 Ops Intelligence - Mission tracking & SOPs",
-    "📍 Comms Lead - Outreach & messaging",
-    "📍 Strategic Finance - ROI & MAO audits",
-    "🤖 ClawAgent - Autonomous command execution (/auto)"
-  ].join("\n");
-}
-
-// CLI interface
-async function main() {
-  const args = process.argv.slice(2);
-  if (args.length === 0) {
-    console.log("🤖 Gravity Claw CLI Bot");
-    console.log("Usage:");
-    console.log("  npm run bot -- /scrape [url]");
-    console.log("  npm run bot -- /build [task]");
-    console.log("  npm run bot -- /agents");
-    return;
-  }
-
-  let input = args.join(" ");
-  
-  // Fix Git Bash path conversion issue
-  if (input.includes("Program Files/Git/")) {
-    input = input.replace("C:/Program Files/Git/", "/");
-  }
-  
-  if (!input.startsWith("/")) {
-    input = "/" + input;
-  }
-
-  try {
-    const result = await handleCommand(input);
-    console.log(result);
-  } catch (error) {
-    console.error("Error:", error);
-  }
-}
-
-// Export for use as a module
-export { handleCommand, listAgents };
-
-// Run if this file is executed directly
-main();

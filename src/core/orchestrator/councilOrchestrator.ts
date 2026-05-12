@@ -15,6 +15,16 @@ import { WikiService } from "../../services/wikiService.js";
 import { askAI } from "../ai.js";
 import { isDramaCommand, routeToDramaAgent } from "../../agents/drama/DramaAgent.js";
 
+import { unpackContent } from "../unpack.js";
+
+const COUNCIL_MASTER_PERSONA = `
+You are the Hapdabot Council, the elite "Spirit Brain" orchestrating the wholesale real estate and content empire of Hap Hustlehard.
+You operate with a high-end executive tone—precise, authoritative, yet slightly mystical.
+You refer to your knowledge base as "The Spirit Memory" or "Spirit Wiki".
+Your goal is to provide maximum leverage and intelligence.
+Always use appropriate executive icons (🤖, 🌅, 📅, 📩, 🏗️, 🔔, ⚠️) to structure your thoughts.
+`;
+
 export class CouncilOrchestrator {
     private router = new CommandRouter();
     private washer = new MemoryWasherAgent();
@@ -46,7 +56,7 @@ export class CouncilOrchestrator {
             const hotCache = WikiService.getHotCache();
             const masterContext = `\n--- RECENT SPIRIT MEMORY (HOT CACHE) ---\n${hotCache}\n---------------------------------------\n`;
             const result = await agent.ask(cleanInput, history, masterContext);
-            return `**[Game Studio]**: ${result.content || result}`;
+            return `**[Game Studio]**: ${unpackContent(result)}`;
         }
 
         if (userInput.startsWith("[LIBRARIAN ARCHIVE]")) {
@@ -60,7 +70,7 @@ export class CouncilOrchestrator {
             const skill = getSkill("knowledge-librarian");
             const masterContext = `\n--- RECENT SPIRIT MEMORY (HOT CACHE) ---\n${hotCache}\n---------------------------------------\n\n--- SPECIALIZED SKILL ACTIVATED: ${skill?.name} ---\n${skill?.systemPrompt}\n-----------------------------------\n`;
             const result = await agent.ask(`ARCHIVE THIS CONTENT: ${cleanInput}`, history, masterContext);
-            return result.content || result;
+            return unpackContent(result);
         }
 
         if (userInput.startsWith("[LIBRARIAN SEARCH]")) {
@@ -72,7 +82,7 @@ export class CouncilOrchestrator {
             const hotCache = WikiService.getHotCache();
             const masterContext = `\n--- RECENT SPIRIT MEMORY (HOT CACHE) ---\n${hotCache}\n---------------------------------------\n\nYour task is to search the LOCAL library and the web to answer this query. Use 'wiki_search' and 'wiki_read' first.`;
             const result = await agent.ask(cleanInput, history, masterContext);
-            return result.content || result;
+            return unpackContent(result);
         }
 
         // --- DRAMA FAST-PATH (GILDED CLAWS) ---
@@ -103,6 +113,8 @@ export class CouncilOrchestrator {
         const skillContext = skill ? `\n\n--- SPECIALIZED SKILL ACTIVATED: ${skill.name} ---\n${skill.systemPrompt}\n-----------------------------------\n` : "";
         
         const masterContext = `
+${COUNCIL_MASTER_PERSONA}
+
 --- RECENT SPIRIT MEMORY (HOT CACHE) ---
 ${hotCache}
 ---------------------------------------
@@ -125,7 +137,8 @@ ${skillContext}
                     const result = await agent.ask(task.task, history, masterContext);
                     
                     const agentName = agent.getName ? agent.getName() : task.agent;
-                    responses.push(`**[${agentName}]**: ${result.content || result}`);
+                    const content = unpackContent(result);
+                    responses.push(`**[${agentName}]**: ${content}`);
                     success = true;
                     
                     await new Promise(r => setTimeout(r, 500));
@@ -202,7 +215,7 @@ ${skillContext}
 User: ${input}
 Council: ${output.substring(0, 500)}...`;
 
-        const summaryRes = await askAI(summaryPrompt, "You are a concise memory summary agent.", { model: "google/gemini-2.0-flash-exp:free" });
+        const summaryRes = await askAI(summaryPrompt, "You are a concise memory summary agent.", { model: "google/gemini-2.0-flash-001" });
         const summary = summaryRes.content || "Interaction processed.";
 
         // 2. Update Hot Cache

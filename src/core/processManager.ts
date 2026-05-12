@@ -1,4 +1,17 @@
 ﻿import { spawn } from "child_process";
+import net from "net";
+
+async function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once('error', () => resolve(false));
+    server.once('listening', () => {
+      server.close();
+      resolve(true);
+    });
+    server.listen(port, '0.0.0.0');
+  });
+}
 
 type ProcessRecord = {
   id: string;
@@ -11,7 +24,7 @@ type ProcessRecord = {
 const processes: Record<string, ProcessRecord> = {};
 let nextPort = 3000;
 
-// ðŸ”Œ AUTO PORT
+// Ã°Å¸â€Å’ AUTO PORT
 function getNextPort() {
   return nextPort++;
 }
@@ -19,7 +32,7 @@ function getNextPort() {
 /**
  * Starts an application with automatic port assignment and log capturing.
  */
-export function startApp(id: string, cwd: string) {
+export async function startApp(id: string, cwd: string, options: { recursive?: boolean } = {}) {
   // ðŸ”¥ STOP ALL EXISTING APPS FIRST
   Object.keys(processes).forEach(existingId => {
     try {
@@ -29,8 +42,22 @@ export function startApp(id: string, cwd: string) {
   });
 
   const port = getNextPort();
+  
+  // Verify port availability
+  const available = await isPortAvailable(port);
+  if (!available) {
+      console.warn(`[processManager] Port ${port} is already bound. Skipping spawn for ${id}.`);
+      return { message: `âš ï¸ Port ${port} occupied`, port };
+  }
 
-  const proc = spawn("node", ["src/index.js"], {
+  // Prevent recursive boot cycles if spawning the main index
+  const args = ["src/index.js"];
+  if (id === 'main' || id?.includes('gravity-claw')) {
+      console.log(`[processManager] ðŸ›¡ï¸ Refusing to spawn main app recursively via processManager.`);
+      return { message: `ðŸ›¡ï¸ Recursive spawn blocked`, port };
+  }
+
+  const proc = spawn("node", args, {
     cwd,
     shell: true,
     env: { ...process.env, PORT: String(port) },
@@ -66,12 +93,12 @@ export function startApp(id: string, cwd: string) {
     // To preserve port on restart, we'd need a variation.
     // For now, I'll follow the user's snippet exactly as requested.
     setTimeout(() => {
-      console.log(`ðŸ” Restarting ${id}...`);
+      console.log(`Ã°Å¸â€Â Restarting ${id}...`);
       startApp(id, cwd);
     }, 3000);
   });
 
-  return { message: `ðŸš€ ${id} running on port ${port}`, port };
+  return { message: `Ã°Å¸Å¡â‚¬ ${id} running on port ${port}`, port };
 }
 
 /**
@@ -80,13 +107,13 @@ export function startApp(id: string, cwd: string) {
 export function stopApp(id: string) {
   const proc = processes[id];
 
-  if (!proc) return `âŒ ${id} not found`;
+  if (!proc) return `Ã¢ÂÅ’ ${id} not found`;
 
   proc.process.kill();
   proc.status = "stopped";
   delete processes[id];
 
-  return `ðŸ›‘ ${id} stopped`;
+  return `Ã°Å¸â€ºâ€˜ ${id} stopped`;
 }
 
 /**
@@ -102,8 +129,9 @@ export function listApps() {
 export function getLogs(id: string) {
   const proc = processes[id];
 
-  if (!proc) return `âŒ ${id} not found`;
+  if (!proc) return `Ã¢ÂÅ’ ${id} not found`;
 
   return proc.logs.slice(-20).join("\n"); // last 20 logs
 }
+
 

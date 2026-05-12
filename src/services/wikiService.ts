@@ -1,18 +1,18 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 import path from 'path';
 import { log } from '../core/config.js';
 
 export class WikiService {
-    private static vaultPath = path.resolve('./claude-obsidian');
+    private static vaultPath = path.resolve('./brain');
 
     public static async init() {
         const dirs = [
-            'wiki/concepts',
-            'wiki/entities',
-            'wiki/sources',
-            'wiki/meta',
-            'wiki/attachments',
-            'wiki/inbox',
+            'knowledge/concepts',
+            'knowledge/entities',
+            'knowledge/sources',
+            'knowledge/meta',
+            'knowledge/attachments',
+            'knowledge/inbox',
             '_templates'
         ];
 
@@ -25,7 +25,7 @@ export class WikiService {
         }
 
         // Initialize Hot Cache if missing
-        const hotPath = path.join(this.vaultPath, 'wiki/hot.md');
+        const hotPath = path.join(this.vaultPath, 'knowledge/hot.md');
         if (!fs.existsSync(hotPath)) {
             fs.writeFileSync(hotPath, '# Hot Cache\n\nRecent activity and context summary.\n');
         }
@@ -33,7 +33,7 @@ export class WikiService {
 
     public static async saveNote(title: string, content: string, category: 'concepts' | 'entities' | 'sources' | 'inbox' = 'sources', tags: string[] = []) {
         const fileName = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
-        const categoryPath = path.join(this.vaultPath, 'wiki', category);
+        const categoryPath = path.join(this.vaultPath, 'knowledge', category);
         if (!fs.existsSync(categoryPath)) fs.mkdirSync(categoryPath, { recursive: true });
         
         const filePath = path.join(categoryPath, fileName);
@@ -57,8 +57,7 @@ tags: [${tags.join(', ')}]
         fs.writeFileSync(filePath, frontmatter + linkedContent);
         log(`[wiki] Saved note: ${title} in ${category}`);
         
-        // Log to wiki/log.md
-        const logPath = path.join(this.vaultPath, 'wiki/log.md');
+        const logPath = path.join(this.vaultPath, 'knowledge/log.md');
         const logEntry = `- [${fullTimestamp}] Saved ${category}/${fileName}: ${title}\n`;
         if (!fs.existsSync(logPath)) {
             fs.writeFileSync(logPath, "# Wiki Log\n\n");
@@ -70,7 +69,7 @@ tags: [${tags.join(', ')}]
      * Scans content for concept names and converts them to [[links]].
      */
     private static async generateBacklinks(content: string): Promise<string> {
-        const conceptsPath = path.join(this.vaultPath, 'wiki/concepts');
+        const conceptsPath = path.join(this.vaultPath, 'knowledge/concepts');
         if (!fs.existsSync(conceptsPath)) return content;
 
         const conceptFiles = fs.readdirSync(conceptsPath).filter(f => f.endsWith('.md'));
@@ -118,13 +117,13 @@ ${summary}
 ${keyPoints.length > 0 ? keyPoints.map(p => `- ${p}`).join('\n') : '- ' + summary.split('.')[0]}
 
 ## Concepts
-${concepts.map(c => `**${c}** — `).join('\n')}
+${concepts.map(c => `**${c}** â€” `).join('\n')}
 
 ## Quotes / Highlights
 ${highlights.map(h => `> "${h}"`).join('\n')}
 
 ## My Take
-[leave blank — I will fill this in]
+[leave blank â€” I will fill this in]
 
 ## Backlinks
 [[]]
@@ -138,7 +137,7 @@ ${content}
         
         // Ensure concepts exist in the vault
         for (const concept of concepts) {
-            const conceptPath = path.join(this.vaultPath, 'wiki/concepts', `${concept.toLowerCase().replace(/ /g, '_')}.md`);
+            const conceptPath = path.join(this.vaultPath, 'knowledge/concepts', `${concept.toLowerCase().replace(/ /g, '_')}.md`);
             if (!fs.existsSync(conceptPath)) {
                 await this.saveNote(concept, `Auto-generated concept from [[${title}]]`, 'concepts', ['auto-gen']);
             }
@@ -150,7 +149,7 @@ ${content}
         let context = "[Local Knowledge Base Context]\n";
 
         for (const relPath of searchResults.slice(0, limit)) {
-            const fullPath = path.join(this.vaultPath, 'wiki', relPath);
+            const fullPath = path.join(this.vaultPath, 'knowledge', relPath);
             if (fs.existsSync(fullPath)) {
                 const content = fs.readFileSync(fullPath, 'utf8');
                 context += `--- FROM: ${relPath} ---\n${content}\n\n`;
@@ -161,7 +160,7 @@ ${content}
     }
 
     public static async updateHotCache(summary: string) {
-        const hotPath = path.join(this.vaultPath, 'wiki/hot.md');
+        const hotPath = path.join(this.vaultPath, 'knowledge/hot.md');
         const timestamp = new Date().toLocaleString();
         const content = `# Hot Cache\n\nLast Updated: ${timestamp}\n\n## Recent Summary\n${summary}\n`;
         fs.writeFileSync(hotPath, content);
@@ -169,7 +168,7 @@ ${content}
     }
 
     public static getHotCache(): string {
-        const hotPath = path.join(this.vaultPath, 'wiki/hot.md');
+        const hotPath = path.join(this.vaultPath, 'knowledge/hot.md');
         if (fs.existsSync(hotPath)) {
             return fs.readFileSync(hotPath, 'utf8');
         }
@@ -177,7 +176,7 @@ ${content}
     }
 
     public static async saveMedia(fileName: string, buffer: Buffer): Promise<string> {
-        const filePath = path.join(this.vaultPath, 'wiki/attachments', fileName);
+        const filePath = path.join(this.vaultPath, 'knowledge/attachments', fileName);
         fs.writeFileSync(filePath, buffer);
         log(`[wiki] Saved media to attachments: ${fileName}`);
         return filePath;
@@ -190,7 +189,7 @@ ${content}
 
     public static async search(query: string): Promise<string[]> {
         const results: string[] = [];
-        const wikiPath = path.join(this.vaultPath, 'wiki');
+        const wikiPath = path.join(this.vaultPath, 'knowledge');
         
         const findFiles = (dir: string) => {
             if (!fs.existsSync(dir)) return;
@@ -201,7 +200,7 @@ ${content}
                     findFiles(fullPath);
                 } else if (file.endsWith('.md')) {
                     const content = fs.readFileSync(fullPath, 'utf8');
-                    if (content.toLowerCase().includes(query.toLowerCase())) {
+                    if (content.toLowerCase()?.includes(query.toLowerCase())) {
                         results.push(path.relative(wikiPath, fullPath));
                     }
                 }
@@ -214,3 +213,4 @@ ${content}
         return results.slice(0, 10);
     }
 }
+

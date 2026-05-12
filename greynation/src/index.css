@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; }
+body { background: #000308; color: #e2f0ff; font-family: 'Share Tech Mono', monospace; margin: 0; }
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #0d2040; border-radius: 2px; }
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.025) translateY(-4px); }
+}
+@keyframes talk {
+  0% { transform: scale(1) translateY(0); filter: drop-shadow(0 0 18px rgba(0,180,255,.5)); }
+  100% { transform: scale(1.02) translateY(-3px); filter: drop-shadow(0 0 30px rgba(0,220,255,.9)); }
+}
+@keyframes orbit { to { transform: rotate(360deg); } }
+@keyframes glow {
+  0%, 100% { opacity: .8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes iqPulse {
+  0%, 100% { text-shadow: 0 0 10px #00ffee44; }
+  50% { text-shadow: 0 0 20px #00ffee, 0 0 40px #00ffee44; }
+}
+
+.animate-breathe { animation: breathe 3s ease-in-out infinite; }
+.animate-talk { animation: talk .12s ease-in-out infinite alternate; }
+.animate-orbit-1 { animation: orbit 8s linear infinite; }
+.animate-orbit-2 { animation: orbit 12s linear infinite reverse; }
+.animate-orbit-3 { animation: orbit 20s linear infinite; }
+.animate-glow { animation: glow 2s ease-in-out infinite; }
+.animate-fadeIn { animation: fadeIn .3s ease forwards; }
+.animate-iqPulse { animation: iqPulse 2s ease-in-out infinite; }
+
+.scanline {
+  position: fixed; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(transparent, rgba(0,255,238,.05), transparent);
+  animation: scanline 4s linear infinite; pointer-events: none; z-index: 999;
+}
+.corner { position: fixed; width: 12px; height: 12px; border-color: #0d3060; border-style: solid; opacity: .5; z-index: 9; }
+.corner.tl { top: 8px; left: 8px; border-width: 1px 0 0 1px; }
+.corner.tr { top: 8px; right: 8px; border-width: 1px 1px 0 0; }
+.corner.bl { bottom: 8px; left: 8px; border-width: 0 0 1px 1px; }
+.corner.br { bottom: 8px; right: 8px; border-width: 0 1px 1px 0; }

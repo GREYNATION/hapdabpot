@@ -1,4 +1,4 @@
-import { BaseAgent } from "../baseAgent.js";
+﻿import { BaseAgent } from "../baseAgent.js";
 import { log } from "../../core/config.js";
 import { SupabaseCrm } from "../../core/supabaseCrm.js";
 import { CrmManager } from "../../core/crm.js";
@@ -91,10 +91,10 @@ export class OrchestratorAgent extends BaseAgent {
   private detectIntent(message: string): { intent: Intent; confidence: "high" | "low" } {
     const lower = message.toLowerCase();
 
-    const tradingScore = TRADING_KEYWORDS.filter(k => lower.includes(k)).length;
-    const realEstateScore = REAL_ESTATE_KEYWORDS.filter(k => lower.includes(k)).length;
-    const dramaScore = DRAMA_KEYWORDS.filter(k => lower.includes(k)).length;
-    const adsScore = ADS_KEYWORDS.filter(k => lower.includes(k)).length;
+    const tradingScore = TRADING_KEYWORDS.filter(k => lower?.includes(k)).length;
+    const realEstateScore = REAL_ESTATE_KEYWORDS.filter(k => lower?.includes(k)).length;
+    const dramaScore = DRAMA_KEYWORDS.filter(k => lower?.includes(k)).length;
+    const adsScore = ADS_KEYWORDS.filter(k => lower?.includes(k)).length;
 
     if (tradingScore === 0 && realEstateScore === 0 && dramaScore === 0 && adsScore === 0) {
       return { intent: "general", confidence: "low" };
@@ -125,7 +125,7 @@ export class OrchestratorAgent extends BaseAgent {
 
     const { intent, confidence } = this.detectIntent(userMessage);
 
-    log(`[orchestrator] Intent: ${intent} (${confidence}) — "${userMessage.slice(0, 60)}"`);
+    log(`[orchestrator] Intent: ${intent} (${confidence}) â€” "${userMessage.slice(0, 60)}"`);
 
     try {
       switch (intent) {
@@ -174,20 +174,21 @@ export async function generateMorningBriefing(): Promise<string> {
     const revenue = await CrmManager.getTotalRevenue();
 
     return [
-        "🏛️ *COUNCIL OF SPIRITS — MORNING BRIEFING*",
+        "ðŸ›ï¸ *COUNCIL OF SPIRITS â€” MORNING BRIEFING*",
         `System Status: OPTIMIZED`,
         "",
-        "⛓️ *OPERATIONS (Ops)*",
+        "â›“ï¸ *OPERATIONS (Ops)*",
         `New Market Prospects: ${stats.dealsFoundToday}`,
         `Current Focus: ${hotDeal ? hotDeal.address : "Expanding Lead Coverage"}`,
         "",
-        "💰 *STRATEGIC FINANCE (Finance)*",
+        "ðŸ’° *STRATEGIC FINANCE (Finance)*",
         `Monthly Captured ROI: $${revenue.month.toLocaleString()}`,
         `Market Volatility: Monitored`,
         "",
-        "📢 *COMMUNICATIONS (Comms)*",
+        "ðŸ“¢ *COMMUNICATIONS (Comms)*",
         "Engagement Pipeline: ACTIVE",
         "",
         `_The Hive Mind is Unified_`
     ].join("\n");
 }
+

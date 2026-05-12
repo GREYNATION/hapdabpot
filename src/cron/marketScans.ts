@@ -14,7 +14,7 @@ export function initMarketScans(bot?: Telegraf) {
     cron.schedule("0 10 * * *", async () => {
         log("🤖 [cron] Running scheduled Houston scan...");
         try {
-            const deals = await findMotivatedSellers(undefined, "Houston", true);
+            const deals = await findMotivatedSellers(undefined, "Houston", [], true);
             const topDeals = filterTopDeals(deals);
             
             if (topDeals.length > 0 && bot && config.ownerId) {

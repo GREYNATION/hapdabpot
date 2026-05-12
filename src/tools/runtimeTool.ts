@@ -1,16 +1,13 @@
-﻿import { startApp } from "../core/processManager.js";
+import { startApp } from "../core/processManager.js";
 
 /**
  * Starts the Node.js server in the specified directory using the App Manager.
  */
 export async function startServer(cwd: string) {
-  return new Promise((resolve) => {
-    const result = startApp("project-server", cwd);
-
-    setTimeout(() => {
-      resolve(result);
-    }, 3000);
-  });
+    const result = await startApp("project-server", cwd);
+    // Wait for stabilization
+    await new Promise(r => setTimeout(r, 3000));
+    return result;
 }
 
 /**

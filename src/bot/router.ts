@@ -1,5 +1,6 @@
-import { Telegraf } from 'telegraf';
+﻿import { Telegraf } from 'telegraf';
 import { log } from '../core/config.js';
+import { safeString } from "../core/unpack.js";
 import { MasterTraderAgent } from '../agents/MasterTraderAgent.js';
 import { realEstateAgent } from '../agents/realEstateAgent.js';
 import { AdsAgent } from '../agents/ads/AdsAgent.js';
@@ -12,6 +13,7 @@ import { registerStuyzaCommands } from '../agents/stuyza/stuyzaCommand.js';
 import { registerHumanizeCommand } from '../commands/humanize.js';
 import { registerKimiCommand } from '../commands/kimi.js';
 import { registerJarvisCommand } from '../commands/jarvis.js';
+import { registerMorningCommand } from '../commands/morning.js';
 import { registerArchiveCommand } from '../commands/archive.js';
 import { handleKBCommand } from '../commands/kb.js';
 import { PropertyScraper } from '../services/PropertyScraper.js';
@@ -40,6 +42,9 @@ import { systemBuilderService } from '../services/systemBuilder.service.js';
 import { registerComfyCommands } from '../agents/comfy/comfyCommand.js';
 import { registerSpiderCommands } from '../agents/spider/spiderCommand.js';
 import { registerGildedCommands } from '../agents/drama/gildedCommand.js';
+import { registerTrendCommand } from '../commands/trend.js';
+import { registerScriptCommand } from '../commands/script.js';
+import { registerHyperFramesCommand } from '../commands/hyperframes.js';
 
 
 
@@ -54,7 +59,7 @@ export function setupRouter(bot: Telegraf) {
             .filter(id => !isNaN(id) && id > 0);
             
         const ownerId = parseInt(process.env.TELEGRAM_OWNER_ID || process.env.OWNER_ID || "0");
-        if (ownerId > 0 && !allowedIds.includes(ownerId)) {
+        if (ownerId > 0 && !allowedIds?.includes(ownerId)) {
             allowedIds.push(ownerId);
         }
 
@@ -64,9 +69,9 @@ export function setupRouter(bot: Telegraf) {
         // If it's a command, enforce ownership
         if (ctx.message?.text?.startsWith("/")) {
             // Only block if we have a non-empty auth list
-            if (allowedIds.length > 0 && !allowedIds.includes(userId)) {
+            if (allowedIds.length > 0 && !allowedIds?.includes(userId)) {
                 log(`[router] Blocking unauthorized command attempt from UID: ${userId}`);
-                return ctx.reply(`❌ **Unauthorized Access**\n\nYour Telegram ID is: \`${userId}\`\n\nPlease add this ID to your \`TELEGRAM_ALLOWED_USER_IDS\` inRailway or the \`.env\` file to activate all commands.`, { parse_mode: 'Markdown' });
+                return ctx.reply(`âŒ **Unauthorized Access**\n\nYour Telegram ID is: \`${userId}\`\n\nPlease add this ID to your \`TELEGRAM_ALLOWED_USER_IDS\` inRailway or the \`.env\` file to activate all commands.`, { parse_mode: 'Markdown' });
             }
         }
         return next();
@@ -115,19 +120,98 @@ export function setupRouter(bot: Telegraf) {
     bot.command('scrape', async (ctx: any) => {
         await ctx.reply("Searching for motivated sellers...");
         const res = await realEstateAgent.handle("find leads");
-        ctx.reply(String(res));
+        ctx.reply(safeString(res));
     });
 
     bot.command('surplus', async (ctx: any) => {
         await ctx.reply("Initiating Surplus Overage Scan...");
         const res = await realEstateAgent.handle("auto scan surplus");
-        ctx.reply(String(res));
+        ctx.reply(safeString(res));
     });
 
     bot.command('mao', async (ctx: any) => {
         const text = ctx.message.text.replace('/mao', '').trim();
         const res = await realEstateAgent.handle(text ? `mao ${text}` : "mao");
-        ctx.reply(String(res));
+        ctx.reply(safeString(res));
+    });
+
+    bot.command('gold', async (ctx: any) => {
+        await ctx.reply("ðŸ’° **Hapda Gold Mission: Cleveland Money Pull** ðŸ’°\nInitiating Playwright Stealth Engine for Gold ZIPs: 44102, 44105, 44108, 44110, 44112, 44128.\n\n_This mission bypasses paid scrapers and extracts high-distress FSBOs directly._");
+        const res = await realEstateAgent.handle("find motivated sellers in Cleveland OH");
+        ctx.reply(safeString(res));
+    });
+
+    bot.command('cleveland', async (ctx: any) => {
+        await ctx.reply("ðŸ—ï¸ Hapdabot: Initializing Cleveland Live Pull...");
+        log("[router] Executing Cleveland Acquisition Live Pull...");
+        try {
+            const leads = await findMotivatedSellers("OH", "Cleveland");
+            await ctx.reply(`âœ… Scan complete. Found ${leads.length} potential leads. Check Obsidian for Hot Leads.`);
+        } catch (err: any) {
+            await ctx.reply(`âŒ Cleveland Pull failed: ${err.message}`);
+        }
+    });
+
+    bot.command('cleveland_gold', async (ctx: any) => {
+        await ctx.reply("ðŸ’° **Hapda Gold Mission: Cleveland Money Pull** ðŸ’°\nInitiating Playwright Stealth Engine for Gold ZIPs: 44102, 44105, 44108, 44110, 44112, 44128.\n\n_This mission bypasses paid scrapers and extracts high-distress FSBOs directly._");
+        try {
+            const zips = ['44102', '44105', '44108', '44110', '44112', '44128'];
+            const leads = await findMotivatedSellers("OH", "Cleveland", zips, true);
+            await ctx.reply(`âœ… Gold Mission Complete. Found ${leads.length} distressed leads.`);
+        } catch (err: any) {
+            await ctx.reply(`âŒ Gold Mission failed: ${err.message}`);
+        }
+    });
+
+    bot.command('setcriteria', async (ctx: any) => {
+        const text = ctx.message.text.replace('/setcriteria', '').trim();
+        if (!text) {
+            return ctx.reply("Usage: `/setcriteria <city>, <state>, <zips>, <max_price>`\nExample: `/setcriteria Cleveland, OH, 44105|44110, 200000`", { parse_mode: 'Markdown' });
+        }
+
+        const parts = text.split(',').map((p: string) => p.trim());
+        if (parts.length < 2) return ctx.reply("âŒ Need at least City and State.");
+
+        const city = parts[0];
+        const state = parts[1].toUpperCase();
+        const zips = parts[2] ? parts[2].replace(/\|/g, ',') : "";
+        const maxPrice = parts[3] ? parseFloat(parts[3]) : 500000;
+
+        try {
+            const db = getDb();
+            const existing = db.prepare("SELECT id FROM lead_search_criteria WHERE city = ? AND state = ?").get(city, state) as any;
+
+            if (existing) {
+                db.prepare("UPDATE lead_search_criteria SET zip_codes = ?, max_price = ?, active = 1 WHERE id = ?").run(zips, maxPrice, existing.id);
+                await ctx.reply(`âœ… Updated criteria for ${city}, ${state}.`);
+            } else {
+                db.prepare("INSERT INTO lead_search_criteria (label, city, state, zip_codes, max_price, active) VALUES (?, ?, ?, ?, ?, 1)").run(`${city} Market`, city, state, zips, maxPrice);
+                await ctx.reply(`âœ… Added new search criteria for ${city}, ${state}.`);
+            }
+        } catch (err: any) {
+            await ctx.reply(`âŒ Failed to update criteria: ${err.message}`);
+        }
+    });
+
+    bot.command('stats', async (ctx: any) => {
+        try {
+            const db = getDb();
+            const criteriaCount = (db.prepare("SELECT COUNT(*) as count FROM lead_search_criteria WHERE active = 1").get() as any).count;
+            const leadCount = (db.prepare("SELECT COUNT(*) as count FROM scraped_leads").get() as any).count;
+            const recentLeads = (db.prepare("SELECT COUNT(*) as count FROM scraped_leads WHERE created_at > date('now', '-24 hours')").get() as any).count;
+
+            const msg = `ðŸ“Š **Hapda System Health**\n\n` +
+                        `ðŸ” **Active Markets:** ${criteriaCount}\n` +
+                        `ðŸ“¦ **Total Leads in DB:** ${leadCount}\n` +
+                        `ðŸ”¥ **Leads Found (24h):** ${recentLeads}\n` +
+                        `ðŸ“¡ **Scraper Status:** ðŸŸ¢ Online (Stealth Mode)\n` +
+                        `ðŸ—ï¸ **Supabase Sync:** ðŸŸ¢ Active\n\n` +
+                        `_Use /criteria to see market details._`;
+            
+            await ctx.reply(msg, { parse_mode: 'Markdown' });
+        } catch (err: any) {
+            await ctx.reply(`âŒ Stats failed: ${err.message}`);
+        }
     });
 
     // 4. Trading Commands
@@ -135,7 +219,7 @@ export function setupRouter(bot: Telegraf) {
         const symbol = ctx.message.text.replace('/trade', '').trim().toUpperCase();
         
         if (symbol) {
-            await ctx.reply(`📈 **Fetching Strategic Finance status for ${symbol}...**\nAnalyzing fundamentals, technicals, and sentiment. This may take a minute.`, { parse_mode: 'Markdown' });
+            await ctx.reply(`ðŸ“ˆ **Fetching Strategic Finance status for ${symbol}...**\nAnalyzing fundamentals, technicals, and sentiment. This may take a minute.`, { parse_mode: 'Markdown' });
             try {
                 const result = await TradingSwarmAgent.analyze(symbol);
                 const report = TradingSwarmAgent.formatReport(result);
@@ -148,16 +232,16 @@ export function setupRouter(bot: Telegraf) {
                 }
             } catch (err: any) {
                 const msg = err?.message || "Unknown swarm error";
-                ctx.reply(`❌ **Swarm Failed**: \`${msg}\`\n\nThis is usually a model-name or API-key issue.`, { parse_mode: 'Markdown' });
+                ctx.reply(`âŒ **Swarm Failed**: \`${msg}\`\n\nThis is usually a model-name or API-key issue.`, { parse_mode: 'Markdown' });
             }
         } else {
-            await ctx.reply("📊 **Fetching Strategic Finance summary...**", { parse_mode: 'Markdown' });
+            await ctx.reply("ðŸ“Š **Fetching Strategic Finance summary...**", { parse_mode: 'Markdown' });
             try {
                 const res = await new MasterTraderAgent().ask("Give me a trading account summary and current session.");
                 await ctx.reply(String(res.content), { parse_mode: 'Markdown' });
             } catch (err: any) {
                 const msg = err?.message || "Unknown agent error";
-                ctx.reply(`⚠️ **Agent Failed**: \`${msg}\``, { parse_mode: 'Markdown' });
+                ctx.reply(`âš ï¸ **Agent Failed**: \`${msg}\``, { parse_mode: 'Markdown' });
             }
         }
     });
@@ -211,7 +295,7 @@ export function setupRouter(bot: Telegraf) {
         await ctx.reply(result.slice(0, 4096)).catch(() => ctx.reply('Copy generated'));
     });
 
-    // 6. Website Pipeline — delegated to websiteCommand.ts
+    // 6. Website Pipeline â€” delegated to websiteCommand.ts
     registerWebsiteCommand(bot);
 
     // 7. Stuyza Lead Management (Modular)
@@ -237,44 +321,50 @@ export function setupRouter(bot: Telegraf) {
 
     // 9.7 OpenJarvis Intelligence
     registerJarvisCommand(bot);
+    registerMorningCommand(bot);
 
     // 9.8 Knowledge Librarian (Obsidian)
     registerArchiveCommand(bot);
+
+    // 9.9 Viral Trend Scanner, Adaptive Script & HyperFrames
+    registerTrendCommand(bot);
+    registerScriptCommand(bot);
+    registerHyperFramesCommand(bot);
 
     // 10. System Status & App Management
     bot.command('stats', (ctx) => {
         try {
             const stats = CrmManager.getStats();
             const apps = listApps();
-            ctx.reply(`📊 **System Health**\n\nLeads: ${stats.leads}\nContracts: ${stats.contracts}\nApps: ${apps.length} active`);
-        } catch (err: any) { ctx.reply(`⚠️ Stats failed: ${err.message}`); }
+            ctx.reply(`ðŸ“Š **System Health**\n\nLeads: ${stats.leads}\nContracts: ${stats.contracts}\nApps: ${apps.length} active`);
+        } catch (err: any) { ctx.reply(`âš ï¸ Stats failed: ${err.message}`); }
     });
 
     bot.command("apps", (ctx: any) => {
         const apps = listApps();
-        const list = apps.map((a: any) => `🟢 ${a.id} (P:${a.port})`).join("\n");
-        ctx.reply(`📋 **Managed Apps:**\n\n${list || "None"}`);
+        const list = apps.map((a: any) => `ðŸŸ¢ ${a.id} (P:${a.port})`).join("\n");
+        ctx.reply(`ðŸ“‹ **Managed Apps:**\n\n${list || "None"}`);
     });
 
     bot.command("stop", (ctx: any) => {
         const id = ctx.message.text.split(" ")[1];
-        if (!id) return ctx.reply("❌ Usage: /stop [appId]");
+        if (!id) return ctx.reply("âŒ Usage: /stop [appId]");
         ctx.reply(stopApp(id));
     });
 
     // 11. Property Analysis
     bot.command('analyze', (ctx: any) => {
         const address = ctx.message.text.split(" ").slice(1).join(" ");
-        if (!address) return ctx.reply("🏠 Usage: /analyze [address]");
+        if (!address) return ctx.reply("ðŸ  Usage: /analyze [address]");
         // Analysis sessions should ideally move to a session manager, but for now we keep the prompt
-        ctx.reply(`📋 Initiating deep analysis for: ${address}\n\nPlease provide ARV, Repairs, and Price sequentially.`);
+        ctx.reply(`ðŸ“‹ Initiating deep analysis for: ${address}\n\nPlease provide ARV, Repairs, and Price sequentially.`);
     });
 
     // 12. Build & Deploy
     bot.command("build", (ctx: any) => {
         const prompt = ctx.message.text.split(" ").slice(1).join(" ");
-        if (!prompt) return ctx.reply("🏗️ Usage: /build [task]");
-        ctx.reply("🏗️ Build request received. Check the dashboard for status updates.");
+        if (!prompt) return ctx.reply("ðŸ—ï¸ Usage: /build [task]");
+        ctx.reply("ðŸ—ï¸ Build request received. Check the dashboard for status updates.");
         // Note: Full runBuild logic remains in TelegramBot for dashboard state management, 
         // but we trigger the intent here.
     });
@@ -285,16 +375,16 @@ export function setupRouter(bot: Telegraf) {
         const userId = String(ctx.from?.id || 'default');
 
         if (text === '/goal') {
-            return ctx.reply("🚀 **Autonomous Goal Mode**\n\nUsage: `/goal [your objective]`\nExample: `/goal Find motivated sellers with >$50k equity in Houston`", { parse_mode: 'Markdown' });
+            return ctx.reply("ðŸš€ **Autonomous Goal Mode**\n\nUsage: `/goal [your objective]`\nExample: `/goal Find motivated sellers with >$50k equity in Houston`", { parse_mode: 'Markdown' });
         }
 
-        await ctx.reply("🧠 **Claw Architecture Initialized.**\nRunning autonomous pipeline. This may take a few minutes...");
+        await ctx.reply("ðŸ§  **Claw Architecture Initialized.**\nRunning autonomous pipeline. This may take a few minutes...");
 
         try {
             const result = await handleHapdaCommand(text, userId);
 
             if (!result) {
-                return ctx.reply("⚠️ **Hapda Algorithm**: No actionable result generated.");
+                return ctx.reply("âš ï¸ **Hapda Algorithm**: No actionable result generated.");
             }
 
             if (result.length <= 4096) {
@@ -304,18 +394,18 @@ export function setupRouter(bot: Telegraf) {
                 for (const chunk of chunks) await ctx.reply(chunk).catch(() => { });
             }
         } catch (err: any) {
-            ctx.reply(`❌ **Goal Failed**: ${err.message}`, { parse_mode: 'Markdown' });
+            ctx.reply(`âŒ **Goal Failed**: ${err.message}`, { parse_mode: 'Markdown' });
         }
     });
 
     // 14. Executive Commands
     bot.command('brief', async (ctx: any) => {
-        await ctx.reply("🌅 **Generating Executive Briefing...**");
+        await ctx.reply("ðŸŒ… **Generating Executive Briefing...**");
         try {
             const report = await ExecutiveManager.generateMorningBriefing();
             
             if (!report) {
-                return ctx.reply("📅 **Morning Command Center**: No updates found for today.");
+                return ctx.reply("ðŸ“… **Morning Command Center**: No updates found for today.");
             }
 
             if (report.length <= 4096) {
@@ -325,7 +415,7 @@ export function setupRouter(bot: Telegraf) {
                 for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => { });
             }
         } catch (err: any) {
-            ctx.reply(`❌ **Briefing failed**: ${err.message}`);
+            ctx.reply(`âŒ **Briefing failed**: ${err.message}`);
         }
     });
 
@@ -334,7 +424,7 @@ export function setupRouter(bot: Telegraf) {
         const matches = text.match(/"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
 
         if (!matches) {
-            return ctx.reply("📂 **Usage**: `/decision \"title\" \"outcome\" \"logic\"`", { parse_mode: 'Markdown' });
+            return ctx.reply("ðŸ“‚ **Usage**: `/decision \"title\" \"outcome\" \"logic\"`", { parse_mode: 'Markdown' });
         }
 
         const [_, title, outcome, logic] = matches;
@@ -343,48 +433,48 @@ export function setupRouter(bot: Telegraf) {
     });
 
     bot.command('triage', async (ctx: any) => {
-        await ctx.reply("📩 **Running manual email triage...**");
+        await ctx.reply("ðŸ“© **Running manual email triage...**");
         try {
             const pulse = await ExecutiveManager.runTriagePulse();
-            ctx.reply(pulse || "✅ **Inbox Clean**: No high-priority items found.");
+            ctx.reply(pulse || "âœ… **Inbox Clean**: No high-priority items found.");
         } catch (err: any) {
-            ctx.reply(`⚠️ **Triage failed**: ${err.message}`);
+            ctx.reply(`âš ï¸ **Triage failed**: ${err.message}`);
         }
     });
 
     // 15. Markets & Intelligence
     bot.command('markets', async (ctx: any) => {
-        await ctx.reply("📡 Scanning prediction markets...");
+        await ctx.reply("ðŸ“¡ Scanning prediction markets...");
         try {
             const { filtered } = await scanMarkets();
             ctx.reply(formatMarketsReport(filtered));
-        } catch (err: any) { ctx.reply(`⚠️ Market scan failed: ${err.message}`); }
+        } catch (err: any) { ctx.reply(`âš ï¸ Market scan failed: ${err.message}`); }
     });
 
     // 14. Google Workspace
     bot.command('google', async (ctx: any) => {
-        if (!isGoogleEnabled()) return ctx.reply("⚠️ Google not configured.");
+        if (!isGoogleEnabled()) return ctx.reply("âš ï¸ Google not configured.");
         const [action, ...args] = ctx.message.text.split(" ").slice(1);
-        if (!action) return ctx.reply("📂 Usage: /google [drive|gmail|cal] [args]");
+        if (!action) return ctx.reply("ðŸ“‚ Usage: /google [drive|gmail|cal] [args]");
         try {
             switch (action.toLowerCase()) {
                 case 'drive': ctx.reply(await driveListFiles(args.join(" "))); break;
                 case 'gmail': ctx.reply(await listEmails(args.join(" ") || "is:unread")); break;
                 case 'cal': ctx.reply(await listEvents(7)); break;
-                default: ctx.reply("❌ Unknown service: drive, gmail, cal.");
+                default: ctx.reply("âŒ Unknown service: drive, gmail, cal.");
             }
-        } catch (err: any) { ctx.reply(`⚠️ Google error: ${err.message}`); }
+        } catch (err: any) { ctx.reply(`âš ï¸ Google error: ${err.message}`); }
     });
 
     // 15. n8n Integration
     bot.command('n8n', async (ctx: any) => {
         const text = ctx.message.text.replace('/n8n', '').trim();
-        await ctx.reply("🤖 **n8n Operation Initialized...**");
+        await ctx.reply("ðŸ¤– **n8n Operation Initialized...**");
         try {
             const res = await handleN8nCommand(text);
             ctx.reply(String(res), { parse_mode: 'Markdown' });
         } catch (err: any) {
-            ctx.reply(`❌ n8n Error: ${err.message}`);
+            ctx.reply(`âŒ n8n Error: ${err.message}`);
         }
     });
 
@@ -393,15 +483,15 @@ export function setupRouter(bot: Telegraf) {
     bot.command('agenthub', async (ctx: any) => {
         const text = ctx.message.text.replace('/agenthub', '').trim();
         if (!text) {
-            return ctx.reply("🔍 **AgentHub Explorer**\n\nUsage: `/agenthub search <intent>`\nExample: `/agenthub search best agent for mauby audit`", { parse_mode: 'Markdown' });
+            return ctx.reply("ðŸ” **AgentHub Explorer**\n\nUsage: `/agenthub search <intent>`\nExample: `/agenthub search best agent for mauby audit`", { parse_mode: 'Markdown' });
         }
-        await ctx.reply("🧠 **Searching AgentHub registry...**");
+        await ctx.reply("ðŸ§  **Searching AgentHub registry...**");
         // This will be handled by the orchestrator via the intent detection, 
         // but we can provide a quicker response or trigger the agent directly.
         const res = await handleHapdaCommand(`Analyze this request using AgentHub: ${text}`, String(ctx.from?.id));
         
         if (!res) {
-            return ctx.reply("⚠️ **AgentHub**: Search returned no matching skills or agents.");
+            return ctx.reply("âš ï¸ **AgentHub**: Search returned no matching skills or agents.");
         }
 
         ctx.reply(res, { parse_mode: 'Markdown' });
@@ -410,7 +500,7 @@ export function setupRouter(bot: Telegraf) {
     // 18. AI Prompts Browser
     bot.command('prompts', async (ctx: any) => {
         const args = ctx.message.text.replace('/prompts', '').trim();
-        await ctx.reply("🔍 Accessing AI Prompt Library. Please wait...");
+        await ctx.reply("ðŸ” Accessing AI Prompt Library. Please wait...");
         try {
             const result = await handlePromptsCommand(args);
             if (result.length <= 4096) {
@@ -420,7 +510,7 @@ export function setupRouter(bot: Telegraf) {
                 for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
             }
         } catch (err: any) {
-            ctx.reply(`❌ Prompts error: ${err.message}`);
+            ctx.reply(`âŒ Prompts error: ${err.message}`);
         }
     });
     
@@ -428,21 +518,21 @@ export function setupRouter(bot: Telegraf) {
     bot.command('harness', async (ctx: any) => {
         const text = ctx.message.text.replace('/harness', '').trim();
         if (!text) {
-            return ctx.reply("🌐 **Browser Intelligence Harness**\n\nUsage: `/harness [url] [task]`\nExample: `/harness https://news.google.com find top top tech stories`", { parse_mode: 'Markdown' });
+            return ctx.reply("ðŸŒ **Browser Intelligence Harness**\n\nUsage: `/harness [url] [task]`\nExample: `/harness https://news.google.com find top top tech stories`", { parse_mode: 'Markdown' });
         }
         
-        await ctx.reply("🌐 **Harnessing Browser Intelligence...**");
+        await ctx.reply("ðŸŒ **Harnessing Browser Intelligence...**");
         try {
             const res = await handleHarnessCommand(text);
             if (res.length <= 4096) {
-                // No parse_mode — AI summary of web content contains raw chars that break Markdown parsing
-                await ctx.reply(res).catch(() => ctx.reply("✅ Harness complete (reply too long to display)."));
+                // No parse_mode â€” AI summary of web content contains raw chars that break Markdown parsing
+                await ctx.reply(res).catch(() => ctx.reply("âœ… Harness complete (reply too long to display)."));
             } else {
                 const chunks = res.match(/[\s\S]{1,4000}/g) ?? [res];
                 for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
             }
         } catch (err: any) {
-            ctx.reply(`❌ Harness Error: ${err.message}`);
+            ctx.reply(`âŒ Harness Error: ${err.message}`);
         }
     });
 
@@ -450,63 +540,63 @@ export function setupRouter(bot: Telegraf) {
     bot.command('status', async (ctx: any) => {
         const jobId = ctx.message.text.replace('/status', '').trim();
         if (!jobId) {
-            return ctx.reply("🔍 **Usage**: `/status job_12345`", { parse_mode: 'Markdown' });
+            return ctx.reply("ðŸ” **Usage**: `/status job_12345`", { parse_mode: 'Markdown' });
         }
 
         try {
             const port = process.env.PORT || 8080;
             const res = await fetch(`http://localhost:${port}/api/agent/status/${jobId}`);
             if (res.status === 404) {
-                return ctx.reply(`⚠️ Job **${jobId}** not found.`);
+                return ctx.reply(`âš ï¸ Job **${jobId}** not found.`);
             }
 
             const data = await res.json();
 
             if (data.status === 'queued') {
-                return ctx.reply(`⏳ Job **${jobId}** is queued...`);
+                return ctx.reply(`â³ Job **${jobId}** is queued...`);
             } else if (data.status === 'running') {
-                return ctx.reply(`🏃 Job **${jobId}** is currently running...`);
+                return ctx.reply(`ðŸƒ Job **${jobId}** is currently running...`);
             } else if (data.status === 'error') {
-                return ctx.reply(`❌ Job **${jobId}** failed:\n${data.error}`);
+                return ctx.reply(`âŒ Job **${jobId}** failed:\n${data.error}`);
             } else if (data.status === 'done') {
                 const resultText = data.result?.data || data.result?.summary || JSON.stringify(data.result);
                 
                 if (resultText.length <= 4096) {
-                    await ctx.reply(`✅ **Result:**\n\n${resultText}`).catch(() => ctx.reply("✅ Job complete (reply too long to display)."));
+                    await ctx.reply(`âœ… **Result:**\n\n${resultText}`).catch(() => ctx.reply("âœ… Job complete (reply too long to display)."));
                 } else {
                     const chunks = resultText.match(/[\s\S]{1,4000}/g) ?? [resultText];
                     for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
                 }
             } else {
-                return ctx.reply(`❓ Unknown status: ${data.status}`);
+                return ctx.reply(`â“ Unknown status: ${data.status}`);
             }
 
         } catch (err: any) {
-            ctx.reply(`❌ Could not fetch status: ${err.message}`);
+            ctx.reply(`âŒ Could not fetch status: ${err.message}`);
         }
     });
 
     // 19.6 Money Agent
     bot.command('money', async (ctx: any) => {
         const text = ctx.message.text.trim();
-        await ctx.reply("💸 Initializing Money Agent. Analyzing opportunities...");
+        await ctx.reply("ðŸ’¸ Initializing Money Agent. Analyzing opportunities...");
         try {
             const res = await handleMoneyCommand(text, ctx.chat.id);
             await ctx.reply(res);
         } catch (err: any) {
-            ctx.reply(`❌ Money Agent Error: ${err.message}`);
+            ctx.reply(`âŒ Money Agent Error: ${err.message}`);
         }
     });
 
     // 19.7 Money Video Agent
     bot.command('money_video', async (ctx: any) => {
         const text = ctx.message.text.trim().replace('/money_video', '/money-video');
-        await ctx.reply("🎥 **Starting FBA YouTube Intelligence...**\nScraping trending videos, extracting transcripts, and scoring products. This may take 5-20 minutes depending on video length...");
+        await ctx.reply("ðŸŽ¥ **Starting FBA YouTube Intelligence...**\nScraping trending videos, extracting transcripts, and scoring products. This may take 5-20 minutes depending on video length...");
         try {
             const res = await handleMoneyVideoCommand(text, ctx.chat.id);
             await ctx.reply(res);
         } catch (err: any) {
-            ctx.reply(`❌ Money Video Agent Error: ${err.message}`);
+            ctx.reply(`âŒ Money Video Agent Error: ${err.message}`);
         }
     });
 
@@ -516,16 +606,16 @@ export function setupRouter(bot: Telegraf) {
         const userId = String(ctx.from?.id || 'default');
 
         if (text === '/ruflo') {
-            return ctx.reply("🌊 **Ruflo Swarm Engine**\n\nUsage: `/ruflo [memory|swarm|youtube] [task]`\nExample: `/ruflo youtube \"AI Real Estate Investing\"`", { parse_mode: 'Markdown' });
+            return ctx.reply("ðŸŒŠ **Ruflo Swarm Engine**\n\nUsage: `/ruflo [memory|swarm|youtube] [task]`\nExample: `/ruflo youtube \"AI Real Estate Investing\"`", { parse_mode: 'Markdown' });
         }
 
-        await ctx.reply("🌊 **Ruflo Engine Initializing...**\nDeploying agent swarm. This may take a few moments...");
+        await ctx.reply("ðŸŒŠ **Ruflo Engine Initializing...**\nDeploying agent swarm. This may take a few moments...");
 
         try {
             const result = await handleHapdaCommand(text, userId);
 
             if (!result) {
-                return ctx.reply("⚠️ **Ruflo**: No actionable result generated.");
+                return ctx.reply("âš ï¸ **Ruflo**: No actionable result generated.");
             }
 
             if (result.length <= 4096) {
@@ -535,7 +625,7 @@ export function setupRouter(bot: Telegraf) {
                 for (const chunk of chunks) await ctx.reply(chunk).catch(() => { });
             }
         } catch (err: any) {
-            ctx.reply(`❌ **Ruflo Swarm Failed**: ${err.message}`, { parse_mode: 'Markdown' });
+            ctx.reply(`âŒ **Ruflo Swarm Failed**: ${err.message}`, { parse_mode: 'Markdown' });
         }
     });
 
@@ -543,10 +633,10 @@ export function setupRouter(bot: Telegraf) {
     bot.command('buildfunnel', async (ctx: any) => {
         const text = ctx.message.text.replace('/buildfunnel', '').trim();
         if (!text) {
-            return ctx.reply("🔥 **HADES System Builder**\n\nUsage: `/buildfunnel [business description]`\nExample: `/buildfunnel A MedSpa in Miami with 3 locations`", { parse_mode: 'Markdown' });
+            return ctx.reply("ðŸ”¥ **HADES System Builder**\n\nUsage: `/buildfunnel [business description]`\nExample: `/buildfunnel A MedSpa in Miami with 3 locations`", { parse_mode: 'Markdown' });
         }
         
-        await ctx.reply("🏗️ **Architecting HADES Funnel...**\nProvisionsing bots, mapping workflows, and generating your agency proposal. Please wait...");
+        await ctx.reply("ðŸ—ï¸ **Architecting HADES Funnel...**\nProvisionsing bots, mapping workflows, and generating your agency proposal. Please wait...");
         try {
             const res = await systemBuilderAgent.handle(text, ctx.from?.id, ctx.chat?.id);
             if (res.length <= 4096) {
@@ -556,7 +646,7 @@ export function setupRouter(bot: Telegraf) {
                 for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => {});
             }
         } catch (err: any) {
-            ctx.reply(`❌ **Builder Failed**: ${err.message}`);
+            ctx.reply(`âŒ **Builder Failed**: ${err.message}`);
         }
     });
 
@@ -564,10 +654,10 @@ export function setupRouter(bot: Telegraf) {
     bot.command('buildsystem', async (ctx: any) => {
         const text = ctx.message.text.replace('/buildsystem', '').trim();
         if (!text) {
-            return ctx.reply("🏗️ **Open-Stack System Builder**\n\nUsage: `/buildsystem [business, location]`\nExample: `/buildsystem Roofing Pros, Dallas TX`", { parse_mode: 'Markdown' });
+            return ctx.reply("ðŸ—ï¸ **Open-Stack System Builder**\n\nUsage: `/buildsystem [business, location]`\nExample: `/buildsystem Roofing Pros, Dallas TX`", { parse_mode: 'Markdown' });
         }
         
-        await ctx.reply("🌐 **Architecting Open-Stack Ecosystem...**\nMapping Vapi + Cal.com + Chatwoot workflows. Saving to Supabase vault.");
+        await ctx.reply("ðŸŒ **Architecting Open-Stack Ecosystem...**\nMapping Vapi + Cal.com + Chatwoot workflows. Saving to Supabase vault.");
         try {
             const res = await systemBuilderAgent.handle(text, ctx.from?.id, ctx.chat?.id);
             if (res.length <= 4096) {
@@ -577,7 +667,7 @@ export function setupRouter(bot: Telegraf) {
                 for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => {});
             }
         } catch (err: any) {
-            ctx.reply(`❌ **System Build Failed**: ${err.message}`);
+            ctx.reply(`âŒ **System Build Failed**: ${err.message}`);
         }
     });
 
@@ -585,10 +675,10 @@ export function setupRouter(bot: Telegraf) {
     bot.command('proposal', async (ctx: any) => {
         const clientId = ctx.message.text.replace('/proposal', '').trim();
         if (!clientId) {
-            return ctx.reply("📄 **Proposal Generator**\n\nUsage: `/proposal [clientId]`\n_You can get the clientId from the /buildsystem output._", { parse_mode: 'Markdown' });
+            return ctx.reply("ðŸ“„ **Proposal Generator**\n\nUsage: `/proposal [clientId]`\n_You can get the clientId from the /buildsystem output._", { parse_mode: 'Markdown' });
         }
 
-        await ctx.reply(`📄 **Generating Professional PDF Proposal...**\nFetching Client ID: \`${clientId}\``, { parse_mode: 'Markdown' });
+        await ctx.reply(`ðŸ“„ **Generating Professional PDF Proposal...**\nFetching Client ID: \`${clientId}\``, { parse_mode: 'Markdown' });
         
         try {
             const pdfBuffer = await systemBuilderService.generateProposalPDF(clientId);
@@ -596,21 +686,21 @@ export function setupRouter(bot: Telegraf) {
                 source: pdfBuffer,
                 filename: `HADES_Proposal_${clientId.substring(0,8)}.pdf`
             }, {
-                caption: `✅ **Proposal Ready**\n\nHere is your professional HADES System Architecture proposal. Ready to send to the client.`
+                caption: `âœ… **Proposal Ready**\n\nHere is your professional HADES System Architecture proposal. Ready to send to the client.`
             });
         } catch (err: any) {
-            ctx.reply(`❌ **Proposal Failed**: ${err.message}`);
+            ctx.reply(`âŒ **Proposal Failed**: ${err.message}`);
         }
     });
 
     // 24. System Management: List
     bot.command('listsystems', async (ctx: any) => {
-        await ctx.reply("📂 **Fetching Client Systems...**", { parse_mode: 'Markdown' });
+        await ctx.reply("ðŸ“‚ **Fetching Client Systems...**", { parse_mode: 'Markdown' });
         try {
             const { getSupabase } = await import('../core/supabase.js');
             const supabase = getSupabase();
             if (!supabase) {
-                return ctx.reply("⚠️ Database not configured.");
+                return ctx.reply("âš ï¸ Database not configured.");
             }
             const { data, error } = await supabase
                 .from("client_systems")
@@ -619,16 +709,16 @@ export function setupRouter(bot: Telegraf) {
                 .limit(10);
 
             if (error || !data?.length) {
-                return ctx.reply("⚠️ No systems built yet. Try `/buildsystem Dallas Roofing`", { parse_mode: 'Markdown' });
+                return ctx.reply("âš ï¸ No systems built yet. Try `/buildsystem Dallas Roofing`", { parse_mode: 'Markdown' });
             }
 
             const lines = data.map((s: any, i: number) =>
-                `${i + 1}. *${s.business_name}* — ${s.tier} — $${s.monthly_price}/mo — ${s.status}`
+                `${i + 1}. *${s.business_name}* â€” ${s.tier} â€” $${s.monthly_price}/mo â€” ${s.status}`
             ).join("\n");
 
-            await ctx.reply(`⚡ **YOUR CLIENT SYSTEMS**\n\n${lines}\n\nUse \`/viewsystem [id]\` to see details.`, { parse_mode: 'Markdown' });
+            await ctx.reply(`âš¡ **YOUR CLIENT SYSTEMS**\n\n${lines}\n\nUse \`/viewsystem [id]\` to see details.`, { parse_mode: 'Markdown' });
         } catch (err: any) {
-            ctx.reply(`❌ **List Failed**: ${err.message}`);
+            ctx.reply(`âŒ **List Failed**: ${err.message}`);
         }
     });
 
@@ -636,14 +726,14 @@ export function setupRouter(bot: Telegraf) {
     bot.command('viewsystem', async (ctx: any) => {
         const clientId = ctx.message.text.replace('/viewsystem', '').trim();
         if (!clientId) {
-            return ctx.reply("🔍 Usage: `/viewsystem [clientId]`", { parse_mode: 'Markdown' });
+            return ctx.reply("ðŸ” Usage: `/viewsystem [clientId]`", { parse_mode: 'Markdown' });
         }
 
         try {
             const { getSupabase } = await import('../core/supabase.js');
             const supabase = getSupabase();
             if (!supabase) {
-                return ctx.reply("⚠️ Database not configured.");
+                return ctx.reply("âš ï¸ Database not configured.");
             }
             const { data, error } = await supabase
                 .from("client_systems")
@@ -652,26 +742,26 @@ export function setupRouter(bot: Telegraf) {
                 .single();
 
             if (error || !data) {
-                return ctx.reply("❌ **System not found.** Check the ID and try again.");
+                return ctx.reply("âŒ **System not found.** Check the ID and try again.");
             }
 
-            const msg_text = `🗂 **${data.business_name.toUpperCase()}** — ${data.tier}\n` +
+            const msg_text = `ðŸ—‚ **${data.business_name.toUpperCase()}** â€” ${data.tier}\n` +
                 `-----------------------------------\n` +
-                `📍 **Industry**: ${data.industry}\n` +
-                `🏢 **Status**: ${data.status}\n` +
-                `💵 **Monthly**: $${data.monthly_price}/mo\n` +
-                `🤖 **Agents**: ${Array.isArray(data.agents) ? data.agents.join(", ") : 'CSR, ASSISTANT'}\n` +
-                `📅 **Created**: ${new Date(data.created_at).toLocaleDateString()}\n` +
+                `ðŸ“ **Industry**: ${data.industry}\n` +
+                `ðŸ¢ **Status**: ${data.status}\n` +
+                `ðŸ’µ **Monthly**: $${data.monthly_price}/mo\n` +
+                `ðŸ¤– **Agents**: ${Array.isArray(data.agents) ? data.agents.join(", ") : 'CSR, ASSISTANT'}\n` +
+                `ðŸ“… **Created**: ${new Date(data.created_at).toLocaleDateString()}\n` +
                 `-----------------------------------\n` +
                 `Use \`/proposal ${clientId}\` to generate the PDF contract.`;
 
             await ctx.reply(msg_text, { parse_mode: 'Markdown' });
         } catch (err: any) {
-            ctx.reply(`❌ **View Failed**: ${err.message}`);
+            ctx.reply(`âŒ **View Failed**: ${err.message}`);
         }
     });
 
-    // 26. ComfyUI — Local AI Media Generation
+    // 26. ComfyUI â€” Local AI Media Generation
     registerComfyCommands(bot);
 
     bot.command("drama_episode", async (ctx) => {
@@ -690,7 +780,7 @@ export function setupRouter(bot: Telegraf) {
     bot.command("drama_batch", async (ctx) => {
         const args = ctx.message.text.split(" ").slice(1);
         const agent = new dramaAgent.DramaAgent();
-        await ctx.reply("⏳ Generating episode batch...");
+        await ctx.reply("â³ Generating episode batch...");
         const reply = await agent.handleTelegramCommand("/drama_batch", args);
         if (reply.length <= 4096) {
             return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
@@ -730,7 +820,7 @@ export function setupRouter(bot: Telegraf) {
     bot.command("drama_season", async (ctx) => {
         const args = ctx.message.text.split(" ").slice(1);
         const agent = new dramaAgent.DramaAgent();
-        await ctx.reply("⏳ Generating season outline...");
+        await ctx.reply("â³ Generating season outline...");
         const reply = await agent.handleTelegramCommand("/drama_season", args);
         // Split if too long
         if (reply.length <= 4096) {
@@ -751,7 +841,7 @@ export function setupRouter(bot: Telegraf) {
             return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
         } catch (err: any) {
             log(`[router] /drama_status error: ${err.message}`, "error");
-            ctx.reply(`❌ Drama Status Error: ${err.message}`);
+            ctx.reply(`âŒ Drama Status Error: ${err.message}`);
         }
     });
 
@@ -762,13 +852,13 @@ export function setupRouter(bot: Telegraf) {
             const reply = await agent.handleTelegramCommand("/drama_produce", args, ctx);
             return ctx.reply(reply, { parse_mode: "Markdown" });
         } catch (err: any) {
-            ctx.reply(`❌ Production Failed: ${err.message}`);
+            ctx.reply(`âŒ Production Failed: ${err.message}`);
         }
     });
 
     bot.command("drama_batch", async (ctx) => {
         const args = ctx.message.text.split(" ").slice(1);
-        await ctx.reply("📦 *Starting batch script generation...*", { parse_mode: "Markdown" });
+        await ctx.reply("ðŸ“¦ *Starting batch script generation...*", { parse_mode: "Markdown" });
         const agent = new dramaAgent.DramaAgent();
         const reply = await agent.handleTelegramCommand("/drama_batch", args, ctx);
         return ctx.reply(reply, { parse_mode: "Markdown" });
@@ -785,3 +875,4 @@ export function setupRouter(bot: Telegraf) {
     log("[router] Routes configured.");
 
 }
+

@@ -166,6 +166,13 @@ async function sendMsg(){
   const km=text.match(/press (enter|escape|tab|space|backspace)/i);
   if(km){hands('key',{key:km[1]});}
 
+  // HANDS TRIGGERS
+  const cm=text.match(/click at (\d+)[, ]+(\d+)/i);
+  if(cm){fetch('http://localhost:3301/proxy/hands/click',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({x:parseInt(cm[1]),y:parseInt(cm[2])})}).then(r=>r.json()).then(j=>console.log('[hands]',j)).catch(e=>console.log('[hands err]',e));}
+  const tm=text.match(/type[: ]+(.+)/i);
+  if(tm){fetch('http://localhost:3301/proxy/hands/type',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:tm[1]})}).catch(e=>console.log(e));}
+  const sm=text.match(/scroll (up|down)/i);
+  if(sm){fetch('http://localhost:3301/proxy/hands/scroll',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({direction:sm[1],amount:3})}).catch(e=>console.log(e));}
   // RAILWAY TRIGGERS
   if(TRIGGERS.some(t=>text.toLowerCase().includes(t)))fireHapdabot(text);
 
@@ -205,5 +212,4 @@ inp.focus();
 </script>
 </body>
 </html>
-
 

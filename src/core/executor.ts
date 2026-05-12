@@ -1,4 +1,4 @@
-import { developerAgent } from "../agents/developer.js";
+﻿import { developerAgent } from "../agents/developer.js";
 import { emailAgent } from "../agents/emailAgent.js";
 import { visionAgent } from "../agents/visionAgent.js";
 import { ResearcherAgent } from "../agents/researcherAgent.js";
@@ -26,7 +26,7 @@ export async function executeTask(task: any, onStatus?: (msg: string | Dashboard
   switch (agent) {
     case "developer": {
       log(`[executor] DEVELOPER AGENT TRIGGERED: ${taskDesc}`);
-      if (onStatus) onStatus("🚀 Developer Agent starting composition...");
+      if (onStatus) onStatus("ðŸš€ Developer Agent starting composition...");
 
       // In legacy mode, we pass the taskDesc as all three arguments or handle it gracefully
       const project = await developerAgent(
@@ -36,7 +36,7 @@ export async function executeTask(task: any, onStatus?: (msg: string | Dashboard
       );
 
       if (!project.files) {
-        return "❌ JSON FAILED — AI did not return files";
+        return "âŒ JSON FAILED â€” AI did not return files";
       }
 
       const files = writeProject(project.files);
@@ -49,7 +49,7 @@ export async function executeTask(task: any, onStatus?: (msg: string | Dashboard
       // START WITH APP MANAGER
       const appId = `app-${Date.now()}`;
       log(`[executor] Starting app with ID: ${appId}`);
-      const { message: startResult, port } = startApp(appId, projectPath);
+      const { message: startResult, port } = await startApp(appId, projectPath);
 
       // WAIT
       log(`[executor] Waiting for server to stabilize...`);
@@ -59,7 +59,7 @@ export async function executeTask(task: any, onStatus?: (msg: string | Dashboard
       log(`[executor] Testing endpoint on port ${port}...`);
       const testResult = await testEndpoint(`http://localhost:${port}/`);
 
-      return `✅ Project created:
+      return `âœ… Project created:
 ${files.join("\n")}
 
 ${startResult}
@@ -73,7 +73,7 @@ ${testResult}`;
         if (onStatus) onStatus(patch);
       });
       const files = writeProject(result.code.files);
-      return `✅ Website Factory Build Complete:
+      return `âœ… Website Factory Build Complete:
 ${files.join("\n")}
 
 Architecture: ${result.blueprint.templateId}
@@ -127,16 +127,16 @@ Goal: ${result.blueprint.goal}`;
     }
 
     default:
-      return `❌ Unknown agent: ${agent}`;
+      return `âŒ Unknown agent: ${agent}`;
   }
 }
 
 export async function runPlan(taskObjects: any[], onStatus?: (msg: string | DashboardPatch) => Promise<void> | void): Promise<string> {
-    if (onStatus) await onStatus(`⚡ Running tasks...`);
+    if (onStatus) await onStatus(`âš¡ Running tasks...`);
 
     const taskPromises = taskObjects.map(async (task: any, i: number) => {
         const agentName = task.agent.charAt(0).toUpperCase() + task.agent.slice(1);
-        if (onStatus) await onStatus(`💻 ${agentName} working...`);
+        if (onStatus) await onStatus(`ðŸ’» ${agentName} working...`);
         
         try {
             updateTaskInDB(task.id, "running");
@@ -148,10 +148,10 @@ export async function runPlan(taskObjects: any[], onStatus?: (msg: string | Dash
             updateTaskInDB(task.id, "complete", content);
             
             // Format the success message
-            let successMsg = `✅ ${agentName} finished.`;
-            if (content.includes("saved to")) {
+            let successMsg = `âœ… ${agentName} finished.`;
+            if (content?.includes("saved to")) {
                 const path = content.split("saved to ")[1];
-                successMsg = `✅ File created: workspace/${path}`;
+                successMsg = `âœ… File created: workspace/${path}`;
             }
             if (onStatus) await onStatus(successMsg);
             
@@ -159,7 +159,7 @@ export async function runPlan(taskObjects: any[], onStatus?: (msg: string | Dash
         } catch (err: any) {
             console.error(`[executor] Task failed: ${err.message}`);
             updateTaskInDB(task.id, "failed", err.message);
-            if (onStatus) await onStatus(`❌ ${task.agent} failed: ${err.message}`);
+            if (onStatus) await onStatus(`âŒ ${task.agent} failed: ${err.message}`);
             return { agent: task.agent, content: `Error: ${err.message}` };
         }
     });
@@ -168,3 +168,4 @@ export async function runPlan(taskObjects: any[], onStatus?: (msg: string | Dash
     if (onStatus) await onStatus({ stage: "deploy", status: "complete", overallStatus: "complete", message: "All tasks finalized." } as DashboardPatch);
     return results.map((r: { agent: string, content: string }) => `\n\n--- ${r.agent} ---\n${r.content}`).join("");
 }
+

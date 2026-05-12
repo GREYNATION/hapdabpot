@@ -11,6 +11,7 @@ import axios from "axios";
 import { EventEmitter } from "events";
 import { randomUUID } from "crypto";
 import WebSocket from "ws";
+import { log } from "../../core/config.js";
 
 export interface ComfyPromptResult {
     promptId: string;
@@ -154,23 +155,35 @@ export class ComfyClient extends EventEmitter {
     async getOutputs(promptId: string): Promise<ComfyOutput[]> {
         const res = await axios.get(`${this.baseUrl}/history/${promptId}`, { timeout: 10_000 });
         const history = res.data?.[promptId];
-        if (!history) return [];
+        if (!history) {
+            log(`[ComfyClient] No history found for promptId: ${promptId}`, "warn");
+            return [];
+        }
 
         const outputs: ComfyOutput[] = [];
+        log(`[ComfyClient] Full History keys for ${promptId}: ${Object.keys(history).join(", ")}`);
+        log(`[ComfyClient] History outputs keys: ${Object.keys(history.outputs || {}).join(", ")}`);
+
         for (const [nodeId, nodeOutput] of Object.entries(history.outputs || {})) {
             const output = nodeOutput as any;
-            // Images
+            log(`[ComfyClient] Node ${nodeId} output keys: ${Object.keys(output).join(", ")}`);
+            
+            // 1. Standard Images
             for (const img of output.images || []) {
+                const isVideo = img.filename?.endsWith(".mp4") || img.filename?.endsWith(".webm");
+                log(`[ComfyClient] Found ${isVideo ? 'video' : 'image'} in 'images' key: ${img.filename}`);
                 outputs.push({
                     nodeId,
-                    type: "image",
+                    type: isVideo ? "video" : "image",
                     filename: img.filename,
                     subfolder: img.subfolder || "",
                     url: this.resolveOutputUrl(img.filename, img.subfolder, img.type),
                 });
             }
-            // Videos
+
+            // 2. Standard Videos
             for (const vid of output.videos || []) {
+                log(`[ComfyClient] Found video in 'videos' key: ${vid.filename}`);
                 outputs.push({
                     nodeId,
                     type: "video",
@@ -179,7 +192,34 @@ export class ComfyClient extends EventEmitter {
                     url: this.resolveOutputUrl(vid.filename, vid.subfolder, vid.type),
                 });
             }
-            // Audio
+
+            // 3. GIFs / Animations
+            for (const gif of output.gifs || []) {
+                const isVideo = gif.filename?.endsWith(".mp4") || gif.filename?.endsWith(".webm");
+                log(`[ComfyClient] Found ${isVideo ? 'video' : 'gif'} in 'gifs' key: ${gif.filename}`);
+                outputs.push({
+                    nodeId,
+                    type: isVideo ? "video" : "image",
+                    filename: gif.filename,
+                    subfolder: gif.subfolder || "",
+                    url: this.resolveOutputUrl(gif.filename, gif.subfolder, gif.type),
+                });
+            }
+
+            // 4. Files (Catch-all for other formats)
+            for (const file of output.files || []) {
+                const isVideo = file.filename?.endsWith(".mp4") || file.filename?.endsWith(".webm");
+                log(`[ComfyClient] Found ${isVideo ? 'video' : 'file'} in 'files' key: ${file.filename}`);
+                outputs.push({
+                    nodeId,
+                    type: isVideo ? "video" : "file",
+                    filename: file.filename,
+                    subfolder: file.subfolder || "",
+                    url: this.resolveOutputUrl(file.filename, file.subfolder, file.type),
+                });
+            }
+
+            // 5. Audio
             for (const aud of output.audio || []) {
                 outputs.push({
                     nodeId,
@@ -227,6 +267,11 @@ export class ComfyClient extends EventEmitter {
     async getQueueStatus(): Promise<any> {
         const res = await axios.get(`${this.baseUrl}/queue`, { timeout: 5_000 });
         return res.data;
+    }
+
+    async getObjectInfo(): Promise<Record<string, any>> {
+        const res = await axios.get(`${this.baseUrl}/object_info`, { timeout: 10_000 });
+        return res.data || {};
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────

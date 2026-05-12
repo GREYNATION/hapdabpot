@@ -1,10 +1,12 @@
-﻿import express, { Request, Response } from 'express';
+﻿import express, { Request, Response, Router } from 'express';
 import { MasterTraderAgent, PriceLevel } from '../agents/MasterTraderAgent.js';
 
-const app = express();
+const app = Router();
 app.use(express.json());
 
 const trader = new MasterTraderAgent();
+
+export const tradingViewRouter = app;
 
 /**
  * Webhook endpoint that receives TradingView alerts
@@ -20,7 +22,7 @@ app.post('/webhook/tradingview', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized payload' });
     }
 
-    console.log(`\nðŸ“¨ TradingView Alert Received:`);
+    console.log(`\nðŸ“¬ TradingView Alert Received:`);
     console.log(`Symbol: ${alert.symbol}`);
     console.log(`Signal: ${alert.signal}`);
     console.log(`Price: ${alert.price}`);
@@ -40,7 +42,7 @@ app.post('/webhook/tradingview', async (req: Request, res: Response) => {
     const analysis = await trader.analyzePriceAction(priceData);
 
     // Check if we should trade
-    if (analysis.includes('BUY') && priceData.signal === 'IQ_BUY') {
+    if (analysis?.includes('BUY') && priceData.signal === 'IQ_BUY') {
       const trade = await trader.executeTrade(
         priceData.symbol,
         'IQ_BUY',
@@ -55,7 +57,7 @@ app.post('/webhook/tradingview', async (req: Request, res: Response) => {
         trade: trade,
         analysis: analysis,
       });
-    } else if (analysis.includes('SELL') && priceData.signal === 'IQ_SELL') {
+    } else if (analysis?.includes('SELL') && priceData.signal === 'IQ_SELL') {
       const trade = await trader.executeTrade(
         priceData.symbol,
         'IQ_SELL',
@@ -136,11 +138,5 @@ app.get('/api/performance', (req: Request, res: Response) => {
   });
 });
 
-const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => {
-  console.log(`âœ… TradingView Webhook Server running on port ${PORT}`);
-  console.log(`ðŸ“ Webhook URL: https://your-railway-url.railway.app/webhook/tradingview`);
-});
-
-export default app;
+export default tradingViewRouter;
 

@@ -1,6 +1,8 @@
-import { BaseAgent } from "./baseAgent.js";
+﻿import { BaseAgent } from "./baseAgent.js";
 import { log } from "../core/config.js";
-import { findMotivatedSellers, formatLeads, TARGET_MARKETS, Lead } from "../services/universalLeadScraper.js";
+import { unpackContent } from "../core/unpack.js";
+import { findMotivatedSellers, formatLeads, TARGET_MARKETS } from "../services/universalLeadScraper.js";
+import type { Lead } from "../types/lead.js";
 import { calculateDeal } from "../services/leadFilter.js";
 import { runAutomatedSurplusScan } from "../services/surplusPipeline.js";
 import { logEvent } from "../core/telemetry.js";
@@ -78,18 +80,18 @@ export class RealEstateAgent extends BaseAgent {
     const roi = deal.roi || 0;
     const verdict = deal.verdict || "UNKNOWN";
 
-    const emoji = verdict === "GOOD_DEAL" ? "🔥" : verdict === "MARGINAL" ? "👀" : "❌";
+    const emoji = verdict === "GOOD_DEAL" ? "ðŸ”¥" : verdict === "MARGINAL" ? "ðŸ‘€" : "âŒ";
 
     return (
       `${emoji} **VERDICT: ${verdict}**\n\n` +
       `**Profit Simulator Result**\n` +
-      `🏠 ARV: $${(deal.arv || 0).toLocaleString()}\n` +
-      `💰 Purchase: $${(deal.estimated_offer || 0).toLocaleString()}\n` +
-      `🔧 Repairs: $${(deal.repair_estimate || 0).toLocaleString()}\n` +
-      `🏗️ Total Cost: $${((deal.estimated_offer || 0) + (deal.repair_estimate || 0) + (deal.closing_costs || 0) + (deal.assignment_fee || 0)).toLocaleString()}\n` +
+      `ðŸ  ARV: $${(deal.arv || 0).toLocaleString()}\n` +
+      `ðŸ’° Purchase: $${(deal.estimated_offer || 0).toLocaleString()}\n` +
+      `ðŸ”§ Repairs: $${(deal.repair_estimate || 0).toLocaleString()}\n` +
+      `ðŸ—ï¸ Total Cost: $${((deal.estimated_offer || 0) + (deal.repair_estimate || 0) + (deal.closing_costs || 0) + (deal.assignment_fee || 0)).toLocaleString()}\n` +
       `-----------------\n` +
-      `💸 **NET PROFIT:** $${profit.toLocaleString()}\n` +
-      `📈 **ROI:** ${roi.toFixed(1)}%\n\n` +
+      `ðŸ’¸ **NET PROFIT:** $${profit.toLocaleString()}\n` +
+      `ðŸ“ˆ **ROI:** ${roi.toFixed(1)}%\n\n` +
       `_Formula: ARV - (Purchase + Repairs + Fees + Assignment)_`
     );
   }
@@ -113,11 +115,11 @@ export class RealEstateAgent extends BaseAgent {
     let city: string | undefined;
 
     for (const [alias, code] of Object.entries(STATE_ALIASES)) {
-      if (lower.includes(alias)) { state = code; break; }
+      if (lower?.includes(alias)) { state = code; break; }
     }
 
     for (const [alias, name] of Object.entries(CITY_ALIASES)) {
-      if (lower.includes(alias)) { city = name; break; }
+      if (lower?.includes(alias)) { city = name; break; }
     }
 
     return { state, city };
@@ -137,29 +139,29 @@ export class RealEstateAgent extends BaseAgent {
     // --------------------------------------------------------------------------
     // 1. SURPLUS AUTOMATION COMMAND
     // --------------------------------------------------------------------------
-    if (lower.includes("auto scan") && (lower.includes("surplus") || lower.includes("county"))) {
+    if (lower?.includes("auto scan") && (lower?.includes("surplus") || lower?.includes("county"))) {
       const stateMatch = lower.match(/(?:in\s+)([a-z\s]+)(?=\s+and|$)/);
       const state = stateMatch ? stateMatch[1].trim() : "Texas";
 
-      log(`[realEstate] 🚀 Initiating Automated Surplus Scan for ${state}...`);
+      log(`[realEstate] ðŸš€ Initiating Automated Surplus Scan for ${state}...`);
 
       // Fire and forget the background pipeline
       runAutomatedSurplusScan().catch(err => {
-        log(`[realEstate] ❌ Background Surplus Scan Error: ${err.message}`, "error");
+        log(`[realEstate] âŒ Background Surplus Scan Error: ${err.message}`, "error");
       });
 
-      return `🚀 **Surplus Overage Scan Initiated (Apify Mode)**\n\n` +
+      return `ðŸš€ **Surplus Overage Scan Initiated (Apify Mode)**\n\n` +
         `I have triggered your external **Apify** scraper fleet to scan ${state} county records.\n\n` +
-        `✅ **Cloud Scraping**: Active\n` +
-        `✅ **SkipTracing**: On\n` +
-        `✅ **AI Voice Outreach**: On\n\n` +
+        `âœ… **Cloud Scraping**: Active\n` +
+        `âœ… **SkipTracing**: On\n` +
+        `âœ… **AI Voice Outreach**: On\n\n` +
         `This scan is running in the cloud to protect your server resources. I will alert you via Telegram as soon as a high-margin deal hits our ingestion webhook.`;
     }
 
     // MAO calculation
     const numbers = userMessage.match(/\d[\d,]*/g)?.map(n => parseInt(n.replace(/,/g, ""))) ?? [];
     if (
-      (lower.includes("calculate") || lower.includes("simulate") || lower.includes("profit")) &&
+      (lower?.includes("calculate") || lower?.includes("simulate") || lower?.includes("profit")) &&
       numbers.length >= 3
     ) {
       const [arv, purchase, repairs] = numbers;
@@ -178,8 +180,8 @@ export class RealEstateAgent extends BaseAgent {
     }
 
     if (
-      (lower.includes("mao") || lower.includes("arv") ||
-        (lower.includes("calculate") && lower.includes("deal"))) &&
+      (lower?.includes("mao") || lower?.includes("arv") ||
+        (lower?.includes("calculate") && lower?.includes("deal"))) &&
       numbers.length === 2
     ) {
       const [arv, repairs] = numbers;
@@ -187,7 +189,7 @@ export class RealEstateAgent extends BaseAgent {
     }
 
     // Pagination for leads
-    if (lower.includes("more leads") || (lower.includes("more") && lower.includes("lead"))) {
+    if (lower?.includes("more leads") || (lower?.includes("more") && lower?.includes("lead"))) {
       if (this.lastDeals.length === 0) {
         return "No recent search memory. Ask me to find motivated sellers first.";
       }
@@ -199,25 +201,25 @@ export class RealEstateAgent extends BaseAgent {
       return formatLeads(nextBatch, 5);
     }
 
-    // Lead finding — use universal scraper for general, AI for specific
+    // Lead finding â€” use universal scraper for general, AI for specific
     if (
-      lower.includes("find") || lower.includes("search") ||
-      lower.includes("motivated") || lower.includes("seller") ||
-      lower.includes("lead") || lower.includes("scrape") ||
-      lower.includes("pull") || lower.includes("list") ||
-      lower.includes("deal")
+      lower?.includes("find") || lower?.includes("search") ||
+      lower?.includes("motivated") || lower?.includes("seller") ||
+      lower?.includes("lead") || lower?.includes("scrape") ||
+      lower?.includes("pull") || lower?.includes("list") ||
+      lower?.includes("deal")
     ) {
       const words = lower.split(/\s+/);
       const isSpecificQuery = words.length > 5 || 
-                              lower.includes("mortgage") || 
-                              lower.includes("pay") || 
-                              lower.includes("behind") ||
-                              lower.includes("tax") ||
-                              lower.includes("probate") ||
-                              lower.includes("divorce");
+                              lower?.includes("mortgage") || 
+                              lower?.includes("pay") || 
+                              lower?.includes("behind") ||
+                              lower?.includes("tax") ||
+                              lower?.includes("probate") ||
+                              lower?.includes("divorce");
 
       if (isSpecificQuery) {
-        log(`[realEstate] 🧠 Using AI-driven autonomous search for specific query: "${userMessage}"`);
+        log(`[realEstate] ðŸ§  Using AI-driven autonomous search for specific query: "${userMessage}"`);
         const res = await this.ask(
           `Find motivated sellers or property leads based on this specific request: "${userMessage}".
            1. Use find_deals(state, city) first if a location is mentioned.
@@ -226,7 +228,7 @@ export class RealEstateAgent extends BaseAgent {
           [],
           this.getSystemPrompt()
         );
-        return res.content;
+        return unpackContent(res);
       }
 
       const { state, city } = this.parseLocation(lower);
@@ -234,7 +236,7 @@ export class RealEstateAgent extends BaseAgent {
         ? `${city || ""}${city && state ? ", " : ""}${state || ""}`
         : "all markets";
 
-      log(`[realEstate] ⚡ Using fast-scraper for general leads in: ${location}`);
+      log(`[realEstate] âš¡ Using fast-scraper for general leads in: ${location}`);
 
       try {
         const leads = await findMotivatedSellers(state, city);
@@ -251,16 +253,16 @@ export class RealEstateAgent extends BaseAgent {
     }
 
     // Outreach drafting
-    if (lower.includes("outreach") || lower.includes("draft") ||
-      lower.includes("sms") || lower.includes("message") && lower.includes("seller")) {
+    if (lower?.includes("outreach") || lower?.includes("draft") ||
+      lower?.includes("sms") || lower?.includes("message") && lower?.includes("seller")) {
       return await this.draftOutreach(
         { address: userMessage },
-        lower.includes("email") ? "email" : "sms"
+        lower?.includes("email") ? "email" : "sms"
       );
     }
 
     // Markets info
-    if (lower.includes("market") || lower.includes("where") || lower.includes("what state")) {
+    if (lower?.includes("market") || lower?.includes("where") || lower?.includes("what state")) {
       const marketList = Object.entries(TARGET_MARKETS)
         .map(([region, cities]) => `${region.toUpperCase()}: ${cities.map(c => c.city).join(", ")}`)
         .join("\n");
@@ -273,3 +275,4 @@ export class RealEstateAgent extends BaseAgent {
 }
 
 export const realEstateAgent = new RealEstateAgent();
+

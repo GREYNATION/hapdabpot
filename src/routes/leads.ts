@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+﻿import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import Database from 'better-sqlite3';
 import { insertStuyzaLead } from '../db/leads.js';
@@ -15,7 +15,7 @@ export function createLeadsRouter(db: Database.Database, bot: Telegraf) {
     message: { error: 'Too many submissions. Try again later.' }
   });
 
-  // CORS — allow stuyza.com and localhost dev
+  // CORS â€” allow stuyza.com and localhost dev
   router.use((req, res, next) => {
     const allowed = [
       'https://www.stuyza.com',
@@ -24,7 +24,7 @@ export function createLeadsRouter(db: Database.Database, bot: Telegraf) {
       'http://localhost:5500'
     ];
     const origin = req.headers.origin || '';
-    if (allowed.includes(origin)) {
+    if (allowed?.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
     }
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -51,21 +51,21 @@ export function createLeadsRouter(db: Database.Database, bot: Telegraf) {
         source: 'stuyza_landing'
       });
 
-      // Fire Telegram alert — non-blocking, won't crash if it fails
+      // Fire Telegram alert â€” non-blocking, won't crash if it fails
       const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID;
       if (OWNER_CHAT_ID) {
         try {
           const msg = [
-            `🔥 *NEW STUYZA LEAD* — #${result.lastInsertRowid}`,
+            `ðŸ”¥ *NEW STUYZA LEAD* â€” #${result.lastInsertRowid}`,
             ``,
-            `👤 *${fname} ${lname || ''}*`,
-            `📧 ${email}`,
-            `📱 ${phone || 'not provided'}`,
-            `🏢 ${biz_type || 'not specified'}`,
-            `🤖 Interested in: ${service || 'not specified'}`,
-            notes ? `📝 Notes: ${notes}` : '',
+            `ðŸ‘¤ *${fname} ${lname || ''}*`,
+            `ðŸ“§ ${email}`,
+            `ðŸ“± ${phone || 'not provided'}`,
+            `ðŸ¢ ${biz_type || 'not specified'}`,
+            `ðŸ¤– Interested in: ${service || 'not specified'}`,
+            notes ? `ðŸ“ Notes: ${notes}` : '',
             ``,
-            `⏰ ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`,
+            `â° ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`,
             ``,
             `Reply /lead_${result.lastInsertRowid} to manage this lead`
           ].filter(Boolean).join('\n');
@@ -92,5 +92,6 @@ export function createLeadsRouter(db: Database.Database, bot: Telegraf) {
 
   return router;
 }
+
 
 

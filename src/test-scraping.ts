@@ -29,7 +29,7 @@ async function testScraping() {
         console.log("Content length:", text.length);
         console.log("Snippet:", text.substring(0, 500));
         
-        if (text.toLowerCase().includes("captcha") || text.toLowerCase().includes("please confirm you are a human")) {
+        if (text.toLowerCase()?.includes("captcha") || text.toLowerCase()?.includes("please confirm you are a human")) {
             console.log("CAUGHT BY CAPTCHA!");
         }
     } catch (e: any) {
@@ -45,4 +45,5 @@ async function testScraping() {
 }
 
 testScraping();
+
 

@@ -1,4 +1,4 @@
-﻿import { BaseAgent } from "./baseAgent.js";
+import { BaseAgent } from "./baseAgent.js";
 import { Octokit } from "octokit";
 import { config, log } from "../core/config.js";
 
@@ -6,14 +6,14 @@ export class GitHubAgent extends BaseAgent {
     private octokit: Octokit | null = null;
 
     constructor() {
-        super("GitHub Specialist", "You are an expert GitHub assistant. You help the user manage their repositories, browse code, track issues, and understand their GitHub presence. You use your tools to provide real-time data from GitHub.");
+        super("github", "You are an expert GitHub assistant. You help the user manage their repositories, browse code, track issues, and understand their GitHub presence. You use your tools to provide real-time data from GitHub.");
         if (config.githubToken) {
             this.octokit = new Octokit({ auth: config.githubToken });
         }
     }
 
     getName(): string {
-        return "GitHub Specialist";
+        return "github";
     }
 
     getSystemPrompt(): string {

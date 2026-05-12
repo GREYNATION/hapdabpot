@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx tsx
+﻿#!/usr/bin/env -S npx tsx
 /**
  * Render a Mermaid diagram to SVG using Beautiful Mermaid
  *
@@ -69,7 +69,7 @@ function parseArgs(): Args {
         break;
       case "--theme":
       case "-t":
-        if (next && THEMES.includes(next as Theme)) {
+        if (next && THEMES?.includes(next as Theme)) {
           result.theme = next as Theme;
         } else {
           console.error(`Invalid theme: ${next}`);
@@ -219,3 +219,4 @@ main().catch((err) => {
   console.error("Error:", err.message);
   process.exit(1);
 });
+

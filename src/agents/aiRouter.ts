@@ -1,14 +1,15 @@
-import fetch from "node-fetch";
+﻿import fetch from "node-fetch";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 export async function aiRoute(task: string) {
   if (!process.env.GROQ_API_KEY) {
-    console.warn("⚠️  GROQ_API_KEY not set - AI routing unavailable");
+    console.warn("âš ï¸  GROQ_API_KEY not set - AI routing unavailable");
     return null;
   }
 
-  try {
+  
+try {
     const res = await fetch(GROQ_URL, {
       method: "POST",
       headers: {
@@ -45,13 +46,16 @@ Respond ONLY with the agent name.
     const data: any = await res.json();
     
     if (data.error) {
-      console.error("❌ Groq error:", data.error);
+      console.error("âŒ Groq error:", data.error);
       return null;
     }
 
     return data.choices?.[0]?.message?.content?.trim();
   } catch (error) {
-    console.error("❌ AI router failed:", error);
+    console.error("âŒ AI router failed:", error);
     return null;
   }
 }
+
+
+

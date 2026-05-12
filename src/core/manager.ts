@@ -1,4 +1,4 @@
-import { openai, config, log } from "./config.js";
+﻿import { openai, config, log } from "./config.js";
 import { askAI } from "./ai.js";
 
 /**
@@ -30,14 +30,14 @@ export async function manager(input: string | any[]) {
     log(`[manager] Routing input. Type: ${isArray ? 'Array' : 'String'}, Content: ${text.substring(0, 50)}...`);
 
     // 1. VISION PRIORITIZED
-    if (isArray || lowercase.includes("visual") || lowercase.includes("image") || lowercase.includes("photo")) {
+    if (isArray || (lowercase ?? "")?.includes("visual") || (lowercase ?? "")?.includes("image") || (lowercase ?? "")?.includes("photo")) {
         return {
             tasks: [{ agent: "vision", task: input }]
         };
     }
 
     // 2. WEBSITE FACTORY (PRODUCTION)
-    const isWebsite = lowercase.includes("website") || lowercase.includes("landing page") || lowercase.includes("portfolio");
+    const isWebsite = (lowercase ?? "")?.includes("website") || (lowercase ?? "")?.includes("landing page") || (lowercase ?? "")?.includes("portfolio");
     if (isWebsite) {
         log(`[manager] Routing to WEBSITE FACTORY. Content: ${text.substring(0, 50)}...`);
         return {
@@ -46,7 +46,7 @@ export async function manager(input: string | any[]) {
     }
 
     // 3. BUILD (LEGACY / REGULAR APP)
-    const isBuild = lowercase.includes("build") || lowercase.includes("create") || lowercase.includes("api") || lowercase.includes("app");
+    const isBuild = (lowercase ?? "")?.includes("build") || (lowercase ?? "")?.includes("create") || (lowercase ?? "")?.includes("api") || (lowercase ?? "")?.includes("app");
     if (isBuild) {
         return {
             tasks: [{ agent: "developer", task: input }]
@@ -54,7 +54,7 @@ export async function manager(input: string | any[]) {
     }
 
     // 3. EMAIL
-    const isEmail = lowercase.includes("email") || lowercase.includes("mail") || lowercase.includes("message");
+    const isEmail = (lowercase ?? "")?.includes("email") || (lowercase ?? "")?.includes("mail") || (lowercase ?? "")?.includes("message");
     if (isEmail) {
         return {
             tasks: [{ agent: "email", task: input }]
@@ -62,7 +62,7 @@ export async function manager(input: string | any[]) {
     }
 
     // 4. RESEARCH
-    const isResearch = lowercase.includes("search") || lowercase.includes("who") || lowercase.includes("where") || lowercase.includes("scrape") || lowercase.includes("analyze") || lowercase.includes("check") || lowercase.includes("find");
+    const isResearch = (lowercase ?? "")?.includes("search") || (lowercase ?? "")?.includes("who") || (lowercase ?? "")?.includes("where") || (lowercase ?? "")?.includes("scrape") || (lowercase ?? "")?.includes("analyze") || (lowercase ?? "")?.includes("check") || (lowercase ?? "")?.includes("find");
     if (isResearch || text.length > 50) {
         return {
             tasks: [{ agent: "researcher", task: input }]
@@ -71,4 +71,5 @@ export async function manager(input: string | any[]) {
 
     return { tasks: [] };
 }
+
 

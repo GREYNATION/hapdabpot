@@ -228,7 +228,7 @@ const isCLI = process.argv[1]?.endsWith("pipeline.ts") || process.argv[1]?.endsW
 
 if (isCLI) {
     const episodeArg = parseInt(process.argv[2] ?? "1", 10);
-    const isDryRun   = process.argv.includes("--dry-run");
+    const isDryRun   = process.argv?.includes("--dry-run");
 
     log(`ðŸš€ Running pipeline via CLI â€” Episode ${episodeArg}${isDryRun ? " (dry run)" : ""}`);
 
@@ -245,4 +245,5 @@ if (isCLI) {
             process.exit(1);
         });
 }
+
 

@@ -1,4 +1,4 @@
-import { Context } from 'telegraf';
+﻿import { Context } from 'telegraf';
 import Anthropic from '@anthropic-ai/sdk';
 import fs from 'fs';
 import path from 'path';
@@ -7,14 +7,14 @@ import { log } from '../core/config.js';
 
 const client = new Anthropic();
 
-const VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || './knowledge-base';
+const VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || './brain/knowledge';
 const GITHUB_PAT = process.env.GITHUB_PAT || '';
 const GITHUB_REPO_URL = process.env.GITHUB_REPO_URL || '';
 const GITHUB_USER_NAME = process.env.GITHUB_USER_NAME || 'hapdabot';
 const GITHUB_USER_EMAIL = process.env.GITHUB_USER_EMAIL || 'bot@hapdabot.com';
 
 // Inject PAT into URL for auth
-const authedRepoUrl = GITHUB_REPO_URL.includes('https://') 
+const authedRepoUrl = GITHUB_REPO_URL?.includes('https://') 
   ? GITHUB_REPO_URL.replace('https://', `https://${GITHUB_USER_NAME}:${GITHUB_PAT}@`)
   : GITHUB_REPO_URL;
 
@@ -73,7 +73,7 @@ related: []
 - Point 1 (max 7)
 
 ## Concepts
-**Name** — definition
+**Name** â€” definition
 
 ## Quotes / Highlights
 > "key quote"
@@ -94,7 +94,7 @@ export async function handleKBCommand(ctx: Context) {
     return;
   }
 
-  await ctx.reply('📚 **Processing for knowledge base...**');
+  await ctx.reply('ðŸ“š **Processing for knowledge base...**');
 
   try {
     // Ensure repo is cloned and configured (if git is configured)
@@ -123,15 +123,15 @@ export async function handleKBCommand(ctx: Context) {
     if (!fs.existsSync(VAULT_PATH)) fs.mkdirSync(VAULT_PATH, { recursive: true });
     fs.writeFileSync(filepath, mdContent, 'utf-8');
 
-    let responseMsg = `✅ **Saved to local vault**:\n📄 \`${filename}\``;
+    let responseMsg = `âœ… **Saved to local vault**:\nðŸ“„ \`${filename}\``;
 
     // Commit and push to GitHub if configured
     if (GITHUB_PAT && GITHUB_REPO_URL) {
         try {
             gitCommitAndPush(filename);
-            responseMsg = `✅ **Saved + Pushed to GitHub**:\n📄 \`${filename}\`\n\nPull in Obsidian to sync.`;
+            responseMsg = `âœ… **Saved + Pushed to GitHub**:\nðŸ“„ \`${filename}\`\n\nPull in Obsidian to sync.`;
         } catch (gitErr) {
-            responseMsg += `\n\n⚠️ **Git Push Failed**: Check logs. Content saved locally.`;
+            responseMsg += `\n\nâš ï¸ **Git Push Failed**: Check logs. Content saved locally.`;
         }
     }
 
@@ -142,6 +142,7 @@ export async function handleKBCommand(ctx: Context) {
     );
   } catch (err: any) {
     log(`[KB] Error: ${err.message}`, "error");
-    await ctx.reply(`❌ **KB Error**: ${err instanceof Error ? err.message : String(err)}`);
+    await ctx.reply(`âŒ **KB Error**: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
+

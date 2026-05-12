@@ -209,26 +209,68 @@ export function buildLtxVideoWorkflow(opts: LtxVideoOptions): Record<string, any
         fps = 24
     } = opts;
 
+    // Parse resolution (e.g. "720x1280")
+    const [widthStr, heightStr] = resolution.split("x");
+    const width = parseInt(widthStr) || 512;
+    const height = parseInt(heightStr) || 512;
+    
+    // LTXV expects frame counts. duration * fps.
+    const frameCount = Math.min(Math.max(Math.floor(duration * fps), 1), 128); // Cap at 128 for safety
+
     return {
         "1": {
-            class_type: "CheckpointLoaderSimple",
+            class_type: "LtxVideoCheckpointLoader",
             inputs: { ckpt_name: model },
         },
         "2": {
-            class_type: "LtxvApiTextToVideo",
+            class_type: "CLIPTextEncode",
             inputs: {
-                model: ["1", 0],
-                prompt: prompt,
-                duration: duration,
-                resolution: resolution,
-                fps: fps,
-                generate_audio: false
+                clip: ["1", 1],
+                text: prompt
             },
         },
         "3": {
+            class_type: "CLIPTextEncode",
+            inputs: {
+                clip: ["1", 1],
+                text: "low quality, blurry, distorted, deformed, text, watermark"
+            },
+        },
+        "4": {
+            class_type: "EmptyLatentVideo",
+            inputs: {
+                width: width,
+                height: height,
+                length: frameCount,
+                batch_size: 1
+            },
+        },
+        "5": {
+            class_type: "LtxVideoSampler",
+            inputs: {
+                model: ["1", 0],
+                positive: ["2", 0],
+                negative: ["3", 0],
+                latent_image: ["4", 0],
+                seed: Math.floor(Math.random() * 2 ** 32),
+                steps: 20,
+                cfg: 3.5,
+                sampler_name: "euler",
+                scheduler: "simple",
+                denoise: 1.0
+            },
+        },
+        "6": {
+            class_type: "VAEDecode",
+            inputs: {
+                samples: ["5", 0],
+                vae: ["1", 2]
+            },
+        },
+        "7": {
             class_type: "VHS_VideoCombine",
             inputs: {
-                images: ["2", 0],
+                images: ["6", 0],
                 frame_rate: fps,
                 loop_count: 0,
                 filename_prefix: "spider_jr_video",

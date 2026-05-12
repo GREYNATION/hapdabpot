@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Integration tests for the brainstorm server.
  *
  * Tests the full server behavior: HTTP serving, WebSocket communication,
@@ -58,7 +58,7 @@ async function waitForServer(server) {
   return new Promise((resolve, reject) => {
     server.stdout.on('data', (data) => {
       stdout += data.toString();
-      if (stdout.includes('server-started')) {
+      if (stdout?.includes('server-started')) {
         resolve({ stdout, stderr, getStdout: () => stdout });
       }
     });
@@ -121,19 +121,19 @@ async function runTests() {
     await test('serves waiting page when no screens exist', async () => {
       const res = await fetch(`http://localhost:${TEST_PORT}/`);
       assert.strictEqual(res.status, 200);
-      assert(res.body.includes('Waiting for the agent'), 'Should show waiting message');
+      assert(res.body?.includes('Waiting for the agent'), 'Should show waiting message');
     });
 
     await test('injects helper.js into waiting page', async () => {
       const res = await fetch(`http://localhost:${TEST_PORT}/`);
-      assert(res.body.includes('WebSocket'), 'Should have helper.js injected');
-      assert(res.body.includes('toggleSelect'), 'Should have toggleSelect from helper');
-      assert(res.body.includes('brainstorm'), 'Should have brainstorm API from helper');
+      assert(res.body?.includes('WebSocket'), 'Should have helper.js injected');
+      assert(res.body?.includes('toggleSelect'), 'Should have toggleSelect from helper');
+      assert(res.body?.includes('brainstorm'), 'Should have brainstorm API from helper');
     });
 
     await test('returns Content-Type text/html', async () => {
       const res = await fetch(`http://localhost:${TEST_PORT}/`);
-      assert(res.headers['content-type'].includes('text/html'), 'Should be text/html');
+      assert(res.headers['content-type']?.includes('text/html'), 'Should be text/html');
     });
 
     await test('serves full HTML documents as-is (not wrapped)', async () => {
@@ -142,9 +142,9 @@ async function runTests() {
       await sleep(300);
 
       const res = await fetch(`http://localhost:${TEST_PORT}/`);
-      assert(res.body.includes('<h1>Custom Page</h1>'), 'Should contain original content');
-      assert(res.body.includes('WebSocket'), 'Should still inject helper.js');
-      assert(!res.body.includes('indicator-bar'), 'Should NOT wrap in frame template');
+      assert(res.body?.includes('<h1>Custom Page</h1>'), 'Should contain original content');
+      assert(res.body?.includes('WebSocket'), 'Should still inject helper.js');
+      assert(!res.body?.includes('indicator-bar'), 'Should NOT wrap in frame template');
     });
 
     await test('wraps content fragments in frame template', async () => {
@@ -153,10 +153,10 @@ async function runTests() {
       await sleep(300);
 
       const res = await fetch(`http://localhost:${TEST_PORT}/`);
-      assert(res.body.includes('indicator-bar'), 'Fragment should get indicator bar');
-      assert(!res.body.includes('<!-- CONTENT -->'), 'Placeholder should be replaced');
-      assert(res.body.includes('Pick a layout'), 'Fragment content should be present');
-      assert(res.body.includes('data-choice="a"'), 'Fragment interactive elements intact');
+      assert(res.body?.includes('indicator-bar'), 'Fragment should get indicator bar');
+      assert(!res.body?.includes('<!-- CONTENT -->'), 'Placeholder should be replaced');
+      assert(res.body?.includes('Pick a layout'), 'Fragment content should be present');
+      assert(res.body?.includes('data-choice="a"'), 'Fragment interactive elements intact');
     });
 
     await test('serves newest file by mtime', async () => {
@@ -166,17 +166,17 @@ async function runTests() {
       await sleep(300);
 
       const res = await fetch(`http://localhost:${TEST_PORT}/`);
-      assert(res.body.includes('Newer'), 'Should serve newest file');
+      assert(res.body?.includes('Newer'), 'Should serve newest file');
     });
 
     await test('ignores non-html files for serving', async () => {
-      // Write a newer non-HTML file — should still serve newest .html
+      // Write a newer non-HTML file â€” should still serve newest .html
       fs.writeFileSync(path.join(CONTENT_DIR, 'data.json'), '{"not": "html"}');
       await sleep(300);
 
       const res = await fetch(`http://localhost:${TEST_PORT}/`);
-      assert(res.body.includes('Newer'), 'Should still serve newest HTML');
-      assert(!res.body.includes('"not"'), 'Should not serve JSON');
+      assert(res.body?.includes('Newer'), 'Should still serve newest HTML');
+      assert(!res.body?.includes('"not"'), 'Should not serve JSON');
     });
 
     await test('returns 404 for non-root paths', async () => {
@@ -204,8 +204,8 @@ async function runTests() {
       ws.send(JSON.stringify({ type: 'click', text: 'Test Button' }));
       await sleep(300);
 
-      assert(stdoutAccum.includes('"source":"user-event"'), 'Should tag with source');
-      assert(stdoutAccum.includes('Test Button'), 'Should include event data');
+      assert(stdoutAccum?.includes('"source":"user-event"'), 'Should tag with source');
+      assert(stdoutAccum?.includes('Test Button'), 'Should include event data');
       ws.close();
     });
 
@@ -285,7 +285,7 @@ async function runTests() {
       const ws = new WebSocket(`ws://localhost:${TEST_PORT}`);
       await new Promise(resolve => ws.on('open', resolve));
 
-      // Send invalid JSON — server should not crash
+      // Send invalid JSON â€” server should not crash
       ws.send('not json at all {{{');
       await sleep(300);
 
@@ -367,7 +367,7 @@ async function runTests() {
       fs.writeFileSync(path.join(CONTENT_DIR, 'log-test.html'), '<h2>Log</h2>');
       await sleep(500);
 
-      assert(stdoutAccum.includes('screen-added'), 'Should log screen-added');
+      assert(stdoutAccum?.includes('screen-added'), 'Should log screen-added');
     });
 
     await test('logs screen-updated on file change', async () => {
@@ -379,7 +379,7 @@ async function runTests() {
       fs.writeFileSync(filePath, '<h2>V2</h2>');
       await sleep(500);
 
-      assert(stdoutAccum.includes('screen-updated'), 'Should log screen-updated');
+      assert(stdoutAccum?.includes('screen-updated'), 'Should log screen-updated');
     });
 
     // ========== Helper.js Content ==========
@@ -389,10 +389,10 @@ async function runTests() {
       const helperContent = fs.readFileSync(
         path.join(__dirname, '../../skills/brainstorming/scripts/helper.js'), 'utf-8'
       );
-      assert(helperContent.includes('toggleSelect'), 'Should define toggleSelect');
-      assert(helperContent.includes('sendEvent'), 'Should define sendEvent');
-      assert(helperContent.includes('selectedChoice'), 'Should track selectedChoice');
-      assert(helperContent.includes('brainstorm'), 'Should expose brainstorm API');
+      assert(helperContent?.includes('toggleSelect'), 'Should define toggleSelect');
+      assert(helperContent?.includes('sendEvent'), 'Should define sendEvent');
+      assert(helperContent?.includes('selectedChoice'), 'Should track selectedChoice');
+      assert(helperContent?.includes('brainstorm'), 'Should expose brainstorm API');
       return Promise.resolve();
     });
 
@@ -403,10 +403,10 @@ async function runTests() {
       const template = fs.readFileSync(
         path.join(__dirname, '../../skills/brainstorming/scripts/frame-template.html'), 'utf-8'
       );
-      assert(template.includes('indicator-bar'), 'Should have indicator bar');
-      assert(template.includes('indicator-text'), 'Should have indicator text');
-      assert(template.includes('<!-- CONTENT -->'), 'Should have content placeholder');
-      assert(template.includes('claude-content'), 'Should have content container');
+      assert(template?.includes('indicator-bar'), 'Should have indicator bar');
+      assert(template?.includes('indicator-text'), 'Should have indicator text');
+      assert(template?.includes('<!-- CONTENT -->'), 'Should have content placeholder');
+      assert(template?.includes('claude-content'), 'Should have content container');
       return Promise.resolve();
     });
 
@@ -425,3 +425,4 @@ runTests().catch(err => {
   console.error('Test failed:', err);
   process.exit(1);
 });
+

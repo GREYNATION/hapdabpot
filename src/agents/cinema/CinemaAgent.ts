@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CinemaAgent.ts - FIXED ENDPOINTS
  * Out the Way mini drama series - Muapi.ai
  *
@@ -125,7 +125,7 @@ class MuapiClient {
         
         const s = (data?.status ?? "pending").toLowerCase();
         
-        if (["complete", "completed", "succeeded", "success"].includes(s)) {
+        if (["complete", "completed", "succeeded", "success"]?.includes(s)) {
           const url = data?.output_url ?? data?.url ?? data?.result?.url ?? data?.outputs?.[0] ?? data?.output;
           if (!url) {
               // Final fallback: check /result if we haven't yet
@@ -140,7 +140,7 @@ class MuapiClient {
           return url;
         }
         
-        if (["failed", "error", "cancelled"].includes(s)) {
+        if (["failed", "error", "cancelled"]?.includes(s)) {
           throw new Error(`Job ${jobId} ${s}: ${data?.error || "Unknown error"}`);
         }
         console.log(`[Muapi] ${jobId} - ${s} (${i + 1}/${MAX_POLLS})`);
@@ -289,7 +289,7 @@ export class CinemaAgent {
   }
 }
 
-// ─── "Out the Way" — Episode 1 ───────────────────────────────────────────────
+// â”€â”€â”€ "Out the Way" â€” Episode 1 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const OUT_THE_WAY_EP1: Episode = {
   episodeNumber: 1,
@@ -332,7 +332,7 @@ export const OUT_THE_WAY_EP1: Episode = {
   ],
 };
 
-// ─── Integration Hook ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Integration Hook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function runOutTheWayEpisode(epNum = 1): Promise<string[]> {
   const map: Record<number, Episode> = { 1: OUT_THE_WAY_EP1 };
@@ -362,3 +362,4 @@ export async function produceDynamicEpisode(series: string, epNum: number, title
   };
   return agent.getPostableClips(await agent.produceEpisode(episode));
 }
+

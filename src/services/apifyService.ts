@@ -59,43 +59,46 @@ export class ApifyService {
         const token = config.apifyToken;
         if (!token) { log("[apifyService] APIFY_TOKEN missing.", "error"); return []; }
 
-        log(`[apifyService] 🏠 Scraping Zillow for ZIPs: ${zipCodes.join(", ")}`);
+        const actorId = process.env.ZILLOW_ACTOR_ID || "apify/zillow-scraper";
+        log(`[apifyService] 🏠 Scraping Zillow for ZIPs: ${zipCodes.join(", ")} using actor ${actorId}`);
 
         try {
             const runRes = await axios.post(
-                `https://api.apify.com/v2/acts/17auNT3I30CssRrvO/runs?token=${token}`,
+                `https://api.apify.com/v2/acts/${actorId}/runs?token=${token}`,
                 {
-                    zipCodes,
-                    maxPrice,
-                    listingCategory: "house",
-                    daysOnZillow: "7"
+                    search: zipCodes.join(" "),
+                    maxItems: 20,
+                    type: "sale"
                 }
             );
 
             const runId = runRes.data.data.id;
             log(`[apifyService] ✅ Zillow run started: ${runId}. Polling...`);
 
-            // Poll up to 30s
-            for (let i = 0; i < 6; i++) {
+            // Poll up to 60s (Zillow takes time)
+            for (let i = 0; i < 12; i++) {
                 await new Promise(r => setTimeout(r, 5000));
                 const statusRes = await axios.get(
-                    `https://api.apify.com/v2/acts/17auNT3I30CssRrvO/runs/${runId}?token=${token}`
+                    `https://api.apify.com/v2/acts/${actorId}/runs/${runId}?token=${token}`
                 );
                 const status = statusRes.data.data.status;
                 log(`[apifyService] Zillow run status: ${status}`);
                 if (status === "SUCCEEDED") break;
-                if (status === "FAILED" || status === "ABORTED") {
-                    log("[apifyService] Zillow run failed.", "error");
+                if (status === "FAILED" || status === "ABORTED" || status === "TIMED-OUT") {
+                    log("[apifyService] Zillow run failed or timed out.", "error");
                     return [];
                 }
             }
 
             const items = await axios.get(
-                `https://api.apify.com/v2/acts/17auNT3I30CssRrvO/runs/${runId}/dataset/items?token=${token}&limit=20`
+                `https://api.apify.com/v2/acts/${actorId}/runs/${runId}/dataset/items?token=${token}&limit=20`
             );
 
             return items.data || [];
         } catch (err: any) {
+            if (err.response?.status === 404) {
+                log(`[apifyService] Zillow actor ${actorId} not found (404). Falling back to standard search.`, "warn");
+            }
             log(`[apifyService] Zillow scrape error: ${err.message}`, "error");
             return [];
         }

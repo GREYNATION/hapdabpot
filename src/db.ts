@@ -102,6 +102,19 @@ export function initDb() {
         )
     `);
 
+    // 7. Real Estate Leads table
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            parcel TEXT UNIQUE,
+            address TEXT,
+            owner TEXT,
+            distress_type TEXT,
+            score INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
     console.log("[db] Database initialization complete.");
 }
 

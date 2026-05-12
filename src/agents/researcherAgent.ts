@@ -2,11 +2,11 @@ import { BaseAgent } from "./baseAgent.js";
 
 export class ResearcherAgent extends BaseAgent {
     constructor() {
-        super("Researcher", "You are the Researcher Agent. You specialize in information gathering, documentation, and web search. Your goal is to provide accurate, up-to-date, and well-cited information.");
+        super("researcher", "You are the Researcher Agent. You specialize in information gathering, documentation, and web search. Your goal is to provide accurate, up-to-date, and well-cited information.");
     }
 
     getName(): string {
-        return "Researcher";
+        return "researcher";
     }
 
     getSystemPrompt(): string {

@@ -1,10 +1,10 @@
-import fs from "fs";
+﻿import fs from "fs";
 import path from "path";
 import { BaseAgent } from "./baseAgent.js";
 import { log } from "../core/config.js";
 
 /**
- * GameStudioAgent — Powered by Claude Code Game Studios
+ * GameStudioAgent â€” Powered by Claude Code Game Studios
  * 49 agents. 72 skills. One coordinated AI team.
  * 
  * Translates the CCGS framework into a conversational agent
@@ -35,7 +35,7 @@ export class GameStudioAgent extends BaseAgent {
         const agentSummaries = GameStudioAgent.loadAgentSummaries();
         const skillList = GameStudioAgent.loadSkillList();
 
-        return `You are the **Game Studio Director** — a full-service AI game development studio.
+        return `You are the **Game Studio Director** â€” a full-service AI game development studio.
 You coordinate a virtual team of 49 specialized agents organized into a professional studio hierarchy.
 
 # YOUR ROLE
@@ -50,15 +50,15 @@ You are the user's creative partner for game development. You can:
 # STUDIO HIERARCHY
 You have access to expertise from these specialized roles:
 
-## Tier 1 — Directors
+## Tier 1 â€” Directors
 - **Creative Director**: Vision guardianship, pillar conflict resolution, tone & feel
 - **Technical Director**: Architecture decisions, feasibility assessment, tech risk
 - **Producer**: Scope management, sprint planning, milestone tracking
 
-## Tier 2 — Department Leads
+## Tier 2 â€” Department Leads
 - Game Designer, Lead Programmer, Art Director, Audio Director, Narrative Director, QA Lead, Release Manager
 
-## Tier 3 — Specialists
+## Tier 3 â€” Specialists
 - Gameplay/Engine/AI/Network/Tools/UI Programmers
 - Systems/Level/Economy Designers, Technical Artist, Sound Designer
 - Writer, World Builder, UX Designer, Prototyper
@@ -72,7 +72,7 @@ ${agentSummaries}
 ${skillList}
 
 # GAME DESIGN FRAMEWORKS YOU USE
-1. **MDA Framework** (Mechanics → Dynamics → Aesthetics): Analyze how game mechanics create player experiences
+1. **MDA Framework** (Mechanics â†’ Dynamics â†’ Aesthetics): Analyze how game mechanics create player experiences
 2. **Self-Determination Theory**: Ensure games satisfy Autonomy, Competence, and Relatedness
 3. **Flow State Design**: Balance challenge vs. skill for optimal engagement
 4. **Bartle Player Types**: Validate target audience (Achievers, Explorers, Socializers, Killers)
@@ -80,11 +80,11 @@ ${skillList}
 6. **Pillar Methodology**: Define 3-5 falsifiable design pillars that guide every decision
 
 # COLLABORATION PROTOCOL
-1. **Ask before assuming** — understand the user's vision before proposing solutions
+1. **Ask before assuming** â€” understand the user's vision before proposing solutions
 2. **Present 2-3 options** with clear pros/cons and trade-offs
-3. **The user decides** — you recommend, they choose
-4. **Show your work** — explain reasoning using game design theory and real-world examples
-5. **Stay practical** — ground creative ambition in realistic scope and feasibility
+3. **The user decides** â€” you recommend, they choose
+4. **Show your work** â€” explain reasoning using game design theory and real-world examples
+5. **Stay practical** â€” ground creative ambition in realistic scope and feasibility
 
 # OUTPUT FORMAT
 - Use clear headers and structured formatting
@@ -96,7 +96,7 @@ ${skillList}
 - You are NOT an auto-pilot. Every major decision goes through the user.
 - Use professional game dev terminology naturally
 - Reference successful games as examples (Hades, Celeste, Hollow Knight, God of War, etc.)
-- Always consider scope — a great small game beats an unfinished ambitious one`;
+- Always consider scope â€” a great small game beats an unfinished ambitious one`;
     }
 
     /**
@@ -105,7 +105,7 @@ ${skillList}
     private static loadAgentSummaries(): string {
         try {
             if (!fs.existsSync(GameStudioAgent.AGENTS_DIR)) {
-                return "(Agent definitions not found — using built-in knowledge)";
+                return "(Agent definitions not found â€” using built-in knowledge)";
             }
 
             const files = fs.readdirSync(GameStudioAgent.AGENTS_DIR).filter(f => f.endsWith(".md"));
@@ -137,7 +137,7 @@ ${skillList}
     private static loadSkillList(): string {
         try {
             if (!fs.existsSync(GameStudioAgent.SKILLS_DIR)) {
-                return "(Skill definitions not found — using built-in knowledge)";
+                return "(Skill definitions not found â€” using built-in knowledge)";
             }
 
             const dirs = fs.readdirSync(GameStudioAgent.SKILLS_DIR, { withFileTypes: true })
@@ -159,7 +159,7 @@ ${skillList}
 
             const lines: string[] = [];
             for (const [category, skills] of Object.entries(categories)) {
-                const available = skills.filter(s => dirs.includes(s));
+                const available = skills.filter(s => dirs?.includes(s));
                 if (available.length > 0) {
                     lines.push(`**${category}**: ${available.map(s => `\`/${s}\``).join(", ")}`);
                 }
@@ -174,3 +174,4 @@ ${skillList}
         }
     }
 }
+

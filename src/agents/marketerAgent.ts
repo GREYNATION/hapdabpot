@@ -7,11 +7,11 @@ import { SiteBlueprint } from "./architectAgent.js";
  */
 export class MarketerAgent extends BaseAgent {
     constructor() {
-        super("Marketer", "You are the Communications Lead of the Council of Spirits. You specialize in global outreach, engagement strategy, and the definitive voice of the HapdaBot Command Center.");
+        super("marketer", "You are the Communications Lead of the Council of Spirits. You specialize in global outreach, engagement strategy, and the definitive voice of the HapdaBot Command Center.");
     }
 
     getName(): string {
-        return "Marketer";
+        return "marketer";
     }
 
     /**

@@ -1,6 +1,7 @@
-import { log, initializeConfig } from "./config.js";
+﻿import { log, initializeConfig } from "./config.js";
 import { initDb } from "./memory.js";
 import { initializeClients } from "./ai.js";
+import { initVault } from "../services/vaultService.js";
 
 /**
  * Global application startup sequence.
@@ -8,7 +9,7 @@ import { initializeClients } from "./ai.js";
  * and database schema is ready before any agents start.
  */
 export async function startupSequence() {
-    log("🚀 --- SYSTEM STARTUP SEQUENCE ---");
+    log("ðŸš€ --- SYSTEM STARTUP SEQUENCE ---");
 
     try {
         // 1. Initialize core configuration (Fetch secrets from Supabase)
@@ -20,17 +21,25 @@ export async function startupSequence() {
         // 3. Initialize AI clients with fresh credentials
         initializeClients();
 
-        // 4. Specialized agents are now handled via CouncilOrchestrator lazily
+        // 3.5 Initialize Obsidian Vault structure
+        initVault();
+
+        // 4. Initialize Master MCP Server
+        const { getMCPServer } = await import("./mcp.js");
+        await getMCPServer();
         
-        log("✅ --- COUNCIL STARTUP COMPLETE ---");
+        // 5. Specialized agents are now handled via CouncilOrchestrator lazily
+        
+        log("âœ… --- COUNCIL STARTUP COMPLETE ---");
         return true;
     } catch (err: any) {
         log(`[startup] FATAL ERROR: ${err.message}`, "error");
         // We still return true to allow the bot to boot in restricted mode
         // unless it's a critical missing config like TELEGRAM_BOT_TOKEN
-        if (err.message.includes("TELEGRAM_BOT_TOKEN")) {
+        if (err.message?.includes("TELEGRAM_BOT_TOKEN")) {
             throw err;
         }
         return false;
     }
 }
+

@@ -1,16 +1,16 @@
-/**
+﻿/**
  * orchestrator.ts
  * Queries agent tier BEFORE every execution.
  * Enforces physical limits based on tier.
  *
- * Tier 1 — Novice:  1 tool call, cheapest model, no cron
- * Tier 2 — Veteran: batch tools (5 parallel), web search, flux-dev-image
- * Tier 3 — Master:  node-cron autonomy, vision, unlimited loops, best models
+ * Tier 1 â€” Novice:  1 tool call, cheapest model, no cron
+ * Tier 2 â€” Veteran: batch tools (5 parallel), web search, flux-dev-image
+ * Tier 3 â€” Master:  node-cron autonomy, vision, unlimited loops, best models
  */
 
 import { getAgentStats, awardXP } from './xpEngine.js';
 
-// ── Tier Configs ──────────────────────────────────────────────────────────────
+// â”€â”€ Tier Configs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const TIER_CONFIG = {
   1: {
@@ -50,7 +50,7 @@ const TIER_CONFIG = {
 
 type TierKey = keyof typeof TIER_CONFIG;
 
-// ── Main Execution Gate ───────────────────────────────────────────────────────
+// â”€â”€ Main Execution Gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function executeWithTier<T>(
   agentId: string,
@@ -73,7 +73,7 @@ export async function executeWithTier<T>(
 
   // 2. Skill gate
   if (options.requireSkill) {
-    const hasSkill = (stats.skills as string[]).includes(options.requireSkill);
+    const hasSkill = (stats.skills as string[])?.includes(options.requireSkill);
     if (!hasSkill) {
       throw new Error(
         `${agentId} needs skill: ${options.requireSkill}. ` +
@@ -94,18 +94,18 @@ export async function executeWithTier<T>(
   return result;
 }
 
-// ── Convenience: Tier-Aware Image Generation ──────────────────────────────────
+// â”€â”€ Convenience: Tier-Aware Image Generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function tierAwareImageGen(agentId: string, prompt: string): Promise<string> {
   return executeWithTier(agentId, async (config) => {
     console.log(`[Orchestrator] Image model: ${config.imageModel}`);
     // Wire to your Muapi client here:
     // return await muapiClient.run(config.imageModel, { prompt, aspect_ratio: '9:16' });
-    return `[DEMO] ${config.imageModel} → ${prompt.slice(0, 40)}...`;
+    return `[DEMO] ${config.imageModel} â†’ ${prompt.slice(0, 40)}...`;
   });
 }
 
-// ── Convenience: Tier-Aware Batch Run ─────────────────────────────────────────
+// â”€â”€ Convenience: Tier-Aware Batch Run â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function tierAwareBatch<T>(
   agentId: string,
@@ -131,14 +131,14 @@ export async function tierAwareBatch<T>(
   });
 }
 
-// ── Verification: Compare Tier 1 vs Tier 3 ───────────────────────────────────
+// â”€â”€ Verification: Compare Tier 1 vs Tier 3 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function verifyTierDifference(): Promise<void> {
   console.log('\n=== TIER VERIFICATION TEST ===');
 
   // Simulate a Tier 1 agent
   const t1Config = TIER_CONFIG[1];
-  console.log('Tier 1 — Novice:');
+  console.log('Tier 1 â€” Novice:');
   console.log('  Model:', t1Config.model);
   console.log('  Image:', t1Config.imageModel);
   console.log('  Batch:', t1Config.batchSize);
@@ -147,7 +147,7 @@ export async function verifyTierDifference(): Promise<void> {
 
   // Simulate a Tier 3 agent
   const t3Config = TIER_CONFIG[3];
-  console.log('\nTier 3 — Master:');
+  console.log('\nTier 3 â€” Master:');
   console.log('  Model:', t3Config.model);
   console.log('  Image:', t3Config.imageModel);
   console.log('  Batch:', t3Config.batchSize);
@@ -156,3 +156,4 @@ export async function verifyTierDifference(): Promise<void> {
   console.log('  Vision:', t3Config.vision);
   console.log('=== END TEST ===\n');
 }
+

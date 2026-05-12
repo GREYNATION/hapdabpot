@@ -5,24 +5,27 @@
     "moduleResolution": "NodeNext",
     "baseUrl": ".",
     "paths": {
-      "*": ["node_modules/*"]
-    },
+  "@core/*": ["src/core/*"],
+  "@services/*": ["src/services/*"]
+},
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "outDir": "dist",
-    "sourceMap": true
+    "sourceMap": true,
+    "downlevelIteration": true
   },
   "include": ["src/**/*"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "src/agents/superpowers",
-    "src/agents/stuyza/openmontage/remotion-composer",
-    "src/hands-agent.ts",
-    "src/components/**/*",
-    "src/web/**/*",
-    "**/*.tsx"
-  ]
+ "exclude": [
+  "node_modules",
+  "dist",
+  "ruflo",
+  "src/agents/superpowers",
+  "src/agents/stuyza/openmontage/remotion-composer",
+  "src/hands-agent.ts",
+  "src/components/**/*",
+  "src/web/**/*",
+  "**/*.tsx"
+ ]
 }

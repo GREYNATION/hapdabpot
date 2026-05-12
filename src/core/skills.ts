@@ -1,4 +1,4 @@
-import { AgentType } from "./router.js";
+﻿import { AgentType } from "./router.js";
 import { SUPERPOWER_SKILLS } from "./superpowers.js";
 import { CLAUDE_SKILLS } from "./claudeSkills.js";
 
@@ -226,17 +226,17 @@ export const SKILLS: Skill[] = [
         (max 7 points, each 1-2 sentences)
         
         ## Concepts
-        **Concept Name** — brief definition as it applies here
+        **Concept Name** â€” brief definition as it applies here
         (list all new/important concepts)
         
         ## Quotes / Highlights
         > "exact quote or key line worth saving"
         
         ## My Take
-        [leave blank — I will fill this in]
+        [leave blank â€” I will fill this in]
         
         ## Backlinks
-        [[]] (leave empty — I will link manually)
+        [[]] (leave empty â€” I will link manually)
         
         Rules:
         - Output ONLY the markdown. No preamble, no explanation.
@@ -244,6 +244,20 @@ export const SKILLS: Skill[] = [
         - Keep it scannable. Dense > verbose.
         - If content is a tweet thread, preserve the thread structure under Key Points.
         - Use the 'wiki_save' tool to persist the note.`
+    },
+    {
+        id: "ui-ux-pro-max",
+        name: "UI/UX Pro Max",
+        description: "AI-powered design intelligence with 67 UI styles, 161 color palettes, and 99 UX guidelines.",
+        primaryAgent: "marketer",
+        systemPrompt: "You are a UI/UX Design Specialist. You have access to 67 UI styles, 161 color palettes, and 57 font pairings. Your goal is to provide high-end design recommendations, accessibility audits, and conversion-optimized layouts. Use the UI/UX Pro Max knowledge base to suggest specific color codes and typography stacks."
+    },
+    {
+        id: "open-jarvis",
+        name: "OpenJarvis Intelligence",
+        description: "Local-first personal AI agent with tool-use, memory, and speech capabilities.",
+        primaryAgent: "researcher",
+        systemPrompt: "You are the JARVIS core. You specialize in local-first personal AI, on-device intelligence, and spoken briefings. Use your 'morning_digest' capabilities to summarize the user's day, email, and calendar with a professional, authoritative voice. Focus on efficiency, privacy, and proactive assistance."
     },
     ...CLAUDE_SKILLS,
     ...SUPERPOWER_SKILLS
@@ -257,62 +271,66 @@ export function findSkillByIntent(message: string): Skill | undefined {
     const lower = message.toLowerCase();
     
     // AgentHub & Orchestration (Claude Skills)
-    if (lower.includes("/agenthub") || lower.includes("find tool") || lower.includes("which agent")) return getSkill("claude-agenthub");
-    if (lower.includes("/evaluate") || lower.includes("/tradeoffs") || lower.includes("pros and cons") || lower.includes("executive recommendation")) return getSkill("claude-decision-framework");
-    if (lower.includes("/deepdive") || lower.includes("/intel") || lower.includes("gather intel")) return getSkill("claude-research-navigator");
-    if (lower.includes("/orchestrate") || lower.includes("massive mission") || lower.includes("dependency graph")) return getSkill("claude-task-orchestrator");
+    if ((lower ?? "")?.includes("/agenthub") || (lower ?? "")?.includes("find tool") || (lower ?? "")?.includes("which agent")) return getSkill("claude-agenthub");
+    if ((lower ?? "")?.includes("/evaluate") || (lower ?? "")?.includes("/tradeoffs") || (lower ?? "")?.includes("pros and cons") || (lower ?? "")?.includes("executive recommendation")) return getSkill("claude-decision-framework");
+    if ((lower ?? "")?.includes("/deepdive") || (lower ?? "")?.includes("/intel") || (lower ?? "")?.includes("gather intel")) return getSkill("claude-research-navigator");
+    if ((lower ?? "")?.includes("/orchestrate") || (lower ?? "")?.includes("massive mission") || (lower ?? "")?.includes("dependency graph")) return getSkill("claude-task-orchestrator");
 
-    if (lower.includes("explore data") || lower.includes("dataset") || lower.includes("analyze file")) return getSkill("data-exploration");
-    if (lower.includes("ticket") || lower.includes("triage") || lower.includes("support request")) return getSkill("cx-ticket-triage");
-    if (lower.includes("performance") || lower.includes("roas") || lower.includes("marketing analytics")) return getSkill("marketing-performance-analytics");
-    if (lower.includes("create skill") || lower.includes("new capability")) return getSkill("create-skill");
+    if ((lower ?? "")?.includes("explore data") || (lower ?? "")?.includes("dataset") || (lower ?? "")?.includes("analyze file")) return getSkill("data-exploration");
+    if ((lower ?? "")?.includes("ticket") || (lower ?? "")?.includes("triage") || (lower ?? "")?.includes("support request")) return getSkill("cx-ticket-triage");
+    if ((lower ?? "")?.includes("performance") || (lower ?? "")?.includes("roas") || (lower ?? "")?.includes("marketing analytics")) return getSkill("marketing-performance-analytics");
+    if ((lower ?? "")?.includes("create skill") || (lower ?? "")?.includes("new capability")) return getSkill("create-skill");
     
     // New Real Estate & Creative detection
-    if (lower.includes("comps") || lower.includes("comparable") || lower.includes("valuation") || lower.includes("worth")) return getSkill("real-estate-comps");
-    if (lower.includes("script") || lower.includes("copywriting") || lower.includes("youtube hook")) return getSkill("creative-script-writing");
-    if (lower.includes("skip trace") || lower.includes("skip tracing") || lower.includes("find owner") || (lower.includes("seller") && (lower.includes("property") || lower.includes("real estate") || lower.includes("wholesale")))) return getSkill("motivated-seller-research");
-    if (lower.includes("inspection") || lower.includes("appraisal") || lower.includes("property report")) return getSkill("property-analysis");
+    if ((lower ?? "")?.includes("comps") || (lower ?? "")?.includes("comparable") || (lower ?? "")?.includes("valuation") || (lower ?? "")?.includes("worth")) return getSkill("real-estate-comps");
+    if ((lower ?? "")?.includes("script") || (lower ?? "")?.includes("copywriting") || (lower ?? "")?.includes("youtube hook")) return getSkill("creative-script-writing");
+    if ((lower ?? "")?.includes("skip trace") || (lower ?? "")?.includes("skip tracing") || (lower ?? "")?.includes("find owner") || ((lower ?? "")?.includes("seller") && ((lower ?? "")?.includes("property") || (lower ?? "")?.includes("real estate") || (lower ?? "")?.includes("wholesale")))) return getSkill("motivated-seller-research");
+    if ((lower ?? "")?.includes("inspection") || (lower ?? "")?.includes("appraisal") || (lower ?? "")?.includes("property report")) return getSkill("property-analysis");
 
     // Finance & Consumer Law
-    if (lower.includes("credit repair") || lower.includes("consumer law") || lower.includes("fcra") || lower.includes("fdcpa") || lower.includes("dispute")) return getSkill("consumer-law-credit-repair");
+    if ((lower ?? "")?.includes("credit repair") || (lower ?? "")?.includes("consumer law") || (lower ?? "")?.includes("fcra") || (lower ?? "")?.includes("fdcpa") || (lower ?? "")?.includes("dispute")) return getSkill("consumer-law-credit-repair");
     
     // GitHub
-    if (lower.includes("github") || lower.includes("repo") || lower.includes("repository") || lower.includes("pull request") || lower.includes("git ")) return getSkill("github-assistant");
+    if ((lower ?? "")?.includes("github") || (lower ?? "")?.includes("repo") || (lower ?? "")?.includes("repository") || (lower ?? "")?.includes("pull request") || (lower ?? "")?.includes("git ")) return getSkill("github-assistant");
 
     // Public Records & Web
-    if (lower.includes("public record") || lower.includes("acris") || lower.includes("deed") || lower.includes("tax record") || lower.includes("sale price")) return getSkill("public-records-research");
-    if (lower.includes("scrape") || lower.includes("extract data") || lower.includes("get content from")) return getSkill("firecrawl-scrape");
-    if (lower.includes("deep search") || lower.includes("thorough research")) return getSkill("firecrawl-search");
-    if (lower.includes("click") || lower.includes("form") || lower.includes("navigate") || lower.includes("interact")) return getSkill("firecrawl-interact");
+    if ((lower ?? "")?.includes("public record") || (lower ?? "")?.includes("acris") || (lower ?? "")?.includes("deed") || (lower ?? "")?.includes("tax record") || (lower ?? "")?.includes("sale price")) return getSkill("public-records-research");
+    if ((lower ?? "")?.includes("scrape") || (lower ?? "")?.includes("extract data") || (lower ?? "")?.includes("get content from")) return getSkill("firecrawl-scrape");
+    if ((lower ?? "")?.includes("deep search") || (lower ?? "")?.includes("thorough research")) return getSkill("firecrawl-search");
+    if ((lower ?? "")?.includes("click") || (lower ?? "")?.includes("form") || (lower ?? "")?.includes("navigate") || (lower ?? "")?.includes("interact")) return getSkill("firecrawl-interact");
 
     // Council detection
-    if (lower.includes("ops") || lower.includes("operation") || lower.includes("standard operating procedure") || lower.includes("sop")) return getSkill("ops-intelligence");
-    if (lower.includes("comms") || lower.includes("communication") || lower.includes("outreach lead") || lower.includes("messaging")) return getSkill("communications-lead");
-    if (lower.includes("finance") || lower.includes("financial") || lower.includes("mao") || lower.includes("profit analysis")) return getSkill("strategic-finance");
+    if ((lower ?? "")?.includes("ops") || (lower ?? "")?.includes("operation") || (lower ?? "")?.includes("standard operating procedure") || (lower ?? "")?.includes("sop")) return getSkill("ops-intelligence");
+    if ((lower ?? "")?.includes("comms") || (lower ?? "")?.includes("communication") || (lower ?? "")?.includes("outreach lead") || (lower ?? "")?.includes("messaging")) return getSkill("communications-lead");
+    if ((lower ?? "")?.includes("finance") || (lower ?? "")?.includes("financial") || (lower ?? "")?.includes("mao") || (lower ?? "")?.includes("profit analysis")) return getSkill("strategic-finance");
 
     // General keyword matching for other skills
-    if (lower.includes("gdpr") || lower.includes("compliance") || lower.includes("privacy")) return getSkill("legal-compliance");
-    if (lower.includes("competitor") || lower.includes("competitive analysis")) return getSkill("marketing-competitive-analysis");
-    if (lower.includes("sales call") || lower.includes("prep for meeting")) return getSkill("sales-call-prep");
-    if (lower.includes("contract") || lower.includes("redline") || lower.includes("agreement")) return getSkill("legal-contract-review");
-    if (lower.includes("outreach") || lower.includes("cold email")) return getSkill("sales-draft-outreach");
-    if (lower.includes("audit") || lower.includes("sox") || lower.includes("finance")) return getSkill("finance-audit-support");
+    if ((lower ?? "")?.includes("gdpr") || (lower ?? "")?.includes("compliance") || (lower ?? "")?.includes("privacy")) return getSkill("legal-compliance");
+    if ((lower ?? "")?.includes("competitor") || (lower ?? "")?.includes("competitive analysis")) return getSkill("marketing-competitive-analysis");
+    if ((lower ?? "")?.includes("sales call") || (lower ?? "")?.includes("prep for meeting")) return getSkill("sales-call-prep");
+    if ((lower ?? "")?.includes("contract") || (lower ?? "")?.includes("redline") || (lower ?? "")?.includes("agreement")) return getSkill("legal-contract-review");
+    if ((lower ?? "")?.includes("outreach") || (lower ?? "")?.includes("cold email")) return getSkill("sales-draft-outreach");
+    if ((lower ?? "")?.includes("audit") || (lower ?? "")?.includes("sox") || (lower ?? "")?.includes("finance")) return getSkill("finance-audit-support");
 
     // Superpowers detection
-    if (lower.includes("brainstorm") || lower.includes("design spec") || lower.includes("ideation")) return getSkill("superpower-brainstorming");
-    if (lower.includes("debug") || lower.includes("fix bug") || lower.includes("error in") || lower.includes("broken")) return getSkill("superpower-sys-debugging");
-    if (lower.includes("plan") || lower.includes("todo list") || lower.includes("implementation step")) return getSkill("superpower-writing-plans");
-    if (lower.includes("execute") || lower.includes("run plan")) return getSkill("superpower-executing-plans");
-    if (lower.includes("test") || lower.includes("tdd") || lower.includes("unit test")) return getSkill("superpower-test-driven-development");
-    if (lower.includes("review code") || lower.includes("code review") || lower.includes("check this code")) return getSkill("superpower-code-review");
-    if (lower.includes("verify") || lower.includes("check work") || lower.includes("is it done")) return getSkill("superpower-verification");
+    if ((lower ?? "")?.includes("brainstorm") || (lower ?? "")?.includes("design spec") || (lower ?? "")?.includes("ideation")) return getSkill("superpower-brainstorming");
+    if ((lower ?? "")?.includes("debug") || (lower ?? "")?.includes("fix bug") || (lower ?? "")?.includes("error in") || (lower ?? "")?.includes("broken")) return getSkill("superpower-sys-debugging");
+    if ((lower ?? "")?.includes("plan") || (lower ?? "")?.includes("todo list") || (lower ?? "")?.includes("implementation step")) return getSkill("superpower-writing-plans");
+    if ((lower ?? "")?.includes("execute") || (lower ?? "")?.includes("run plan")) return getSkill("superpower-executing-plans");
+    if ((lower ?? "")?.includes("test") || (lower ?? "")?.includes("tdd") || (lower ?? "")?.includes("unit test")) return getSkill("superpower-test-driven-development");
+    if ((lower ?? "")?.includes("review code") || (lower ?? "")?.includes("code review") || (lower ?? "")?.includes("check this code")) return getSkill("superpower-code-review");
+    if ((lower ?? "")?.includes("verify") || (lower ?? "")?.includes("check work") || (lower ?? "")?.includes("is it done")) return getSkill("superpower-verification");
 
     // n8n & Prompts
-    if (lower.includes("n8n") || lower.includes("workflow") || lower.includes("automation") || lower.includes("trigger")) return getSkill("automation-n8n");
-    if (lower.includes("prompt") || lower.includes("system prompt") || lower.includes("cursor") || lower.includes("lovable")) return getSkill("ai-prompt-intel");
-    if (lower.includes("harness") || lower.includes("browse") || lower.includes("deep scan") || lower.includes("chrome control")) return getSkill("browser-harness");
-    if (lower.includes("archive") || lower.includes("library") || lower.includes("save to vault") || lower.includes("summarize and link")) return getSkill("knowledge-librarian");
+    if ((lower ?? "")?.includes("n8n") || (lower ?? "")?.includes("workflow") || (lower ?? "")?.includes("automation") || (lower ?? "")?.includes("trigger")) return getSkill("automation-n8n");
+    if ((lower ?? "")?.includes("prompt") || (lower ?? "")?.includes("system prompt") || (lower ?? "")?.includes("cursor") || (lower ?? "")?.includes("lovable")) return getSkill("ai-prompt-intel");
+    if ((lower ?? "")?.includes("harness") || (lower ?? "")?.includes("browse") || (lower ?? "")?.includes("deep scan") || (lower ?? "")?.includes("chrome control")) return getSkill("browser-harness");
+    if ((lower ?? "")?.includes("archive") || (lower ?? "")?.includes("library") || (lower ?? "")?.includes("save to vault") || (lower ?? "")?.includes("summarize and link")) return getSkill("knowledge-librarian");
+
+    if ((lower ?? "")?.includes("ui") || (lower ?? "")?.includes("ux") || (lower ?? "")?.includes("design") || (lower ?? "")?.includes("layout") || (lower ?? "")?.includes("palette")) return getSkill("ui-ux-pro-max");
+    if ((lower ?? "")?.includes("jarvis") || (lower ?? "")?.includes("morning digest") || (lower ?? "")?.includes("briefing") || (lower ?? "")?.includes("local ai")) return getSkill("open-jarvis");
 
     return undefined;
 }
+
 

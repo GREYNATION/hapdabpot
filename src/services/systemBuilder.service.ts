@@ -1,10 +1,10 @@
-import { getSupabase } from "../core/supabase.js";
+﻿import { getSupabase } from "../core/supabase.js";
 import { log } from "../core/config.js";
 import PDFDocument from "pdfkit";
 import { Readable } from "stream";
 import type { ParsedClientIntake, AgentType } from "../agents/SystemBuilderAgent.js";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface VapiAssistantConfig {
   name: string;
@@ -36,7 +36,7 @@ interface SchedulingConfig {
   eventTypes: string[];
 }
 
-// ─── Voice IDs (scaffold — swap real Vapi IDs later) ─────────────────────────
+// â”€â”€â”€ Voice IDs (scaffold â€” swap real Vapi IDs later) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const VOICE_MAP: Record<AgentType, string> = {
   CSR:        "VAPI_VOICE_FEMALE_PROFESSIONAL",  // replace with real ID
@@ -45,7 +45,7 @@ const VOICE_MAP: Record<AgentType, string> = {
   SALES_REP:  "VAPI_VOICE_MALE_ENERGETIC",
 };
 
-// ─── Agent system prompts ────────────────────────────────────────────────────
+// â”€â”€â”€ Agent system prompts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function buildAgentPrompt(
   role: AgentType,
@@ -62,7 +62,7 @@ Your job is to answer inbound calls professionally, capture caller information, 
 - Qualify: Are they a current customer or new lead?
 - Offer to book an appointment or transfer to a specialist
 - If after hours, take a message and promise a callback next business day
-- Never make up pricing — say "I'll have someone confirm that with you"`,
+- Never make up pricing â€” say "I'll have someone confirm that with you"`,
 
     ASSISTANT: `${base}
 You handle all text-based communication: SMS, email, Facebook, Instagram, and web chat.
@@ -74,14 +74,14 @@ You handle all text-based communication: SMS, email, Facebook, Instagram, and we
 
     OFFICE_MGR: `${base}
 You make outbound calls to existing customers to schedule routine service, maintenance visits, or follow-ups.
-- Call tone: friendly, familiar — they're existing customers
+- Call tone: friendly, familiar â€” they're existing customers
 - Purpose: schedule their next service or check-in on satisfaction
 - Always offer 2-3 time slots
 - Log the outcome in CRM after every call`,
 
     SALES_REP: `${base}
 You make outbound calls to new leads who have expressed interest in services.
-- Open with energy — you're following up on their inquiry
+- Open with energy â€” you're following up on their inquiry
 - Qualify: specific need, timeline, budget, decision-maker?
 - Goal: book a site visit or consultation
 - Handle objections with empathy, not pressure
@@ -91,7 +91,7 @@ You make outbound calls to new leads who have expressed interest in services.
   return rolePrompts[role];
 }
 
-// ─── Main Service Class ──────────────────────────────────────────────────────
+// â”€â”€â”€ Main Service Class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export class SystemBuilderService {
     private supabase = getSupabase();
@@ -156,9 +156,9 @@ export class SystemBuilderService {
             doc.moveDown();
             doc.fontSize(18).text("Infrastructure & ROI", { underline: true });
             doc.moveDown();
-            doc.fontSize(10).text("• Voice Layer: Vapi.ai (Real-time neural voice)");
-            doc.text("• CRM Layer: Chatwoot (Omnichannel orchestration)");
-            doc.text("• Scheduling Layer: Cal.com (Autonomous booking)");
+            doc.fontSize(10).text("â€¢ Voice Layer: Vapi.ai (Real-time neural voice)");
+            doc.text("â€¢ CRM Layer: Chatwoot (Omnichannel orchestration)");
+            doc.text("â€¢ Scheduling Layer: Cal.com (Autonomous booking)");
             doc.moveDown();
             doc.text(`Estimated Monthly ROI: ${client.roi_pitch ? "High-Impact" : "3.5x - 5.0x"}`);
 
@@ -187,7 +187,7 @@ export class SystemBuilderService {
 
 export const systemBuilderService = new SystemBuilderService();
 
-// ─── Top-level exports for Agent integration ────────────────────────────────
+// â”€â”€â”€ Top-level exports for Agent integration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function generateSystemConfig(
   intake: ParsedClientIntake & {
@@ -201,7 +201,7 @@ export function generateSystemConfig(
 
   // Build Vapi assistant configs for each selected agent
   const vapiAgents: VapiAssistantConfig[] = agents.map((role) => ({
-    name: `${businessName} — ${role.replace("_", " ")}`,
+    name: `${businessName} â€” ${role.replace("_", " ")}`,
     role,
     firstMessage:
       role === "CSR"
@@ -217,20 +217,20 @@ export function generateSystemConfig(
     tools: getAgentTools(role),
   }));
 
-  // Chatbot config (Chatwoot — free, open source)
+  // Chatbot config (Chatwoot â€” free, open source)
   const chatbotConfig: ChatbotConfig = {
     platform: "Chatwoot",
     channels: ["email", "sms", "facebook", "instagram", "web_chat"],
     welcomeMessage: `Hi! Thanks for reaching out to ${businessName}. How can we help you today?`,
   };
 
-  // Scheduling config (Cal.com — free, open source)
+  // Scheduling config (Cal.com â€” free, open source)
   const schedulingConfig: SchedulingConfig = {
     platform: "Cal.com",
     eventTypes: getEventTypes(industry),
   };
 
-  // Drop-in Vapi JSON (scaffold — paste into Vapi dashboard)
+  // Drop-in Vapi JSON (scaffold â€” paste into Vapi dashboard)
   const vapiReadyJSON = {
     assistants: vapiAgents.map((a) => ({
       name: a.name,
@@ -279,7 +279,7 @@ function getEventTypes(industry: string): string[] {
     solar:         ["Energy Assessment", "Installation Consult"],
   };
   const key = Object.keys(industryExtras).find((k) =>
-    industry.toLowerCase().includes(k)
+    industry.toLowerCase()?.includes(k)
   );
   return [...base, ...(key ? industryExtras[key] : [])];
 }
@@ -322,44 +322,45 @@ export function formatTelegramSummary(
   const agentLines = systemConfig.agents
     .map((a) => {
       const icons: Record<AgentType, string> = {
-        CSR:        "📞",
-        ASSISTANT:  "💬",
-        OFFICE_MGR: "🏢",
-        SALES_REP:  "💰",
+        CSR:        "ðŸ“ž",
+        ASSISTANT:  "ðŸ’¬",
+        OFFICE_MGR: "ðŸ¢",
+        SALES_REP:  "ðŸ’°",
       };
-      return `${icons[a.role]} *${a.role.replace("_", " ")}* — ${a.firstMessage.substring(0, 60)}...`;
+      return `${icons[a.role]} *${a.role.replace("_", " ")}* â€” ${a.firstMessage.substring(0, 60)}...`;
     })
     .join("\n");
 
-  const toolLines = intake.recommended_tools.slice(0, 4).join(" · ");
+  const toolLines = intake.recommended_tools.slice(0, 4).join(" Â· ");
 
-  return `⚡ *SYSTEM BUILT — ${intake.businessName.toUpperCase()}*
+  return `âš¡ *SYSTEM BUILT â€” ${intake.businessName.toUpperCase()}*
 
-🏭 *Industry:* ${intake.industry}
-📍 *Location:* ${intake.location}
-🎯 *Tier:* ${intake.tier}
-💵 *Monthly:* $${intake.monthlyPrice}/mo
-🔧 *Setup Fee:* $${intake.setupFee} (one-time)
+ðŸ­ *Industry:* ${intake.industry}
+ðŸ“ *Location:* ${intake.location}
+ðŸŽ¯ *Tier:* ${intake.tier}
+ðŸ’µ *Monthly:* $${intake.monthlyPrice}/mo
+ðŸ”§ *Setup Fee:* $${intake.setupFee} (one-time)
 
-*─── AI AGENTS ───*
+*â”€â”€â”€ AI AGENTS â”€â”€â”€*
 ${agentLines}
 
-*─── LEAD SOURCES ───*
-${intake.leadSources.slice(0, 6).join(" · ")}
+*â”€â”€â”€ LEAD SOURCES â”€â”€â”€*
+${intake.leadSources.slice(0, 6).join(" Â· ")}
 
-*─── FREE STACK ───*
+*â”€â”€â”€ FREE STACK â”€â”€â”€*
 ${toolLines}
 
-*─── ROI PITCH ───*
+*â”€â”€â”€ ROI PITCH â”€â”€â”€*
 _${intake.roi_pitch}_
 
-*─── NEXT STEPS ───*
-1️⃣ Share proposal with client
-2️⃣ Collect setup fee → deploy Vapi assistants
-3️⃣ Connect Chatwoot for chat channels
-4️⃣ Set up Cal.com event types
-5️⃣ Go live 🚀
+*â”€â”€â”€ NEXT STEPS â”€â”€â”€*
+1ï¸âƒ£ Share proposal with client
+2ï¸âƒ£ Collect setup fee â†’ deploy Vapi assistants
+3ï¸âƒ£ Connect Chatwoot for chat channels
+4ï¸âƒ£ Set up Cal.com event types
+5ï¸âƒ£ Go live ðŸš€
 
-🗂 *Client ID:* \`${clientId}\`
+ðŸ—‚ *Client ID:* \`${clientId}\`
 Use /proposal ${clientId} to pull full config`;
 }
+

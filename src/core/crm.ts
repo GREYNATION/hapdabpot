@@ -50,8 +50,8 @@ export class CrmManager {
         const maxOffer = this.calculateMaxOffer(arv, repairs);
 
         const stmt = getDb().prepare(`
-            INSERT INTO deals (address, seller_name, seller_phone, arv, repair_estimate, max_offer, status, assigned_buyer, profit, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO deals (address, seller_name, seller_phone, arv, repair_estimate, max_offer, status, assigned_buyer, profit, surplus, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         const info = stmt.run(
             deal.address,
@@ -63,6 +63,7 @@ export class CrmManager {
             deal.status || "lead",
             deal.assigned_buyer || null,
             deal.profit || 0,
+            deal.surplus || 0,
             deal.notes || null
         );
         return info.lastInsertRowid as number;

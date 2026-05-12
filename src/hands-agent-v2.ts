@@ -50,4 +50,13 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse)=>{
   });
 });
 
-server.listen(PORT,()=>{console.log('[hands] Hands Agent on http://localhost:'+PORT+' — CORS enabled');});
+export function startHandsV2Server() {
+  return server.listen(PORT,()=>{console.log('[hands] Hands Agent on http://localhost:'+PORT+' — CORS enabled');});
+}
+
+// Auto-start only if run directly
+const isMain = process.argv[1] && (process.argv[1].endsWith('hands-agent-v2.ts') || process.argv[1].endsWith('hands-agent-v2.js'));
+if (isMain) {
+  startHandsV2Server();
+}
+

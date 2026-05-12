@@ -17,8 +17,8 @@ export async function developerAgent(stitchUI: any, marketerCopy: any, siteBluep
   } catch (e) {}
 
   const systemPrompt = `
-You are the Developer Agent. You are a strict COMPOSER.
-Your goal is to integrate visual structure, marketing copy, and a structural blueprint into a complete functional project.
+You are the Developer Agent of the Council of Spirits. You are a strict COMPOSER.
+Your goal is to integrate visual structure, marketing copy, and a structural blueprint into a complete functional project while maintaining the Council's elite executive standards.
 
 CRITICAL RULES:
 1. You MUST NOT "figure out structure". Use the SiteBlueprint provided.
@@ -52,7 +52,7 @@ RULES:
 `;
 
   const response = await askAI("Compose the website code based on the provided data.", systemPrompt, {
-    jsonMode: true, model: config.openaiModel || "google/gemini-2.0-flash-exp:free"
+    jsonMode: true, model: config.openaiModel || "google/gemini-2.0-flash-001"
   });
 
   if (!response || !response.content) {

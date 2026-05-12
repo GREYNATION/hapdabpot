@@ -1,7 +1,8 @@
-// Lead quality filter — blocks aggregators, scores real seller listings
-import { Lead } from "./universalLeadScraper.js";
+﻿// Lead quality filter â€” blocks aggregators, scores real seller listings
+import { Lead } from "../types/lead.js";
+import { getStrategyContext } from "./vaultService.js";
 import { askAI } from "../core/ai.js";
-import { config } from "../core/config.js";
+import { config, log } from "../core/config.js";
 import { humanize } from "../core/humanizer.js";
 
 // --- Types ----------------------------------------------------------------------
@@ -39,7 +40,7 @@ export const TRUSTED_DOMAINS = [
 export const LISTING_SIGNALS = [
   "beds", "bath", "sqft", "lot", "asking", "price", "built", "garage",
   "kitchen", "roof", "yard", "basement", "detached", "multi-family",
-  "duplex", "acre", "floors"
+  "duplex", "acre", "floors", "probate", "divorce", "death", "estate sale"
 ];
 
 // Keywords that indicate "noise" (guides, top 10 lists, articles)
@@ -59,67 +60,81 @@ function getDomain(url: string = ""): string {
 }
 
 export function scoreListingQuality(lead: Lead): number {
+  if (!lead) return 0;
   let score = 3; // Baseline
   const domain = getDomain(lead.url);
-  const content = (lead.address + " " + (lead.description || "")).toLowerCase();
+  const content = ((lead.address || "") + " " + (lead.description || "")).toLowerCase();
 
   // 1. Domain Check
-  if (BLOCKED_DOMAINS.some(d => (domain || "").includes(d))) return 0;
-  if (TRUSTED_DOMAINS.some(d => (domain || "").includes(d))) score += 5;
+  if (BLOCKED_DOMAINS.some(d => (domain ?? "")?.includes(d))) return 0;
+  if (TRUSTED_DOMAINS.some(d => (domain ?? "")?.includes(d))) score += 5;
 
   // 2. Listing Signals (+1 each)
   LISTING_SIGNALS.forEach(s => {
-    if ((content || "").includes(s)) score += 1;
+    if ((content ?? "")?.includes(s)) score += 1;
   });
 
   // 3. Noise Signals (-2 each)
   NOISE_SIGNALS.forEach(s => {
-    if ((content || "").includes(s)) score -= 2;
+    if ((content ?? "")?.includes(s)) score -= 2;
   });
 
   // 4. Entity Checks (Simple titles like "10 Best..." are low quality)
-  if (lead.address.split(" ").length < 3) score -= 2;
-  if (/^(\d+ )?best|top|how to/i.test(lead.address)) score -= 5;
+  const address = lead.address || "";
+  if (address.split(" ").length < 3) score -= 2;
+  if (/^(\d+ )?best|top|how to/i.test(address)) score -= 5;
   
   // 5. Seller/Source Check
-  if ((lead.source || "").includes("FSBO")) score += 2;
-  if ((lead.source || "").includes("Direct")) score += 3;
+  const source = lead.source || "";
+  if ((source ?? "")?.includes("FSBO")) score += 2;
+  if ((source ?? "")?.includes("Direct")) score += 3;
 
   return score;
 }
 
 export function filterAndRankLeads(leads: Lead[], minScore = 3): Lead[] {
   return leads
-    .filter(l => !!l.price) // ❌ Price: N/A
+    .filter(l => !!l.price) // âŒ Price: N/A
     .map(l => ({ ...l, qualityScore: scoreListingQuality(l) }))
     .filter(l => (l.qualityScore || 0) >= minScore)
     .sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0));
 }
 
 export function calculateDealScore(lead: Lead): number {
-  // 1. Equity Score (0–30 pts)
+  if (!lead) return 0;
+  // 1. Equity Score (0â€“30 pts)
   let equityScore = 0;
   if (lead.arv && lead.price && lead.arv > 0) {
     const margin = (lead.arv - lead.price) / lead.arv;
-    if (margin >= 0.40) equityScore = 30;       // 🔥 Huge Spread
-    else if (margin >= 0.30) equityScore = 20;  // ✅ Good Equity
-    else if (margin >= 0.20) equityScore = 10;  // ⚠️ Tight but okay
+    if (margin >= 0.40) equityScore = 30;       // ðŸ”¥ Huge Spread
+    else if (margin >= 0.30) equityScore = 20;  // âœ… Good Equity
+    else if (margin >= 0.20) equityScore = 10;  // âš ï¸ Tight but okay
   }
 
-  // 2. Motivation Score (0–30 pts)
+  // 2. Motivation Score (0â€“40 pts)
   let motivationScore = 0;
   const strongSignals = ["probate", "foreclosure", "tax delinquency", "absentee", "vacant", "pre-foreclosure"];
-  const mediumSignals = ["motivated", "must sell", "price reduced", "estate sale", "quick sale"];
+  const mediumSignals = ["motivated", "must sell", "price reduced", "estate sale", "quick sale", "divorce", "as-is", "handyman"];
   
-  lead.distressSignals.forEach(signal => {
-    const s = (signal || "").toLowerCase();
-    if (strongSignals.some(high => s.includes(high))) motivationScore += 10;
-    else if (mediumSignals.some(mid => s.includes(mid))) motivationScore += 5;
-    else motivationScore += 2;
-  });
-  motivationScore = Math.min(30, motivationScore);
+  const signals = lead.distressSignals || [];
+  const desc = (lead.description || "").toLowerCase();
 
-  // 3. Condition Score (0–15 pts)
+  signals.forEach(signal => {
+    if (!signal) return;
+    const s = String(signal).toLowerCase();
+    if (s && strongSignals.some(high => s?.includes(high))) motivationScore += 12;
+    else if (s && mediumSignals.some(mid => s?.includes(mid))) motivationScore += 7;
+    else if (s) motivationScore += 3;
+  });
+
+  // ðŸ§  AI Heuristic: Check description for "Emotional Distress" / Virality
+  mediumSignals.forEach(word => {
+    if ((desc ?? "")?.includes(word)) motivationScore += 5;
+  });
+  
+  motivationScore = Math.min(40, motivationScore);
+
+  // 3. Condition Score (0â€“15 pts)
   let conditionScore = 0;
   if (lead.repairs !== undefined && lead.price) {
     const repairRatio = lead.repairs / lead.price;
@@ -128,13 +143,14 @@ export function calculateDealScore(lead: Lead): number {
     else if (repairRatio < 0.50) conditionScore = 5;  // Heavy lift
   }
 
-  // 4. Market Score (0–15 pts)
+  // 4. Market Score (0â€“15 pts)
   let marketScore = 0;
   const highDemandCities = ["Houston", "Brooklyn", "Columbus", "Cleveland", "Richmond"];
-  if (highDemandCities.some(c => (lead.city || "").includes(c))) marketScore = 15;
+  const city = (lead.city || "").toLowerCase();
+  if (highDemandCities.some(c => (city ?? "")?.includes(c.toLowerCase()))) marketScore = 15;
   else marketScore = 10;
 
-  // 5. Data Score (0–10 pts)
+  // 5. Data Score (0â€“10 pts)
   let dataScore = 0;
   if (lead.price && lead.price > 0) dataScore += 5;
   if (lead.description && lead.description.length > 50) dataScore += 5;
@@ -154,7 +170,37 @@ export function calculateDealScore(lead: Lead): number {
   if (lead.aiUrgency === "Medium") aiBoost += 5;
   if (lead.aiCondition !== undefined && lead.aiCondition <= 3) aiBoost += 10; // Heavy distress boost
   
-  const finalScore = Math.min(100, totalScore + aiBoost);
+  // 6. Adaptive Strategy Scoring (Obsidian Integration)
+  const strategyRaw = getStrategyContext() || "";
+  const strategy = strategyRaw.toLowerCase();
+  let adaptiveBoost = 0;
+
+  if (strategy.length > 0) {
+    // Priority Check (e.g., "prioritize 44105")
+    const zipStr = String(lead.zip || "");
+    if (zipStr && (strategy ?? "")?.includes(zipStr) && (strategy ?? "")?.includes("prioritize")) {
+      adaptiveBoost += 15;
+    }
+    
+    // Ignore Check (e.g., "ignore mobile homes")
+    const propertyType = (lead.type || "").toLowerCase();
+    if (propertyType && (strategy ?? "")?.includes(propertyType) && (strategy ?? "")?.includes("ignore")) {
+      adaptiveBoost -= 50;
+    }
+
+    // Keyword Boost (e.g., "love fixers", "love equity")
+    const wordsToLove = ["fixer", "equity", "absentee", "motivated", "distress", "probate", "foreclosure"];
+    const signalsText = (lead.distressSignals || []).join(" ").toLowerCase();
+    const leadText = ((lead.address || "") + " " + (lead.description || "") + " " + (lead.type || "") + " " + signalsText).toLowerCase();
+    
+    wordsToLove.forEach(word => {
+      if ((strategy ?? "")?.includes("love") && (strategy ?? "")?.includes(word) && (leadText ?? "")?.includes(word)) {
+        adaptiveBoost += 10;
+      }
+    });
+  }
+
+  const finalScore = Math.max(0, Math.min(100, totalScore + aiBoost + adaptiveBoost));
   lead.dealScore = finalScore;
   
   return finalScore;
@@ -190,10 +236,17 @@ Format as JSON:
       model: config.openaiModel 
     });
     
-    const analysis = JSON.parse(aiResponse.content);
+    let analysis: any = {};
+    try {
+      analysis = typeof aiResponse.content === 'string' ? JSON.parse(aiResponse.content) : aiResponse.content;
+    } catch (e) {
+      log(`[leadFilter] AI returned invalid JSON: ${aiResponse.content}`, "warn");
+      return lead;
+    }
     
     // Humanize the AI-generated summary for better presentation
-    const humanizedSummary = await humanize(analysis.aiSummary);
+    const summaryToHumanize = analysis.aiSummary || lead.description || "";
+    const humanizedSummary = await humanize(summaryToHumanize);
 
     return {
       aiCondition: analysis.aiCondition,
@@ -208,9 +261,9 @@ Format as JSON:
 
 export function tagDeal(deal: Lead): string {
   const score = deal.dealScore || 0;
-  if (score >= 80) return "🔥 HOT DEAL";
-  if (score >= 60) return "⚠️ WATCHLIST";
-  return "❌ FILTERED";
+  if (score >= 80) return "ðŸ”¥ HOT DEAL";
+  if (score >= 60) return "âš ï¸ WATCHLIST";
+  return "âŒ FILTERED";
 }
 
 export function formatTopDeal(deal: Lead): string {
@@ -218,28 +271,28 @@ export function formatTopDeal(deal: Lead): string {
   const tag = tagDeal(deal);
   const profitPotential = (deal.arv || 0) - (deal.price || 0) - (deal.repairs || 0);
 
-  const aiSummary = deal.aiSummary ? `\n🤖 **AI Summary:** ${deal.aiSummary}\n` : "";
-  const signals = deal.distressSignals.length > 0 ? `\n🚨 **Signals:** ${deal.distressSignals.join(", ")}` : "";
+  const aiSummary = deal.aiSummary ? `\nðŸ¤– **AI Summary:** ${deal.aiSummary}\n` : "";
+  const signals = (deal.distressSignals || []).length > 0 ? `\nðŸš¨ **Signals:** ${deal.distressSignals.join(", ")}` : "";
 
   return `
 ${tag} (Score: ${score}/100)
 
-📍 **${deal.address}**
-💰 Price: $${(deal.price || 0).toLocaleString()}
-📈 ARV: $${(deal.arv || 0).toLocaleString()}
-🔧 Repairs: $${(deal.repairs || 0).toLocaleString()}
+ðŸ“ **${deal.address}**
+ðŸ’° Price: $${(deal.price || 0).toLocaleString()}
+ðŸ“ˆ ARV: $${(deal.arv || 0).toLocaleString()}
+ðŸ”§ Repairs: $${(deal.repairs || 0).toLocaleString()}
 
-💵 **Max Offer:** $${(deal.maxOffer || 0).toLocaleString()}
-🔥 **Est Profit:** $${profitPotential.toLocaleString()}
+ðŸ’µ **Max Offer:** $${(deal.maxOffer || 0).toLocaleString()}
+ðŸ”¥ **Est Profit:** $${profitPotential.toLocaleString()}
 ${aiSummary}${signals}
 
-${score >= 80 ? "✅ **ACTION:** Contact Seller Immediately" : "⏳ **ACTION:** Monitor for price drops"}
-🔗 [View Listing](${deal.url})
+${score >= 80 ? "âœ… **ACTION:** Contact Seller Immediately" : "â³ **ACTION:** Monitor for price drops"}
+ðŸ”— [View Listing](${deal.url})
 `;
 }
 
 /**
- * Step 10 — Deal Flipping Calculator (Profit Simulator)
+ * Step 10 â€” Deal Flipping Calculator (Profit Simulator)
  * This is the decision engine for actual financial feasibility.
  */
 export function calculateDeal(deal: Lead): Lead {
@@ -289,18 +342,18 @@ export function formatFilteredLeads(leads: Lead[], limit = 5): string {
   if (leads.length === 0) return "No high-quality leads found in the target markets.";
 
   const topLeads = leads.slice(0, limit);
-  let report = `🎯 **Found ${leads.length} quality leads** (out of ${leads.length} initially found)\n\n`;
+  let report = `ðŸŽ¯ **Found ${leads.length} quality leads** (out of ${leads.length} initially found)\n\n`;
 
   topLeads.forEach((lead, i) => {
-    const signals = lead.distressSignals.length > 0 
-      ? `\n🚨 Signals: ${lead.distressSignals.join(", ")}` 
+    const signals = (lead.distressSignals || []).length > 0 
+      ? `\nðŸš¨ Signals: ${lead.distressSignals.join(", ")}` 
       : "";
     
     report += `${i + 1}. **${lead.address}**\n` +
-              `💰 Price: ${lead.price ? "$" + lead.price.toLocaleString() : "N/A"}\n` +
-              `📍 Location: ${lead.city}, ${lead.state}\n` +
-              `🏗️ Type: ${lead.type} | ⭐ Score: ${lead.qualityScore}${signals}\n` +
-              `🔗 [View Listing](${lead.url})\n\n`;
+              `ðŸ’° Price: ${lead.price ? "$" + lead.price.toLocaleString() : "N/A"}\n` +
+              `ðŸ“ Location: ${lead.city}, ${lead.state}\n` +
+              `ðŸ—ï¸ Type: ${lead.type} | â­ Score: ${lead.qualityScore}${signals}\n` +
+              `ðŸ”— [View Listing](${lead.url})\n\n`;
   });
 
   if (leads.length > limit) {
@@ -315,7 +368,8 @@ export function formatFilteredLeads(leads: Lead[], limit = 5): string {
  */
 export function classifyLead(text: string): "interested" | "not_interested" | "unknown" {
   const t = (text || "").toLowerCase();
-  if (t.includes("yes")) return "interested";
-  if (t.includes("not")) return "not_interested";
+  if ((t ?? "")?.includes("yes")) return "interested";
+  if ((t ?? "")?.includes("not")) return "not_interested";
   return "unknown";
 }
+

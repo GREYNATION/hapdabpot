@@ -1,4 +1,4 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 import path from 'path';
 import { log, config } from '../config.js';
 import { CrmManager } from '../crm.js';
@@ -17,7 +17,7 @@ export interface Decision {
 }
 
 export class ExecutiveManager {
-    private static MEMORY_BASE = path.resolve('./data/memory');
+    private static MEMORY_BASE = path.resolve('./brain/executive');
 
     /**
      * Workflow #1 & #2: Generate Command Center Briefing
@@ -28,41 +28,41 @@ export class ExecutiveManager {
         const today = new Date();
         const dateStr = today.toISOString().split('T')[0];
         
-        let report = `# 🌅 Morning Command Center — ${dateStr}\n\n`;
+        let report = `# ðŸŒ… Morning Command Center â€” ${dateStr}\n\n`;
 
         // 1. Calendar Prep (Workflow #2)
         if (isGoogleEnabled()) {
-            report += `## 📅 Today's Schedule\n`;
+            report += `## ðŸ“… Today's Schedule\n`;
             try {
                 const events = await listEvents(1);
                 report += events + "\n\n";
             } catch (e: any) {
-                report += `⚠️ Calendar error: ${e.message}\n\n`;
+                report += `âš ï¸ Calendar error: ${e.message}\n\n`;
             }
 
             // 2. Email Triage (Workflow #3)
-            report += `## 📩 Email Triage\n`;
+            report += `## ðŸ“© Email Triage\n`;
             try {
                 const emails = await listEmails("is:unread", 5);
                 report += emails + "\n\n";
             } catch (e: any) {
-                report += `⚠️ Gmail error: ${e.message}\n\n`;
+                report += `âš ï¸ Gmail error: ${e.message}\n\n`;
             }
         } else {
-            report += `⚠️ Google Workspace not connected. Skipping Calendar/Gmail triage.\n\n`;
+            report += `âš ï¸ Google Workspace not connected. Skipping Calendar/Gmail triage.\n\n`;
         }
 
         // 3. CRM Snapshot
         const stats = CrmManager.getStats();
         const followUps = CrmManager.getFollowUpsDueToday();
         
-        report += `## 🏗️ Pipeline Snapshot\n`;
+        report += `## ðŸ—ï¸ Pipeline Snapshot\n`;
         report += `- **Leads**: ${stats.leads}\n`;
         report += `- **Contacted**: ${stats.contacted}\n`;
         report += `- **Contracts**: ${stats.contracts || 0}\n\n`;
 
         if (followUps.length > 0) {
-            report += `### 🎯 High-Priority Follow-ups\n`;
+            report += `### ðŸŽ¯ High-Priority Follow-ups\n`;
             followUps.slice(0, 3).forEach(f => {
                 report += `- ${f.address} (${f.seller_name || 'Prospect'})\n`;
             });
@@ -71,12 +71,12 @@ export class ExecutiveManager {
 
         // 4. Drive Highlights
         if (isGoogleEnabled()) {
-            report += `## 📂 Recent Docs & Activity\n`;
+            report += `## ðŸ“‚ Recent Docs & Activity\n`;
             try {
                 const files = await driveListFiles(undefined, 3);
                 report += files + "\n";
             } catch (e: any) {
-                report += `⚠️ Drive error: ${e.message}\n`;
+                report += `âš ï¸ Drive error: ${e.message}\n`;
             }
         }
 
@@ -108,7 +108,7 @@ export class ExecutiveManager {
         this.saveMemory('decisions', filename, content);
         log(`[executive] Decision logged: ${title}`);
         
-        return `✅ Decision logged to memory: ${title}`;
+        return `âœ… Decision logged to memory: ${title}`;
     }
 
     /**
@@ -121,14 +121,14 @@ export class ExecutiveManager {
         try {
             const unreadCount = await listEmails("is:unread", 1);
             
-            if (unreadCount.includes("No emails found")) {
+            if (unreadCount?.includes("No emails found")) {
                 return null;
             }
 
-            return `🔔 **Urgent Pulse**: Unread high-priority communications detected.\n\n${unreadCount}`;
+            return `ðŸ”” **Urgent Pulse**: Unread high-priority communications detected.\n\n${unreadCount}`;
         } catch (err: any) {
             if (err.message?.includes("re-authentication")) {
-                return `⚠️ **SYSTEM ALERT**: Google Workspace disconnected (invalid_grant).\n\n**Action Required**: Please regenerate your \`GOOGLE_REFRESH_TOKEN\` in Railway to restore Gmail/Calendar triage.`;
+                return `âš ï¸ **SYSTEM ALERT**: Google Workspace disconnected (invalid_grant).\n\n**Action Required**: Please regenerate your \`GOOGLE_REFRESH_TOKEN\` in Railway to restore Gmail/Calendar triage.`;
             }
             throw err;
         }
@@ -145,3 +145,4 @@ export class ExecutiveManager {
         fs.writeFileSync(filePath, content);
     }
 }
+

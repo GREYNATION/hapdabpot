@@ -1,10 +1,13 @@
+﻿// Force UTF-8 encoding
+process.stdout.setEncoding("utf8");
+process.stderr.setEncoding("utf8");
 import "./core/init.js";
 import 'dotenv/config';
 import { log, config } from "./core/config.js";
 import { startupSequence } from "./core/startup.js";
 import { TelegramBot } from "./bot/telegram.js";
 import { setupRouter } from "./bot/router.js";
-import { initMarketScans } from "./cron/marketScans.js";
+import { startLeadAlerts, registerLeadAlertHandlers } from "./cron/leadAlerts.js";
 import { startHeartbeat } from "./cron/heartbeat.js";
 import { startWebServer } from "./webServer.js";
 import { contentScheduler } from "./agents/ContentSchedulerAgent.js";
@@ -15,36 +18,42 @@ process.on('uncaughtException', (err) => {
     process.exit(1);
 });
 process.on('unhandledRejection', (reason, p) => {
-    log(`[FATAL] Unhandled Rejection at: ${p} - reason: ${reason}`, 'error');
-    process.exit(1);
+    log(`[WARN] Unhandled Rejection caught (non-fatal): ${reason}`, 'error');
+    // ðŸ›¡ï¸ SHIELD: Do NOT process.exit(1) here. Scraper timeouts and blocked
+    // requests cause recoverable rejections that should not kill the bot.
 });
 
 async function main() {
-    log("🌟 --- GRAVITY CLAW SYSTEM LOADING ---");
+    log("ðŸŒŸ --- GRAVITY CLAW SYSTEM LOADING ---");
 
     try {
         // 1. Run core startup (Supabase config, DB init, AI clients)
         const ok = await startupSequence();
         if (!ok) {
-            log("⚠️ System partially initialized. Proceeding in fallback mode.", "warn");
+            log("âš ï¸ System partially initialized. Proceeding in fallback mode.", "warn");
         }
 
         const tgBot = new TelegramBot();
         const bot = tgBot.getBot();
 
-        log("[index] Step 1: Setting up Router...");
         // 3. Register command routes from router.ts
         setupRouter(bot);
+        registerLeadAlertHandlers(bot);
         contentScheduler.attachBot(bot);
-        log("[index] Step 1 Complete: Router setup.");
+
+        // Register Hermes Acquisition Engine handlers
+        const { registerHermesHandlers } = await import("../modules/hermes_bot.js");
+        registerHermesHandlers(bot);
+
+        log("[index] Step 1 Complete: Router & Hermes setup.");
 
         // 4. Initialize Cron Jobs (Skip if in Dashboard-only mode)
         const skipBot = process.env.SKIP_BOT === 'true';
         if (skipBot) {
-            log("🌌 [index] Dashboard-only mode detected. Skipping bot/cron launch.", "info");
+            log("ðŸŒŒ [index] Dashboard-only mode detected. Skipping bot/cron launch.", "info");
         } else {
-            log("[index] Step 2: Initializing Market Scans...");
-            initMarketScans(bot);
+            log("[index] Step 2: Initializing Lead Alerts...");
+            await startLeadAlerts(bot);
             startHeartbeat(bot);
             contentScheduler.startScheduler();
             log("[index] Step 2 Complete: Market Scans & Heartbeat.");
@@ -52,7 +61,7 @@ async function main() {
 
         log("[index] Step 3: Starting Web Server...");
         // 5. Start Web Server (Dashboard + Neural Bridge)
-        startWebServer(bot);
+        await startWebServer(bot);
         log("[index] Step 3 Complete: Web Server active.");
 
         // 6. Launch bot Supreme (Skip if in Dashboard-only mode)
@@ -61,7 +70,7 @@ async function main() {
             tgBot.launch();
             log("[index] Step 4 Complete: Bot Launch called.");
         } else {
-            log("🟢 [index] Local Neural Bridge online. Connect to dashboard to view cloud activity.");
+            log("ðŸŸ¢ [index] Local Neural Bridge online. Connect to dashboard to view cloud activity.");
         }
 
         // Graceful Stop
@@ -75,3 +84,24 @@ async function main() {
 }
 
 main();
+
+
+
+// Enhanced unhandled rejection handler with full stack trace
+process.on('unhandledRejection', (reason: any, promise: any) => {
+  console.error('========================================');
+  console.error('[CRASH] Unhandled Rejection');
+  console.error('Time:', new Date().toISOString());
+  console.error('Message:', reason?.message ?? reason);
+  console.error('Stack:', reason?.stack ?? 'No stack available');
+  console.error('========================================');
+});
+
+process.on('unhandledRejection', (reason: any) => {
+    // Completely ignore the Puter.js shim crash to keep the bot alive
+    if (reason?.stack?.includes('xhrshim.js')) {
+        return; 
+    }
+    console.error('[CRASH PREVENTED] Path:', reason?.stack?.split('\n')[1]?.trim());
+});
+

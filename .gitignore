@@ -43,3 +43,5 @@ browser-harness/
 TradingAgents/
 Kimi-K2/
 cline/
+# Added by code-review-graph
+.code-review-graph/

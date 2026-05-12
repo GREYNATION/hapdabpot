@@ -443,7 +443,7 @@ Return ONLY JSON (no markdown):
                 const msg = this.extractError(err);
 
                 // --- FALLBACK CHECK FOR LIBRARY VOICES ON FREE TIER ---
-                if (msg.includes("paid_plan_required") || msg.includes("payment_required")) {
+                if (msg?.includes("paid_plan_required") || msg?.includes("payment_required")) {
                     log(`[production] âš ï¸ Paid plan required for custom voice ${voiceId}. Falling back to default voice.`, "warn");
                     this.emitScene(scene.sceneNumber, 99, `ElevenLabs plan restriction â€” falling back to default voice.`);
                     
@@ -544,4 +544,5 @@ Return ONLY JSON (no markdown):
         });
     }
 }
+
 

@@ -19,11 +19,11 @@ export type SiteBlueprint = {
 
 export class ArchitectAgent extends BaseAgent {
     constructor() {
-        super("Architect", "You are the Architect Agent. You specialize in high-level system design and software architecture. Your goal is to provide a robust SiteBlueprint for the Website Factory.");
+        super("architect", "You are the Architect Agent. You specialize in high-level system design and software architecture. Your goal is to provide a robust SiteBlueprint for the Website Factory.");
     }
 
     getName(): string {
-        return "Architect";
+        return "architect";
     }
 
     getSystemPrompt(): string {

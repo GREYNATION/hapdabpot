@@ -1,4 +1,4 @@
-import fs from "fs";
+﻿import fs from "fs";
 import path from "path";
 import { log } from "./config.js";
 import { writeKnowledge } from "./memory.js";
@@ -9,7 +9,7 @@ export interface HiveMindState {
     active_mission: string;
     objectives: string[];
     pinned_facts: Record<string, any>;
-    agent_handoffs: Record<string, string>;
+    agent_handoffs: string[];
     pinned_agent_id: string | null;
     last_updated: string;
 }
@@ -18,7 +18,7 @@ const DEFAULT_STATE: HiveMindState = {
     active_mission: "Idle",
     objectives: [],
     pinned_facts: {},
-    agent_handoffs: {},
+    agent_handoffs: [],
     pinned_agent_id: null,
     last_updated: new Date().toISOString()
 };
@@ -100,7 +100,7 @@ export class HiveMind {
         
         // S-Layer Logic: Prioritize facts related to the focus area
         const facts = Object.entries(this.state.pinned_facts)
-            .filter(([k]) => k.toLowerCase().includes(focusArea.toLowerCase()) || focusArea === "general")
+            .filter(([k]) => k.toLowerCase()?.includes(focusArea.toLowerCase()) || focusArea === "general")
             .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
             .join("\n");
 
@@ -110,3 +110,4 @@ export class HiveMind {
         return ctx;
     }
 }
+

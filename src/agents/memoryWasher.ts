@@ -1,7 +1,7 @@
 import { BaseAgent } from "./baseAgent.js";
 import { getRecentMessages } from "../core/memory.js";
 import { HiveMind } from "../core/hiveMind.js";
-import { log } from "../core/config.js";
+import { log, config } from "../core/config.js";
 
 export class MemoryWasherAgent extends BaseAgent {
     constructor() {
@@ -16,8 +16,8 @@ export class MemoryWasherAgent extends BaseAgent {
             Rules:
             - Be concise. Use the Hive Mind tools: 'update_hive_mind' for Active Intent, and 'pin_fact' for Pinned Facts.
         `);
-        this.model = "google/gemini-2.0-flash-001";
-        this._agentProvider = "openrouter";
+        this.model = config.groqModel || "llama-3.3-70b-versatile";
+        this._agentProvider = "groq";
     }
 
     getName(): string { return "MemoryWasher"; }

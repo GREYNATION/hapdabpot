@@ -1,15 +1,36 @@
-import axios from "axios";
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 import { log, config } from "../core/config.js";
-import { filterAndRankLeads, formatFilteredLeads, filterTopDeals, enrichLeadWithAI, calculateDealScore } from "./leadFilter.js";
+import { chromium } from 'playwright';
+import { useStealth } from 'playwright-stealth';
+import { filterAndRankLeads, formatFilteredLeads, filterTopDeals, enrichLeadWithAI, calculateDealScore, scoreListingQuality } from "./leadFilter.js";
 import { CrmManager } from "../core/crm.js";
 import { logEvent } from "../core/telemetry.js";
-import { ApifyService } from "./apifyService.js";
-import { HarnessAgent } from "../agents/harnessAgent/harnessAgent.js";
-import { humanize } from "../core/humanizer.js";
-import { puterService } from "../core/puter.js";
+import { logScraperError, saveLeadToObsidian } from "./vaultService.js";
+import { healthManager } from "./sourceHealth.js";
+import { BraveSearch } from "./braveSearch.js";
+import { FirecrawlService } from "./firecrawlService.js";
+
+const stealthAxios = axios.create({
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://www.google.com/',
+  },
+  timeout: 10000
+});
 
 // Rate-limit helper: 7.5s between AI calls = max 8 req/min
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+// 🛡️ SAFE GUARD: Wraps any promise with a hard timeout to prevent hanging scraper tasks
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`[timeout] ${label} exceeded ${ms}ms`)), ms)
+  );
+  return Promise.race([promise, timeout]);
+}
 
 // Target markets
 export const TARGET_MARKETS = {
@@ -21,7 +42,7 @@ export const TARGET_MARKETS = {
   ],
   ohio: [
     { city: "Columbus", state: "OH", craigslist: "columbus", county: "franklin" },
-    { city: "Cleveland", state: "OH", craigslist: "clevleand", county: "cuyahoga" },
+    { city: "Cleveland", state: "OH", craigslist: "cleveland", county: "cuyahoga" },
     { city: "Cincinnati", state: "OH", craigslist: "cincinnati", county: "hamilton" }
   ],
   virginia: [
@@ -38,49 +59,11 @@ export const TARGET_MARKETS = {
   ],
   philadelphia: [
     { city: "Philadelphia", state: "PA", craigslist: "philadelphia", county: "philadelphia" }
-  ] 
-
+  ]
 };
 
-export interface Lead {
-  address: string;
-  city: string;
-  state: string;
-  price?: number;
-  source: string;
-  type: string;
-  url?: string;
-  description?: string;
-  postedDate?: string;
-  distressSignals: string[];
-  qualityScore?: number;
-  dealScore?: number;
-  maxOffer?: number;
-  arv?: number;
-  repairs?: number;
-  lotSize?: number;
-  
-  // DQS Components (per user request)
-  equityScore?: number;
-  motivationScore?: number;
-  marketScore?: number;
-  conditionScore?: number;
-  dataScore?: number;
-
-  // AI Refinement (Step 7)
-  aiCondition?: number; // 1-10
-  aiUrgency?: "High" | "Medium" | "Low";
-  aiSummary?: string; // Summary of seller intent
-
-  // Profit Simulator (Step 10)
-  estimated_offer?: number;
-  repair_estimate?: number;
-  closing_costs?: number;
-  assignment_fee?: number;
-  profit?: number;
-  roi?: number;
-  verdict?: "GOOD_DEAL" | "MARGINAL" | "BAD_DEAL";
-}
+import type { Lead } from "../types/lead.js";
+export type { Lead };
 
 const DISTRESS_KEYWORDS = [
   "motivated", "must sell", "price reduced", "as-is", "as is",
@@ -93,22 +76,14 @@ const DISTRESS_KEYWORDS = [
 ];
 
 function scoreDistress(text: string): string[] {
-  const lower = (text || "").toLowerCase();
-  return DISTRESS_KEYWORDS.filter(k => lower.includes(k));
+  const lower = String(text || "").toLowerCase();
+  return DISTRESS_KEYWORDS.filter(k => (lower ?? "")?.includes(k));
 }
 
-/**
- * Heuristic: Estimate ARV if missing.
- * Distressed properties typically list at ~60-70% of market value.
- */
 function estimateArv(price: number): number {
-  return Math.round(price * 1.45); // Conservative "clean" value estimate
+  return Math.round(price * 1.45);
 }
 
-/**
- * Heuristic: Estimate Repairs if missing.
- * Defaulting to a range based on property price as a proxy for size/condition.
- */
 function estimateRepairs(price: number): number {
   if (price < 100000) return 25000;
   if (price < 250000) return 45000;
@@ -120,15 +95,11 @@ async function scrapeCraigslist(market: typeof TARGET_MARKETS.texas[0]): Promise
   const leads: Lead[] = [];
   const queries = ["motivated+seller", "as+is+cash", "fixer+upper+investor", "foreclosure+cash"];
 
-  for (const query of queries) {
+  for (const query of queries) { 
     try {
       const url = `https://${market.craigslist}.craigslist.org/search/rea?format=rss&srchType=T&query=${query}`;
-      const res = await axios.get(url, {
-        timeout: 8000,
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" }
-      });
-
-      const items = res.data.match(/<item>([\s\S]*?)<\/item>/g) || [];
+      const res = await stealthAxios.get(url);
+      const items = (typeof res.data === 'string' ? res.data : String(res.data || "")).match(/<item>([\s\S]*?)<\/item>/g) || [];
       for (const item of items.slice(0, 8)) {
         const title = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1] || "";
         const link = item.match(/<link>(.*?)<\/link>/)?.[1] || "";
@@ -157,39 +128,30 @@ async function scrapeCraigslist(market: typeof TARGET_MARKETS.texas[0]): Promise
   return leads;
 }
 
-// HUD Home Store
-async function scrapeHUD(state: string): Promise<Lead[]> {
-  const leads: Lead[] = [];
-  try {
-    const res = await axios.get("https://www.hudhomestore.gov/HudHomes/GetHomes", {
-      params: { state, page: 1, pageSize: 10, sortBy: "ListingPrice", sortOrder: "ASC" },
-      timeout: 10000,
-      headers: { "User-Agent": "Mozilla/5.0" }
-    });
-
-    const homes = res.data?.homes || res.data?.properties || [];
-    for (const home of homes) {
-      leads.push({
-        address: home.streetAddress || home.address || "Unknown",
-        city: home.city || "",
-        state: home.state || state,
-        price: home.listingPrice || home.price,
-        source: "HUD Home Store",
-        type: "HUD Foreclosure",
-        url: `https://www.hudhomestore.gov/Listing/PropertyDetails.aspx?caseNumber=${home.caseNumber}`,
-        description: `Case: ${home.caseNumber} | Beds: ${home.beds} | Baths: ${home.baths}`,
-        distressSignals: ["foreclosure", "bank owned", "as-is"]
-      });
+// Brave Search
+export async function searchAuctions(marketInput: any, activeOnly: boolean = false, options: any = {}): Promise<Lead[]> {
+  const SOURCE_NAME = 'Brave Search';
+  let market = marketInput;
+  if (typeof marketInput === 'string') {
+    for (const list of Object.values(TARGET_MARKETS)) {
+      const found = list.find((m: any) => (m.city || "").toLowerCase() === marketInput.toLowerCase());
+      if (found) {
+        market = found;
+        break;
+      }
     }
-  } catch (e: any) {
-    log(`[scraper] HUD ${state} failed: ${e.message}`, "warn");
+    if (typeof market === 'string') {
+        market = { city: marketInput, state: "OH", craigslist: "cleveland", county: "cuyahoga" };
+    }
   }
-  return leads;
-}
 
-// Brave Search for Auction.com and real listing sites only
-async function searchAuctions(market: typeof TARGET_MARKETS.texas[0]): Promise<Lead[]> {
   const leads: Lead[] = [];
+  
+  if (!healthManager.isHealthy(SOURCE_NAME)) {
+    log(`[scraper] ${SOURCE_NAME} is on cooldown, skipping auction search for ${market.city}`, "warn");
+    return leads;
+  }
+
   const queries = [
     `site:auction.com ${market.city} ${market.state} foreclosure`,
     `site:hubzu.com ${market.city} ${market.state}`,
@@ -197,21 +159,13 @@ async function searchAuctions(market: typeof TARGET_MARKETS.texas[0]): Promise<L
     `motivated seller ${market.city} ${market.state} "cash only" OR "as-is" OR "must sell"`
   ];
 
-  for (const query of queries) {
+  for (const query of queries) { 
     try {
-      const res = await axios.get("https://api.search.brave.com/res/v1/web/search", {
-        params: { q: query, count: 5 },
-        headers: {
-          "Accept": "application/json",
-          "Accept-Encoding": "gzip",
-          "X-Subscription-Token": process.env.BRAVE_API_KEY || ""
-        },
-        timeout: 8000
-      });
-
-      const results = res.data?.web?.results || [];
+      const data = await BraveSearch.search(query, 5);
+      const results = data.web?.results || [];
+      
       for (const r of results) {
-        const distressSignals = scoreDistress(r.title + " " + (r.description || ""));
+        const distressSignals = scoreDistress((r.title || "") + " " + (r.description || ""));
         leads.push({
           address: r.title,
           city: market.city,
@@ -224,235 +178,344 @@ async function searchAuctions(market: typeof TARGET_MARKETS.texas[0]): Promise<L
         });
       }
     } catch (e: any) {
-      log(`[scraper] Brave search failed: ${e.message}`, "warn");
+      log(`[scraper] Brave search failed for query "${query}": ${e.message}`, "warn");
+      logScraperError("Brave Search / Auctions", e.message);
     }
   }
   return leads;
 }
 
-// Auto-save quality leads to CRM
-function autoSaveToCRM(leads: Lead[]): number {
-  let saved = 0;
-  for (const lead of leads) {
-    if ((lead.qualityScore || 0) >= 5 && lead.distressSignals.length >= 2) {
-      try {
-        CrmManager.addDeal({
-          address: lead.address,
-          arv: 0,
-          repair_estimate: 0,
-          max_offer: 0,
-          profit: 0,
-          status: "lead",
-          notes: `Source: ${lead.source} | Signals: ${lead.distressSignals.join(", ")} | URL: ${lead.url || "N/A"}`
-        });
-        saved++;
-      } catch (e: any) {
-        log(`[scraper] CRM save failed for ${lead.address}: ${e.message}`, "warn");
-      }
-    }
-  }
-  if (saved > 0) log(`[scraper] Auto-saved ${saved} leads to CRM`);
-  return saved;
+// Exported interfaces and functions
+export async function findAuctionDeals(marketInput: any, activeOnly: boolean = true, options: any = {}) {
+  return await searchAuctions(marketInput, activeOnly, options);
 }
 
-/**
- * Stage 3: Deep Research (Harness Integration)
- * Uses the autonomous browser to find contact info and hidden details.
- */
-async function deepResearchLead(lead: Lead): Promise<Lead> {
-  if (!lead.url) return lead;
+export async function scrapeCuyahogaSheriff(): Promise<Lead[]> {
+  const leads: Lead[] = [];
+  try {
+    const url = "https://cpclerk.co.cuyahoga.oh.us/SheriffSale/";
+    const res = await axios.get(url, { timeout: 10000 });
+    const $ = cheerio.load(res.data);
+    $('table tr').each((i: number, el: any) => {
+      const text = ($(el).text() || "").toLowerCase();
+      if ((text ?? "")?.includes('cleveland') || (text ?? "")?.includes('cuyahoga')) {
+        const address = $(el).find('td').first().text().trim() || "Sheriff Sale Property";
+        leads.push({
+          address: address,
+          city: "Cleveland",
+          state: "OH",
+          source: "Cuyahoga Sheriff Sale",
+          type: "Sheriff Sale",
+          url: url,
+          distressSignals: ["sheriff sale", "foreclosure"]
+        });
+      }
+    });
+  } catch (e: any) {
+    log(`[scraper] Cuyahoga Sheriff Sale failed: ${e.message}`, "warn");
+  }
+  return leads;
+}
 
-  log(`[scraper] 🕵️ Deep researching lead: ${lead.address}`);
-  const harness = HarnessAgent.getInstance();
+// 🛡️ Rotating User-Agents to avoid Zillow fingerprint detection
+const ZILLOW_USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15',
+];
 
-  const researchTask = `Research this property listing: ${lead.url}. 
-  Try to find:
-  1. Seller or Listing Agent contact information (Name, Phone, Email).
-  2. Any hidden distress signals (e.g. fire damage, back taxes, owner divorce, "urgent").
-  3. Notes on condition or recent price drops.
-  Return your findings as a concise summary.`;
+export async function quickZillowSearch(zip: string): Promise<Lead[]> {
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled']
+  });
 
   try {
-    // Only 3 steps to keep it fast but effective
-    const rawResult = await harness.browse(lead.url, researchTask, 3);
-    const result = await humanize(rawResult);
+    const SOURCE_NAME = 'Zillow Stealth';
+    if (!healthManager.isHealthy(SOURCE_NAME)) {
+      log(`[zillow-stealth] Source is on cooldown, skipping ZIP ${zip}`, "warn");
+      return [];
+    }
 
-    return {
-      ...lead,
-      description: (lead.description || "") + "\n\n[DEEP RESEARCH FINDINGS]:\n" + (result || rawResult),
-      aiUrgency: (result || "").toLowerCase().includes("urgent") || (rawResult || "").toLowerCase().includes("urgent") || (result || "").toLowerCase().includes("must sell") ? "High" : lead.aiUrgency
-    };
+    const ua = ZILLOW_USER_AGENTS[Math.floor(Math.random() * ZILLOW_USER_AGENTS.length)];
+    const context = await browser.newContext({
+      userAgent: ua,
+      viewport: { width: 1280, height: 720 },
+      locale: 'en-US',
+      timezoneId: 'America/New_York',
+    });
+
+    // 🛡️ Mask navigator.webdriver — this is the primary Zillow bot detector
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      // Also mask common automation tells
+      (window as any).chrome = { runtime: {} };
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+    });
+
+    const page = await context.newPage();
+    const url = `https://www.zillow.com/homes/${zip}_rb/?searchQueryState={"filterState":{"fsba":{"value":true},"fsbo":{"value":true}}}`;
+
+    let lastErr: any;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        log(`[zillow-stealth] Navigating to Zillow for ZIP ${zip} (Attempt ${attempt})...`);
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+        await page.waitForTimeout(3000);
+        try {
+          await Promise.race([
+            page.waitForSelector('.list-card-addr', { timeout: 5000 }),
+            page.waitForSelector('article[data-test="property-card"]', { timeout: 5000 })
+          ]);
+        } catch (e) {
+          log(`🛡️ Zillow blocked the view or no houses found for ${zip}.`, "warn");
+        }
+
+        const leads = await page.evaluate(() => {
+          const results: any[] = [];
+          const cards = document.querySelectorAll('article[data-test="property-card"]');
+          cards.forEach(card => {
+            const address = card.querySelector('address')?.textContent || "Unknown Address";
+            const priceText = card.querySelector('[data-test="property-card-price"]')?.textContent || "0";
+            const price = parseInt(priceText.replace(/[$,]/g, '')) || 0;
+            const url = (card.querySelector('a[data-test="property-card-link"]') as HTMLAnchorElement)?.href || "";
+            const details = card.querySelector('[data-test="property-card-details"]')?.textContent || "";
+
+            if (address !== "Unknown Address") {
+              results.push({
+                address,
+                price,
+                url,
+                description: details,
+                source: "Zillow (Stealth)",
+                distressSignals: ["FSBO", "Direct"],
+                type: "For Sale By Owner"
+              });
+            }
+          });
+          return results;
+        });
+
+        healthManager.reportSuccess(SOURCE_NAME);
+        return leads || [];
+      } catch (err: any) {
+        lastErr = err;
+        log(`[zillow-stealth] Attempt ${attempt} failed for ${zip}: ${err.message}`, "warn");
+        healthManager.reportFailure(SOURCE_NAME, err.message);
+        if (attempt < 2) await new Promise(r => setTimeout(r, 5000));
+      }
+    }
+    throw new Error(`Zillow stealth scrape failed: ${lastErr?.message}`);
+  } finally {
+    await browser.close();
+  }
+}
+
+export function autoSaveToCRM(leads: Lead[]) {
+  leads.forEach(lead => {
+    try {
+      const dealId = CrmManager.addDeal({
+        address: lead.address,
+        city: lead.city,
+        price: lead.price,
+        arv: lead.arv,
+        repair_estimate: lead.repairs,
+        status: "lead",
+        notes: lead.description || lead.source
+      });
+      saveLeadToObsidian(lead);
+      log(`[scraper] Auto-saved lead to CRM & Vault: ${lead.address} (ID: ${dealId})`);
+    } catch (err: any) {
+      log(`[scraper] Failed to auto-save lead ${lead.address}: ${err.message}`, "error");
+    }
+  });
+}
+
+export async function deepResearchLead(lead: Lead): Promise<Lead> {
+  try {
+    log(`[research] Running deep AI research for ${lead.address}...`);
+    const enrichment = await enrichLeadWithAI(lead);
+    return { ...lead, ...enrichment } as Lead;
   } catch (e: any) {
-    log(`[scraper] Deep research failed for ${lead.address}: ${e.message}`, "warn");
+    log(`[research] Deep research failed for ${lead.address}: ${e.message}`, "warn");
     return lead;
   }
 }
 
-// Dedicated Auction Extraction mapping for Surplus Phase
-export async function findAuctionDeals(city: string): Promise<Lead[]> {
-  const targetMarket = Object.values(TARGET_MARKETS).flat().find(m => m.city.toLowerCase() === city.toLowerCase());
-  
-  if (!targetMarket) {
-     return [
-       { address: "Unknown", city, state: "XX", source: "System", type: "Error", distressSignals: [], description: "City not mapped." }
-     ];
-  }
-
-  // Hybrid Cloud/Local Logic
-  const stateKey = targetMarket.state.toUpperCase();
-  const hasCloudScraper = (stateKey === "TX" && config.txActorId) ||
-                         (stateKey === "FL" && config.flActorId) ||
-                         (stateKey === "GA" && config.gaActorId) ||
-                         (stateKey === "NJ" && config.njActorId);
-
-  if (hasCloudScraper) {
-    log(`[scraper] ☁️ Offloading ${city} auction scan to Apify cloud mission...`);
-    await ApifyService.triggerScan(targetMarket.state, targetMarket.city);
-    // Return a placeholder lead indicating cloud scan is in progress
-    return [
-      { 
-        address: `Cloud Scan Triggered: ${city}`, 
-        city, 
-        state: targetMarket.state, 
-        source: "Apify Cloud", 
-        type: "Status", 
-        distressSignals: [], 
-        description: "Your cloud scraper has been triggered. Results will arrive via the ingestion webhook shortly." 
-      }
-    ];
-  }
-  
-  log(`[scraper] 🏠 No cloud actor configured for ${stateKey}. Falling back to local Brave Search...`);
-  return await searchAuctions(targetMarket);
-}
-
-// Main export
 export async function findMotivatedSellers(
   targetState?: string,
   targetCity?: string,
+  targetZips?: string[],
   saveToCRM = true
 ): Promise<Lead[]> {
-  const allDeals: Lead[] = [];
+  try {
+    const allDeals: Lead[] = [];
+    let markets: any[] = [];
 
-  let markets: any[] = [];
+    if (targetState || targetCity) {
+      const stateUpper = targetState?.toUpperCase();
+      for (const marketList of Object.values(TARGET_MARKETS)) {
+        for (const m of marketList) {
+          if (
+            (stateUpper && (m.state || "").toUpperCase() === stateUpper) ||
+            (targetCity && (m.city || "").toLowerCase()?.includes(targetCity.toLowerCase()))
+          ) {
+            markets.push(m);
+          }
+        }
+      }
+      log(`[scraper] Searching ${markets.length} markets...`);
+    }
 
-  if (targetState || targetCity) {
-    const stateUpper = targetState?.toUpperCase();
-    for (const marketList of Object.values(TARGET_MARKETS)) {
-      for (const m of marketList) {
-        if (
-          (stateUpper && m.state === stateUpper) ||
-          (targetCity && (m.city || "").toLowerCase().includes(targetCity.toLowerCase()))
-        ) {
-          markets.push(m);
+    const zips = targetZips || [];
+    if (zips.length > 0) {
+      log(`[scraper] 🕵️‍♂️ Hermes is performing stealth mission for ${zips.length} ZIPs...`);
+      for (const zip of zips) {
+        // Try Zillow Stealth first
+        try {
+          if (healthManager.isHealthy('Zillow Stealth')) {
+            const results = await withTimeout(quickZillowSearch(zip), 25000, `Zillow ZIP ${zip}`);
+            if (results && results.length > 0) {
+              allDeals.push(...results);
+              healthManager.reportSuccess('Zillow Stealth');
+              log(`[scraper] Zillow (Stealth) added ${results.length} leads for ZIP ${zip}`);
+              continue; // Success, skip backup
+            }
+          }
+        } catch (e: any) {
+          log(`[scraper] Stealth Zillow failed for ${zip}: ${e.message}`, "warn");
+          healthManager.reportFailure('Zillow Stealth', e.message);
+        }
+
+        // Backup: Firecrawl Search
+        try {
+          if (healthManager.isHealthy('Firecrawl')) {
+            log(`[scraper] 🔄 Rotating to Firecrawl backup for ZIP ${zip}...`);
+            const fcResults = await withTimeout(
+              FirecrawlService.search(`site:zillow.com ${zip} for sale by owner`, 5),
+              30000,
+              `Firecrawl Search ZIP ${zip}`
+            ) as any;
+            
+            if (fcResults && fcResults.data) {
+              const fcLeads = fcResults.data.map((r: any) => ({
+                address: r.title || "Unknown",
+                city: targetCity || "",
+                state: targetState || "",
+                price: 0, 
+                source: "Zillow (Firecrawl)",
+                type: "For Sale",
+                url: r.url,
+                description: r.description || r.markdown?.slice(0, 200),
+                distressSignals: scoreDistress(((r.description || "") + " " + (r.title || "")).toLowerCase())
+              }));
+              allDeals.push(...fcLeads);
+              log(`[scraper] Firecrawl added ${fcLeads.length} leads for ZIP ${zip}`);
+            }
+          }
+        } catch (fcErr: any) {
+          log(`[scraper] Firecrawl backup also failed: ${fcErr.message}`, "error");
         }
       }
     }
-  } else {
-    markets = Object.values(TARGET_MARKETS).flat();
-  }
 
-  log(`[scraper] Searching ${markets.length} markets...`);
-  
-  // Zillow enrichment for NJ/PA/NY via Apify
-  const ZIP_MAP: Record<string, string[]> = {
-    NJ: ["08103", "08002", "08618", "07102", "07201"],
-    PA: ["19103", "19143", "19120"],
-    NY: ["11201", "11203", "11226"]
-  };
-  const targetStates = targetState ? [targetState.toUpperCase()] : ["NJ", "PA", "NY"];
-  const zips = targetStates.flatMap(s => ZIP_MAP[s] || []);
-  if (zips.length > 0) {
-    try {
-      const zillowResults = await ApifyService.scrapeZillowLeads(zips);
-      for (const r of zillowResults) {
-        allDeals.push({
-          address: r.address || r.streetAddress || "Unknown",
-          city: r.city || "",
-          state: r.state || targetState || "",
-          price: r.price || r.listingPrice,
-          source: "Zillow (Apify)",
-          type: r.homeType || "For Sale",
-          url: r.detailUrl || r.url,
-          description: `${r.beds || "?"}bd/${r.baths || "?"}ba | ${r.livingArea || "?"}sqft | ${r.brokerName || ""}`,
-          distressSignals: scoreDistress((r.description || "") + " " + (r.homeType || ""))
+    const marketPromises = markets.map(async (market) => {
+      try {
+        const results = await Promise.allSettled([
+          scrapeCraigslist(market),
+          searchAuctions(market)
+        ]);
+        results.forEach(res => {
+          if (res.status === "fulfilled") allDeals.push(...(res.value || []));
         });
+      } catch (err: any) {
+        log(`[scraper] Market scrape failed for ${market?.city || 'unknown'}: ${err?.message}`, "warn");
       }
-      log(`[scraper] Zillow added ${zillowResults.length} leads`);
-    } catch (e: any) {
-      log(`[scraper] Zillow fetch failed: ${e.message}`, "warn");
+    });
+
+    const states = markets.map(m => m.state?.toUpperCase());
+    if (states.includes("OH")) {
+      try {
+        if (healthManager.isHealthy('Cuyahoga Sheriff')) {
+          const clevelandResults = await withTimeout(scrapeCuyahogaSheriff(), 15000, "Cuyahoga Sheriff Sale");
+          if (Array.isArray(clevelandResults)) {
+            allDeals.push(...clevelandResults);
+            healthManager.reportSuccess('Cuyahoga Sheriff');
+          }
+        }
+      } catch (err: any) {
+        log(`[scraper] Cuyahoga Sheriff Sale failed: ${err?.message}`, "warn");
+        healthManager.reportFailure('Cuyahoga Sheriff', err.message);
+      }
     }
-  }
 
-  // Run all in parallel
-  const marketPromises = markets.map(async (market) => {
-    const [craigslist, auctions] = await Promise.allSettled([
-      scrapeCraigslist(market),
-      searchAuctions(market)
-    ]);
-    if (craigslist.status === "fulfilled") allDeals.push(...craigslist.value);
-    if (auctions.status === "fulfilled") allDeals.push(...auctions.value);
-  });
+    await Promise.allSettled(marketPromises);
 
-  const states = [...new Set(markets.map(m => m.state))];
-  const hudPromises = states.map(async (state) => {
-    const hudLeads = await scrapeHUD(state);
-    allDeals.push(...hudLeads);
-  });
+    log(`[scraper] Raw leads: ${allDeals.length} — enriching with heuristics...`);
 
-  await Promise.allSettled([...marketPromises, ...hudPromises]);
+    const baseEnriched = allDeals
+      .filter(lead => {
+        if (lead && lead.address && typeof lead.address === 'string') {
+          const addr = (lead.address ?? "").toLowerCase();
+          if ((addr ?? "")?.includes('cleveland') || (addr ?? "")?.includes('oh') || (addr ?? "")?.includes('cuyahoga')) return true;
+          if (targetCity) {
+            const cityLower = (targetCity ?? "").toLowerCase();
+            if (!(addr ?? "")?.includes(cityLower)) return false;
+          }
+          return true;
+        }
+        return false;
+      })
+      .map(deal => {
+        const price = deal.price || 0;
+        const arv = deal.arv || (price > 0 ? estimateArv(price) : 0);
+        const repairs = deal.repairs || (price > 0 ? estimateRepairs(price) : 0);
+        const enriched = { ...deal, arv, repairs };
+        enriched.qualityScore = scoreListingQuality(enriched);
+        enriched.dealScore = calculateDealScore(enriched);
+        return enriched;
+      }) as Lead[];
 
-  log(`[scraper] Raw leads: ${allDeals.length} — enriching with heuristics...`);
+    const finalLeads = (baseEnriched || []).filter(l => l && l.address && (l.address || "").length > 5);
 
-  // Stage 1: Basic Heuristic Enrichment (ARV/Repairs)
-  const baseEnriched = allDeals.map(deal => {
-    const price = deal.price || 0;
-    const arv = deal.arv || (price > 0 ? estimateArv(price) : 0);
-    const repairs = deal.repairs || (price > 0 ? estimateRepairs(price) : 0);
-    return { ...deal, arv, repairs };
-  });
+    if (finalLeads.length === 0) {
+      log(`[scraper] No leads found to analyze.`);
+      return [];
+    }
 
-  // Stage 2: AI Enrichment (Step 7)
-  // To be efficient, we only AI-enrich leads that pass a basic scoring threshold
-  if (!baseEnriched || baseEnriched.length === 0) {
-    log(`[scraper] No leads found to analyze. Skipping AI enrichment.`);
+    const qualityLeads = finalLeads.filter(l => (l.distressSignals || []).length >= 1);
+    if (saveToCRM && qualityLeads.length > 0) autoSaveToCRM(qualityLeads);
+
+    const topCandidates = qualityLeads
+      .sort((a, b) => (b.dealScore || 0) - (a.dealScore || 0))
+      .slice(0, 2);
+
+    if (topCandidates.length > 0) {
+      log(`[scraper] 🕵️ Running deep research on top candidates...`);
+      for (const candidate of topCandidates) {
+        const leadIndex = baseEnriched.findIndex(d => d.address === candidate.address);
+        if (leadIndex !== -1) {
+          const researched = await deepResearchLead(baseEnriched[leadIndex]);
+          baseEnriched[leadIndex] = researched;
+          baseEnriched[leadIndex].dealScore = calculateDealScore(baseEnriched[leadIndex]);
+        }
+      }
+    }
+
+    return baseEnriched;
+  } catch (globalErr: any) {
+    log(`[scraper] FATAL error in findMotivatedSellers: ${globalErr.message}`, "error");
     return [];
   }
-
-  if (saveToCRM) autoSaveToCRM(baseEnriched);
-
-  // Stage 3: Deep Research for the Top 2 candidates
-  const topCandidates = baseEnriched
-    .filter(l => l.distressSignals.length >= 2)
-    .sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0))
-    .slice(0, 2);
-
-  if (topCandidates.length > 0) {
-    log(`[scraper] 🔍 Running deep research on top ${topCandidates.length} candidates...`);
-    for (let i = 0; i < topCandidates.length; i++) {
-        const leadIndex = allDeals.findIndex(d => d.address === topCandidates[i].address);
-        if (leadIndex !== -1) {
-            allDeals[leadIndex] = await deepResearchLead(allDeals[leadIndex]);
-        }
-    }
-  }
-
-  // Final Stage: Decentralized Backup (Puter Cloud)
-  try {
-    const backupPath = `leads_backup_${Date.now()}.json`;
-    await puterService.saveFile(backupPath, JSON.stringify(allDeals, null, 2));
-    log(`[scraper] ☁️ Backup synced to Puter Cloud: ${backupPath}`);
-  } catch (err: any) {
-    log(`[scraper] Puter backup failed: ${err.message}`, "error");
-  }
-
-  return allDeals;
 }
 
 export function formatLeads(leads: Lead[], limit = 5): string {
   if (leads.length === 0) return "No leads found. Try a different market.";
   const top = leads.slice(0, limit);
-  let out = `🏠 **${leads.length} leads found**\n\n`;
+  let out = `🏡 **${leads.length} leads found**\n\n`;
   top.forEach((l, i) => {
     out += `${i + 1}. **${l.address}**\n`;
     out += `   📍 ${l.city}, ${l.state}\n`;

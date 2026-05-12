@@ -1,4 +1,4 @@
-import { BaseAgent } from "./baseAgent.js";
+﻿import { BaseAgent } from "./baseAgent.js";
 import { config, log } from "../core/config.js";
 import Anthropic from "@anthropic-ai/sdk";
 import screenshot from "screenshot-desktop";
@@ -6,7 +6,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 /**
- * Unified VisionAgent — Handles both image URL analysis and local screen captures.
+ * Unified VisionAgent â€” Handles both image URL analysis and local screen captures.
  */
 export class VisionAgent extends BaseAgent {
     private anthropic: Anthropic | null = null;
@@ -46,7 +46,7 @@ export class VisionAgent extends BaseAgent {
      */
     public async ask(query: string): Promise<{ content: string }> {
         // If the task implies a screenshot or desktop view
-        if (query.toLowerCase().includes("screenshot") || query.toLowerCase().includes("screen") || query.toLowerCase().includes("desktop")) {
+        if (query.toLowerCase()?.includes("screenshot") || query.toLowerCase()?.includes("screen") || query.toLowerCase()?.includes("desktop")) {
             const analysis = await this.analyzeScreen(query);
             return { content: `**[Visionary]**: ${analysis}` };
         }
@@ -59,7 +59,7 @@ export class VisionAgent extends BaseAgent {
      */
     public async analyzeScreen(prompt: string): Promise<string> {
         if (!this.anthropic) {
-            return "❌ Anthropic API key is missing. Visual analysis unavailable.";
+            return "âŒ Anthropic API key is missing. Visual analysis unavailable.";
         }
 
         try {
@@ -125,9 +125,9 @@ export class VisionAgent extends BaseAgent {
             });
 
             const data = await response.json();
-            return data.choices?.[0]?.message?.content || "❌ Model returned no content.";
+            return data.choices?.[0]?.message?.content || "âŒ Model returned no content.";
         } catch (err: any) {
-            return `❌ Image analysis failed: ${err.message}`;
+            return `âŒ Image analysis failed: ${err.message}`;
         }
     }
 }
@@ -140,3 +140,4 @@ export async function visionAgent(query: string) {
     const res = await agent.ask(query);
     return res.content;
 }
+

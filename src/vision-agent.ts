@@ -95,9 +95,17 @@ app.get('/vision/screenshot', async (c) => {
 });
 
 const PORT = 3200;
-console.log(`[vision] 👁 Vision Agent running on http://localhost:${PORT}`);
 
-serve({ fetch: app.fetch, port: PORT });
+export function startVisionServer() {
+  console.log(`[vision] 👁 Vision Agent running on http://localhost:${PORT}`);
+  return serve({ fetch: app.fetch, port: PORT });
+}
+
+// Auto-start only if run directly via node
+const isMain = process.argv[1] && (process.argv[1].endsWith('vision-agent.ts') || process.argv[1].endsWith('vision-agent.js'));
+if (isMain) {
+  startVisionServer();
+}
 
 // If run directly, do a test capture
 if (process.argv[2] === '--test') {

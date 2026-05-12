@@ -1,19 +1,23 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 import path from 'path';
-import { openai, config, log } from '../core/config.js';
+import { openai, groq, config, log, logToOpsConsole } from '../core/config.js';
 import { openRouterClient } from '../core/ai.js';
 import OpenAI from "openai";
 import { getSupabase } from '../core/supabase.js';
 import axios from 'axios';
 
-// Lazy-initialized TTS client — must NOT be created at module load time
+// Lazy-initialized TTS client â€” must NOT be created at module load time
 // because OPENAI_API_KEY arrives from Supabase after boot.
 let _ttsClient: OpenAI | null = null;
 function getTtsClient(): OpenAI {
     if (!_ttsClient || (_ttsClient as any)._lastKey !== config.openaiApiKey) {
         const key = config.openaiApiKey || process.env.OPENAI_API_KEY || "";
-        log(`[voice] Creating TTS client (key present: ${!!key && key !== "placeholder"})`);
-        _ttsClient = new OpenAI({ apiKey: key });
+        const baseURL = config.openaiBaseUrl || process.env.OPENAI_BASE_URL || undefined;
+        log(`[voice] Creating TTS client (key present: ${!!key && key !== "placeholder"}, baseURL: ${baseURL || 'default'})`);
+        _ttsClient = new OpenAI({ 
+            apiKey: key,
+            baseURL: baseURL
+        });
         (_ttsClient as any)._lastKey = config.openaiApiKey;
     }
     return _ttsClient;
@@ -24,7 +28,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import fetch from 'node-fetch';
 
 /**
- * VoiceService — Handles STT (Whisper) and TTS (OpenAI / ElevenLabs)
+ * VoiceService â€” Handles STT (Whisper) and TTS (OpenAI / ElevenLabs)
  * Optimized for Windows and Railway deployments.
  */
 export class VoiceService {
@@ -93,18 +97,28 @@ export class VoiceService {
                     }
 
                     try {
-                        const transcription = await openai.audio.transcriptions.create({
+                        log(`[voice] Attempting Groq Whisper transcription...`);
+                        const transcription = await groq.audio.transcriptions.create({
                             file: fs.createReadStream(fileToUpload),
-                            model: "whisper-1",
+                            model: "whisper-large-v3",
                         });
                         return transcription.text;
-                    } catch (oe: any) {
-                        log(`[voice] OpenAI Whisper failed, trying OpenRouter fallback...`, "warn");
-                        const transcription = await openRouterClient.audio.transcriptions.create({
-                            file: fs.createReadStream(fileToUpload),
-                            model: "openai/whisper-large-v3",
-                        });
-                        return transcription.text;
+                    } catch (ge: any) {
+                        log(`[voice] Groq Whisper failed: ${ge.message}. Trying OpenAI/OpenRouter fallback...`, "warn");
+                        try {
+                            const transcription = await openai.audio.transcriptions.create({
+                                file: fs.createReadStream(fileToUpload),
+                                model: "whisper-1",
+                            });
+                            return transcription.text;
+                        } catch (oe: any) {
+                            log(`[voice] OpenAI Whisper also failed, trying OpenRouter fallback...`, "warn");
+                            const transcription = await openRouterClient.audio.transcriptions.create({
+                                file: fs.createReadStream(fileToUpload),
+                                model: "openai/whisper-large-v3",
+                            });
+                            return transcription.text;
+                        }
                     }
                 } catch (err: any) {
                     const isRetryable = err.message?.includes('Connection') || 
@@ -125,7 +139,7 @@ export class VoiceService {
                     await new Promise(r => setTimeout(r, waitDelay));
                 }
             }
-            return "[Audio Transcription Unavailable — Retries exhausted]";
+            return "[Audio Transcription Unavailable â€” Retries exhausted]";
         };
 
         try {
@@ -134,7 +148,7 @@ export class VoiceService {
             // Cleanup all temp files
             const files = fs.readdirSync(this.TEMP_DIR);
             for (const f of files) {
-                if (f.includes(String(timestamp))) {
+                if (f?.includes(String(timestamp))) {
                     try { fs.unlinkSync(path.join(this.TEMP_DIR, f)); } catch { }
                 }
             }
@@ -145,6 +159,7 @@ export class VoiceService {
      * TTS: Synthesize Speech with ElevenLabs -> OpenAI Fallback
      */
     static async synthesize(text: string, voice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer' = 'alloy'): Promise<Buffer | null> {
+        this.init();
         if (!text || text.trim() === "") return null;
 
         const chunks = this.chunkText(text, 4000);
@@ -176,7 +191,8 @@ export class VoiceService {
                     log("[voice] ElevenLabs synthesis successful");
                 } catch (err: any) {
                     const errorMsg = err.response?.data ? Buffer.from(err.response.data).toString() : err.message;
-                    log(`[voice] ElevenLabs failed: ${errorMsg}. Falling back to OpenAI.`, "warn");
+                    const isQuotaError = errorMsg.toLowerCase()?.includes("quota") || err.response?.status === 429;
+                    log(`[voice] ElevenLabs failed: ${errorMsg}${isQuotaError ? " (QUOTA EXCEEDED)" : ""}. Falling back to OpenAI.`, "warn");
                 }
             }
 
@@ -193,7 +209,9 @@ export class VoiceService {
                     chunkBuffer = Buffer.from(await mp3.arrayBuffer());
                     log("[voice] OpenAI fallback successful");
                 } catch (oaErr: any) {
-                    log(`[voice] OpenAI fallback failed: ${oaErr.message}`, "error");
+                    const errorDetails = oaErr.response?.data || oaErr.message;
+                    log(`[voice] OpenAI fallback failed: ${JSON.stringify(errorDetails)}`, "error");
+                    logToOpsConsole("VoiceService", `Synthesis failed permanently: ${oaErr.message}`, "error");
                 }
             }
 
@@ -289,3 +307,4 @@ export async function uploadAudioAndGetUrl(file: Buffer): Promise<string> {
     log(`[voice] Audio uploaded: ${publicUrl}`);
     return publicUrl;
 }
+

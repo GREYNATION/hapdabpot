@@ -1,4 +1,4 @@
-import { log } from "../config.js";
+﻿import { log } from "../config.js";
 import { HarnessAgent } from "../../agents/harnessAgent/harnessAgent.js";
 import { GeneticTraderAgent } from "../../agents/trading/GeneticTraderAgent.js";
 import { exec } from "child_process";
@@ -39,7 +39,7 @@ export async function runHarnessAgent(agent: any) {
   const taskStr = typeof task === 'object' ? JSON.stringify(task) : task;
 
   // Detect video capability
-  if (taskStr.toLowerCase().includes("video") || input?.videoUrl) {
+  if (taskStr.toLowerCase()?.includes("video") || input?.videoUrl) {
     return runVideoAnalysis(agent);
   }
 
@@ -52,7 +52,7 @@ async function runBrowserTask(agent: any) {
   const { task } = agent;
 
   const taskStr = typeof task === 'object' ? JSON.stringify(task) : task;
-  log(`[harness] ${taskStr} → ${url}`);
+  log(`[harness] ${taskStr} â†’ ${url}`);
 
   const browserAgent = HarnessAgent.getInstance();
   const result = await browserAgent.browse(url, task);
@@ -140,7 +140,7 @@ async function runVideoAnalysis(agent: any) {
 
   let videoBonus = 0;
   const lowerTranscript = transcript.toLowerCase();
-  if (lowerTranscript.includes("viral") || lowerTranscript.includes("trending") || lowerTranscript.includes("winning")) {
+  if (lowerTranscript?.includes("viral") || lowerTranscript?.includes("trending") || lowerTranscript?.includes("winning")) {
     videoBonus += 20;
     log(`[video] High-intent signals detected. Applying +20 bonus.`);
   }
@@ -194,7 +194,7 @@ export async function runMoneyAgent(agent: any) {
   const { url } = agent.input;
   const { task } = agent;
 
-  log(`[money] Analyzing market: ${task} → ${url}`);
+  log(`[money] Analyzing market: ${task} â†’ ${url}`);
 
   // Step 1: Use your harness agent
   const raw = await runHarnessAgent({
@@ -266,7 +266,7 @@ export async function runMoneyAgent(agent: any) {
   // Re-sort after adjusting for real margins and competition
   winners = deepWinners.sort((a, b) => b.score - a.score);
 
-  const formattedData = `💰 MONEY AGENT RESULTS\n\nTop Opportunities:\n\n` + 
+  const formattedData = `ðŸ’° MONEY AGENT RESULTS\n\nTop Opportunities:\n\n` + 
     winners.map((w: any, i: number) => 
       `${i + 1}. ${w.title || "Unnamed Product"}\n` +
       `   Price: $${w.price.toFixed(2)}\n` +
@@ -300,7 +300,7 @@ export async function runMoneyVideoAgent(agent: any) {
   });
   const winners = scored.filter((p: any) => p.score > 70).sort((a: any, b: any) => b.score - a.score).slice(0, 5);
 
-  const formattedData = `🎬 **MONEY VIDEO RESULTS**\n\nTop Product Ideas from Video:\n\n` + 
+  const formattedData = `ðŸŽ¬ **MONEY VIDEO RESULTS**\n\nTop Product Ideas from Video:\n\n` + 
     winners.map((w: any, i: number) => 
       `${i + 1}. **${w.title || "Unnamed Product"}**\n` +
       `   Price: $${w.price.toFixed(2)}\n` +
@@ -409,3 +409,4 @@ export async function runGeneticsAgent(agent: any) {
     const result = await geneticsAgent.ask(task);
     return result;
 }
+

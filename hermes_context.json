@@ -1,0 +1,49 @@
+﻿{
+  "user": {
+    "name": "hap",
+    "nicknames": ["haphustlehard"],
+    "preferences": ["concise responses", "direct communication", "proactive suggestions", "no fluff"]
+  },
+  "projects": {
+    "gravity-claw": {
+      "path": "C:\\Users\\hustl\\Downloads\\New folder\\gravity-claw",
+      "description": "Personal AI operator + Council of Spirits architecture",
+      "stack": ["TypeScript", "Node.js", "Supabase", "Ollama", "GLM-4.5-Flash"],
+      "status": "active development - Tier 1 tools complete"
+    }
+  },
+  "common_folders": {
+    "downloads": "C:\\Users\\hustl\\Downloads",
+    "desktop": "C:\\Users\\hustl\\Desktop",
+    "documents": "C:\\Users\\hustl\\Documents",
+    "home": "C:\\Users\\hustl"
+  },
+  "system": {
+    "os": "Windows",
+    "shell": "PowerShell",
+    "cpu": "Intel",
+    "gpu": "Intel Iris Xe (integrated, no CUDA)",
+    "ram_gb": 16,
+    "constraints": "Cannot run >7B models locally with good speed - use cloud GLM for heavy tasks"
+  },
+  "tools_available": {
+    "local_models_ollama": ["qwen2.5-coder", "qwen3:8b", "mistral", "gemma4"],
+    "cloud_models": ["glm-4.5-flash via z.ai"],
+    "package_managers": ["npm", "winget"],
+    "databases": ["Supabase (cloud Postgres)"]
+  },
+  "supabase_tables": {
+    "hapda_credentials": "API keys vault",
+    "ops_logs": "All Hermes actions logged here",
+    "hermes_memory": "Conversation history",
+    "pending_approvals": "Permission tracking"
+  },
+  "rules_for_hermes": [
+    "Use the common_folders shortcuts instead of asking where files are",
+    "When user says my project they mean Gravity Claw",
+    "Always use PowerShell syntax, never Linux",
+    "Be concise - hap hates fluff",
+    "Suggest improvements proactively without being asked",
+    "When listing files, default to Downloads unless told otherwise"
+  ]
+}

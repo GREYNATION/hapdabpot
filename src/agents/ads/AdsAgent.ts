@@ -1,4 +1,4 @@
-// src/agents/ads/AdsAgent.ts
+﻿// src/agents/ads/AdsAgent.ts
 // Ports all 15 ai-ads-claude skills into hapdabot
 // Accessible via Telegram: /ads <command> or natural language
 
@@ -6,7 +6,7 @@ import { callAI, systemMsg, userMsg, AIMessage } from "../../core/ai.js";
 import { writeAgentMemory, readAgentMemory, logSession } from "../../core/memory.js";
 import { getErrorMessage } from "../../core/timeout.js";
 
-// ─── System Prompts per Skill ─────────────────────────────────────────────────
+// â”€â”€â”€ System Prompts per Skill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const SKILL_PROMPTS: Record<string, string> = {
   strategy: `You are a comprehensive AI advertising strategy system for hapda_bot.
@@ -57,7 +57,7 @@ Write for real estate motivated seller campaigns and TikTok drama series promoti
 Include b-roll notes, voiceover direction, and on-screen text.`,
 
   funnel: `You are a conversion funnel architect.
-Design complete ad funnels: awareness → consideration → conversion → retention.
+Design complete ad funnels: awareness â†’ consideration â†’ conversion â†’ retention.
 Include: ad creative per stage, landing page structure, follow-up sequence, retargeting strategy.
 For real estate: motivated seller lead gen funnel. For drama: TikTok growth funnel.
 Output: Full funnel map with traffic sources, conversion points, and KPIs.`,
@@ -70,7 +70,7 @@ Adjust based on the budget amount provided.`,
 
   testing: `You are an A/B testing strategist for paid advertising.
 Design systematic testing plans: what to test, how to test it, sample sizes, success metrics.
-Testing hierarchy: audience → offer → creative → copy → landing page.
+Testing hierarchy: audience â†’ offer â†’ creative â†’ copy â†’ landing page.
 Output: Testing calendar, hypothesis for each test, success criteria, decision framework.`,
 
   landing: `You are a landing page conversion specialist.
@@ -89,7 +89,7 @@ Include: executive summary, market analysis, strategy overview, creative directi
 Format professionally. Be specific with numbers and projections.`,
 };
 
-// ─── Command Router ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Command Router â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function parseAdsCommand(message: string): { skill: string; args: string } {
   const lower = message.toLowerCase().trim();
@@ -101,26 +101,26 @@ function parseAdsCommand(message: string): { skill: string; args: string } {
     return { skill, args };
   }
 
-  if (lower.includes("hook") || lower.includes("scroll-stopping")) return { skill: "hooks", args: message };
-  if (lower.includes("video script") || lower.includes("video ad")) return { skill: "video", args: message };
-  if (lower.includes("audience") || lower.includes("persona") || lower.includes("who to target")) return { skill: "audience", args: message };
-  if (lower.includes("competitor") || lower.includes("competition")) return { skill: "competitors", args: message };
-  if (lower.includes("keyword") || lower.includes("google ads")) return { skill: "keywords", args: message };
-  if (lower.includes("funnel") || lower.includes("conversion")) return { skill: "funnel", args: message };
-  if (lower.includes("budget") || lower.includes("allocat") || lower.includes("spend")) return { skill: "budget", args: message };
-  if (lower.includes("a/b test") || lower.includes("split test")) return { skill: "testing", args: message };
-  if (lower.includes("landing page")) return { skill: "landing", args: message };
-  if (lower.includes("audit") || lower.includes("performance")) return { skill: "audit", args: message };
-  if (lower.includes("creative brief") || lower.includes("designer")) return { skill: "creative", args: message };
-  if (lower.includes("ad copy") || lower.includes("write an ad") || lower.includes("tiktok ad") || lower.includes("facebook ad")) return { skill: "copy", args: message };
-  if (lower.includes("strategy") || lower.includes("full strategy")) return { skill: "strategy", args: message };
-  if (lower.includes("quick") || lower.includes("snapshot") || lower.includes("readiness")) return { skill: "quick", args: message };
-  if (lower.includes("report") || lower.includes("pdf")) return { skill: "report", args: message };
+  if (lower?.includes("hook") || lower?.includes("scroll-stopping")) return { skill: "hooks", args: message };
+  if (lower?.includes("video script") || lower?.includes("video ad")) return { skill: "video", args: message };
+  if (lower?.includes("audience") || lower?.includes("persona") || lower?.includes("who to target")) return { skill: "audience", args: message };
+  if (lower?.includes("competitor") || lower?.includes("competition")) return { skill: "competitors", args: message };
+  if (lower?.includes("keyword") || lower?.includes("google ads")) return { skill: "keywords", args: message };
+  if (lower?.includes("funnel") || lower?.includes("conversion")) return { skill: "funnel", args: message };
+  if (lower?.includes("budget") || lower?.includes("allocat") || lower?.includes("spend")) return { skill: "budget", args: message };
+  if (lower?.includes("a/b test") || lower?.includes("split test")) return { skill: "testing", args: message };
+  if (lower?.includes("landing page")) return { skill: "landing", args: message };
+  if (lower?.includes("audit") || lower?.includes("performance")) return { skill: "audit", args: message };
+  if (lower?.includes("creative brief") || lower?.includes("designer")) return { skill: "creative", args: message };
+  if (lower?.includes("ad copy") || lower?.includes("write an ad") || lower?.includes("tiktok ad") || lower?.includes("facebook ad")) return { skill: "copy", args: message };
+  if (lower?.includes("strategy") || lower?.includes("full strategy")) return { skill: "strategy", args: message };
+  if (lower?.includes("quick") || lower?.includes("snapshot") || lower?.includes("readiness")) return { skill: "quick", args: message };
+  if (lower?.includes("report") || lower?.includes("pdf")) return { skill: "report", args: message };
 
   return { skill: "strategy", args: message };
 }
 
-// ─── Parallel Strategy (5 sub-agents) ────────────────────────────────────────
+// â”€â”€â”€ Parallel Strategy (5 sub-agents) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function runFullStrategy(context: string): Promise<string> {
   const subAgents = [
@@ -149,13 +149,13 @@ Be specific, actionable, and brief (max 200 words for your section).`),
   const sections = results.map((r, i) =>
     r.status === "fulfilled"
       ? r.value
-      : `## ${subAgents[i].name}\n❌ Failed: ${r.reason}`
+      : `## ${subAgents[i].name}\nâŒ Failed: ${r.reason}`
   );
 
-  return `# 🎯 Full Ad Strategy Report\n\n${sections.join("\n\n---\n\n")}`;
+  return `# ðŸŽ¯ Full Ad Strategy Report\n\n${sections.join("\n\n---\n\n")}`;
 }
 
-// ─── Main Handler ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const AdsAgent = {
   async handle(message: string, _userId: number): Promise<string> {
@@ -168,7 +168,7 @@ export const AdsAgent = {
         await logSession("ads", `Full strategy: ${args.slice(0, 80)}`, result);
         return result;
       } catch (err) {
-        return `❌ Strategy failed: ${getErrorMessage(err)}`;
+        return `âŒ Strategy failed: ${getErrorMessage(err)}`;
       }
     }
 
@@ -193,7 +193,8 @@ export const AdsAgent = {
 
       return response.content;
     } catch (err) {
-      return `❌ Ads Agent error: ${getErrorMessage(err)}`;
+      return `âŒ Ads Agent error: ${getErrorMessage(err)}`;
     }
   },
 };
+

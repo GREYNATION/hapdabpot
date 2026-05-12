@@ -1,0 +1,43 @@
+{
+  "ep": {
+    "series": "Gilded Claws",
+    "episodeNumber": 1,
+    "title": "The Deal",
+    "scenes": [
+      {
+        "id": 1,
+        "description": "Luna sits across from a shadowed figure. High contrast, cinematic lighting.",
+        "character": "Luna Vale, Mysterious Client",
+        "location": "Dimly lit office",
+        "mood": "Dramatic Luxury",
+        "dialogue": "My father owed the Blackmanes everything. His business. His house. His dignity. Get close to Roman Blackmane. Make him trust you. Then... help us take what's ours. And my father's debt? Erased. Every penny."
+      },
+      {
+        "id": 2,
+        "description": "Luna stares at the contract, then picks up the pen and signs it.",
+        "character": "Luna Vale",
+        "location": "Office",
+        "mood": "Dramatic Luxury",
+        "dialogue": "I told myself it was just a job. I didn't know he would change everything."
+      }
+    ]
+  },
+  "results": [
+    {
+      "sceneId": 1,
+      "prompt": "Luna sits across from a shadowed figure. High contrast, cinematic lighting.. Character: Luna Vale, Mysterious Client. Location: Dimly lit office. Mood: Dramatic Luxury. Lens: 50mm luxury cinema prime. Aperture: f/1.4. Camera: subtle cinematic motion. Style: Pixar-style 3D animation render, photorealistic fur and skin texture, vertical 9:16 format, luxury Elitewood aesthetic, ultra-high detail. Color: vibrant colors, dramatic rim lighting, gold and velvet accents, shallow depth of field bokeh. Aspect: 9:16, photorealistic, cinematic quality",
+      "status": "complete",
+      "imageUrl": "https://image.pollinations.ai/prompt/Luna%20sits%20across%20from%20a%20shadowed%20figure.%20High%20contrast%2C%20cinematic%20lighting..%20Character%3A%20Luna%20Vale%2C%20Mysterious%20Client.%20Location%3A%20Dimly%20lit%20office.%20Mood%3A%20Dramatic%20Luxury.%20Lens%3A%2050mm%20luxury%20cinema%20prime.%20Aperture%3A%20f%2F1.4.%20Camera%3A%20subtle%20cinematic%20motion.%20Style%3A%20Pixar-style%203D%20animation%20render%2C%20photorealistic%20fur%20and%20skin%20texture%2C%20vertical%209%3A16%20format%2C%20luxury%20Elitewood%20aesthetic%2C%20ultra-high%20detail.%20Color%3A%20vibrant%20colors%2C%20dramatic%20rim%20lighting%2C%20gold%20and%20velvet%20accents%2C%20shallow%20depth%20of%20field%20bokeh.%20Aspect%3A%209%3A16%2C%20photorealistic%2C%20cinematic%20quality.%20Cinematic%2C%20dramatic%20lighting%2C%20photorealistic%2C%208k%20resolution%2C%20no%20watermarks%2C%20vertical%20formatting.?width=1024&height=1792&nologo=true",
+      "videoUrl": "https://cdn.muapi.ai/outputs/7d6625ea0eb945a8964a3111cd5ab7d7.mp4",
+      "lipSyncUrl": "https://cdn.muapi.ai/outputs/7d6625ea0eb945a8964a3111cd5ab7d7.mp4"
+    },
+    {
+      "sceneId": 2,
+      "prompt": "Luna stares at the contract, then picks up the pen and signs it.. Character: Luna Vale. Location: Office. Mood: Dramatic Luxury. Lens: 50mm luxury cinema prime. Aperture: f/1.4. Camera: subtle cinematic motion. Style: Pixar-style 3D animation render, photorealistic fur and skin texture, vertical 9:16 format, luxury Elitewood aesthetic, ultra-high detail. Color: vibrant colors, dramatic rim lighting, gold and velvet accents, shallow depth of field bokeh. Aspect: 9:16, photorealistic, cinematic quality",
+      "status": "complete",
+      "imageUrl": "https://image.pollinations.ai/prompt/Luna%20stares%20at%20the%20contract%2C%20then%20picks%20up%20the%20pen%20and%20signs%20it..%20Character%3A%20Luna%20Vale.%20Location%3A%20Office.%20Mood%3A%20Dramatic%20Luxury.%20Lens%3A%2050mm%20luxury%20cinema%20prime.%20Aperture%3A%20f%2F1.4.%20Camera%3A%20subtle%20cinematic%20motion.%20Style%3A%20Pixar-style%203D%20animation%20render%2C%20photorealistic%20fur%20and%20skin%20texture%2C%20vertical%209%3A16%20format%2C%20luxury%20Elitewood%20aesthetic%2C%20ultra-high%20detail.%20Color%3A%20vibrant%20colors%2C%20dramatic%20rim%20lighting%2C%20gold%20and%20velvet%20accents%2C%20shallow%20depth%20of%20field%20bokeh.%20Aspect%3A%209%3A16%2C%20photorealistic%2C%20cinematic%20quality.%20Cinematic%2C%20dramatic%20lighting%2C%20photorealistic%2C%208k%20resolution%2C%20no%20watermarks%2C%20vertical%20formatting.?width=1024&height=1792&nologo=true",
+      "videoUrl": "https://cdn.muapi.ai/outputs/40b8aa1dd48b43e2b86daa9c6ee9794b.mp4",
+      "lipSyncUrl": "https://cdn.muapi.ai/outputs/40b8aa1dd48b43e2b86daa9c6ee9794b.mp4"
+    }
+  ]
+}

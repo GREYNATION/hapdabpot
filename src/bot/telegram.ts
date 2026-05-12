@@ -1,4 +1,4 @@
-import { Telegraf, Context } from 'telegraf';
+﻿import { Telegraf, type Context } from 'telegraf';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
@@ -28,16 +28,17 @@ import {
 } from '../agents/googleWorkspaceAgent.js';
 import ffmpeg from 'fluent-ffmpeg';
 import { VoiceService } from '../services/voiceService.js';
+import { jarvisService } from '../services/jarvisService.js';
 
 export class TelegramBot {
-    private bot: Telegraf;
+    private bot: Telegraf<Context>;
     private ownerIds: number[];
     private isBusy: boolean = false;
     private analysisSessions: Map<number, any> = new Map();
     private masterTrader = new MasterTraderAgent();
     private council = new CouncilOrchestrator();
 
-    public getBot(): Telegraf {
+    public getBot(): Telegraf<Context> {
         return this.bot;
     }
 
@@ -48,7 +49,7 @@ export class TelegramBot {
         this.bot = new Telegraf(config.telegramToken);
         
         this.ownerIds = config.allowedUserIds || [];
-        if (config.ownerId && !this.ownerIds.includes(config.ownerId)) {
+        if (config.ownerId && !this.ownerIds?.includes(config.ownerId)) {
             this.ownerIds.push(config.ownerId);
         }
 
@@ -65,9 +66,9 @@ export class TelegramBot {
         const userId = ctx.from?.id;
         if (!userId) return false;
         if (this.ownerIds.length === 0) return true;
-        if (!this.ownerIds.includes(userId)) {
+        if (!this.ownerIds?.includes(userId)) {
             log(`[bot] Unauthorized access attempt by user ${userId}`);
-            ctx.reply("❌ You are not authorized to use this bot.");
+            ctx.reply("âŒ You are not authorized to use this bot.");
             return false;
         }
         return true;
@@ -83,11 +84,11 @@ export class TelegramBot {
             // If it's a markdown error, try regular text with escaping
             if (err.message?.includes("can't parse entities")) {
                 const escaped = text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
-                return await ctx.reply(escaped).catch(e => log(`[bot] Escaped reply also failed: ${e.message}`, "error"));
+                return await ctx.reply(escaped).catch((e: any) => log(`[bot] Escaped reply also failed: ${e.message}`, "error"));
             }
             
             // Fallback for connection errors or other generic failures
-            return await ctx.reply("⚠️ I'm having trouble responding right now. Please try again in secondary mode.");
+            return await ctx.reply("âš ï¸ I'm having trouble responding right now. Please try again in secondary mode.");
         }
     }
 
@@ -108,11 +109,11 @@ export class TelegramBot {
                     image_url: { url: `data:image/jpeg;base64,${base64}` }
                 });
 
-                if (caption.toLowerCase().includes("save")) {
+                if (caption.toLowerCase()?.includes("save")) {
                     const fileName = `Photo_${new Date().getTime()}.jpg`;
                     await WikiService.saveMedia(fileName, buffer);
                     await WikiService.saveFileNote(caption.replace(/save/gi, "").trim() || "Saved Photo", fileName, 'sources', ['photo-capture']);
-                    ctx.reply(`🖼️ **Photo saved to Obsidian**`);
+                    ctx.reply(`ðŸ–¼ï¸ **Photo saved to Obsidian**`);
                 }
             }
 
@@ -152,7 +153,7 @@ export class TelegramBot {
     private setupHandlers() {
         this.bot.start((ctx) => {
             if (!this.checkOwner(ctx)) return;
-            ctx.reply("🤖 **Hapdabot Supreme v5.0**\n\nEquipped with Vision, Real-Time Trading, and Lead Intelligence. Send me a photo, video, or voice note to begin.");
+            ctx.reply("ðŸ¤– **Hapdabot Supreme v5.0**\n\nEquipped with Vision, Real-Time Trading, and Lead Intelligence. Send me a photo, video, or voice note to begin.");
         });
 
         this.bot.on(["message", "voice", "video", "video_note", "photo", "document"], async (ctx, next) => {
@@ -163,13 +164,13 @@ export class TelegramBot {
             // Allow commands to pass through to the router
             if (msg.text?.startsWith("/wiki")) {
                 const query = msg.text.replace("/wiki", "").trim();
-                if (!query) return ctx.reply("🔍 Please provide a search query. Example: /wiki real estate");
+                if (!query) return ctx.reply("ðŸ” Please provide a search query. Example: /wiki real estate");
                 
                 await ctx.sendChatAction("typing");
                 const results = await WikiService.search(query);
-                if (results.length === 0) return ctx.reply("❌ No wiki pages found for that query.");
+                if (results.length === 0) return ctx.reply("âŒ No wiki pages found for that query.");
                 
-                return ctx.reply(`🔍 **Wiki Search Results**:\n\n${results.map(r => `• ${r}`).join("\n")}\n\nUse the desktop Obsidian app to read the full pages.`);
+                return ctx.reply(`ðŸ” **Wiki Search Results**:\n\n${results.map(r => `â€¢ ${r}`).join("\n")}\n\nUse the desktop Obsidian app to read the full pages.`);
             }
 
             if (msg.text?.startsWith("/save")) {
@@ -181,12 +182,12 @@ export class TelegramBot {
                 const content = history.map(m => `### ${m.role.toUpperCase()}\n${m.content}`).join("\n\n");
                 
                 await WikiService.saveNote(title, content, 'sources', ['chat-log', 'telegram']);
-                return ctx.reply(`✅ **Conversation Captured**\n\nSaved to Obsidian as: **${title}**`);
+                return ctx.reply(`âœ… **Conversation Captured**\n\nSaved to Obsidian as: **${title}**`);
             }
             
             if (msg.text?.startsWith("/note")) {
                 const raw = msg.text.replace("/note", "").trim();
-                if (!raw) return ctx.reply("📔 Please provide content. Format: `/note Title\\nContent` or just `/note Content` (timestamp will be title)");
+                if (!raw) return ctx.reply("ðŸ“” Please provide content. Format: `/note Title\\nContent` or just `/note Content` (timestamp will be title)");
                 
                 const parts = raw.split("\n");
                 let title = parts[0];
@@ -199,21 +200,21 @@ export class TelegramBot {
                 
                 await ctx.sendChatAction("typing");
                 await WikiService.saveNote(title, content, 'sources', ['quick-note', 'telegram']);
-                return ctx.reply(`📔 **Note Saved to Obsidian**\n\nTitle: ${title}`);
+                return ctx.reply(`ðŸ“” **Note Saved to Obsidian**\n\nTitle: ${title}`);
             }
 
             if (msg.text?.startsWith("/game")) {
                 const prompt = msg.text.replace("/game", "").trim();
                 if (!prompt) {
                     return ctx.reply(
-                        `🎮 **Game Studio Commands**\n\n` +
+                        `ðŸŽ® **Game Studio Commands**\n\n` +
                         `Use \`/game <prompt>\` to activate the studio.\n\n` +
                         `**Examples:**\n` +
-                        `• \`/game brainstorm a roguelike\`\n` +
-                        `• \`/game design a crafting system\`\n` +
-                        `• \`/game review my core loop\`\n` +
-                        `• \`/game plan a sprint for combat\`\n` +
-                        `• \`/game scope check my RPG\`\n\n` +
+                        `â€¢ \`/game brainstorm a roguelike\`\n` +
+                        `â€¢ \`/game design a crafting system\`\n` +
+                        `â€¢ \`/game review my core loop\`\n` +
+                        `â€¢ \`/game plan a sprint for combat\`\n` +
+                        `â€¢ \`/game scope check my RPG\`\n\n` +
                         `**Available workflows:** brainstorm, design-system, map-systems, art-bible, create-architecture, sprint-plan, code-review, qa-plan, release-checklist, and 60+ more.`
                     );
                 }
@@ -224,13 +225,13 @@ export class TelegramBot {
                     const { text, voiceBuffer } = await this.council.chatWithVoice(
                         `[GAME STUDIO REQUEST] ${prompt}`, chatId
                     );
-                    await this.safeReply(ctx, `🎮 **Game Studio**\n\n${text}`);
+                    await this.safeReply(ctx, `ðŸŽ® **Game Studio**\n\n${text}`);
                     if (voiceBuffer) {
                         return await ctx.replyWithVoice({ source: voiceBuffer });
                     }
                 } catch (err: any) {
                     log(`[game] Studio error: ${err.message}`, "error");
-                    return this.safeReply(ctx, `🎮 **Game Studio Error**: ${err.message}`);
+                    return this.safeReply(ctx, `ðŸŽ® **Game Studio Error**: ${err.message}`);
                 }
                 return;
             }
@@ -248,11 +249,11 @@ export class TelegramBot {
                     const buffer = await VoiceService.downloadTelegramFile(fileLink.toString());
                     userText = await VoiceService.transcribe(buffer, '.oga');
                     
-                    if (userText.toLowerCase().includes("save this") || userText.toLowerCase().includes("note this")) {
+                    if (userText.toLowerCase()?.includes("save this") || userText.toLowerCase()?.includes("note this")) {
                         const noteText = userText.replace(/save this/gi, "").replace(/note this/gi, "").trim();
                         const title = `Voice_Note_${new Date().getTime()}`;
                         await WikiService.saveNote(title, noteText, 'sources', ['voice-capture', 'telegram']);
-                        await ctx.reply(`🎙️ **Voice Note Captured to Obsidian**\n\n"${noteText.substring(0, 50)}..."`);
+                        await ctx.reply(`ðŸŽ™ï¸ **Voice Note Captured to Obsidian**\n\n"${noteText.substring(0, 50)}..."`);
                     }
                 } else if ("video" in msg || "video_note" in msg || "photo" in msg) {
                     const media = await this.handleMediaMessage(ctx);
@@ -270,10 +271,10 @@ export class TelegramBot {
                     
                     userText = `Uploaded document: ${msg.document.file_name}`;
 
-                    if (msg.caption?.toLowerCase().includes("save")) {
+                    if (msg.caption?.toLowerCase()?.includes("save")) {
                         await WikiService.saveMedia(msg.document.file_name, buffer);
                         await WikiService.saveFileNote(msg.caption.replace(/save/gi, "").trim() || msg.document.file_name, msg.document.file_name, 'sources', ['file-capture']);
-                        ctx.reply(`📎 **File saved to Obsidian**: ${msg.document.file_name}`);
+                        ctx.reply(`ðŸ“Ž **File saved to Obsidian**: ${msg.document.file_name}`);
                     }
                 } else if ("text" in msg) {
                     userText = msg.text;
@@ -285,7 +286,7 @@ export class TelegramBot {
                     await ctx.sendChatAction("typing");
                     
                     // Auto-capture to Obsidian Inbox (mirrors Python logic provided)
-                    if (userText && userText.length > 10 && !msg.text?.startsWith("/") && !userText.toLowerCase().includes("save this")) {
+                    if (userText && userText.length > 10 && !msg.text?.startsWith("/") && !userText.toLowerCase()?.includes("save this")) {
                         const datePrefix = new Date().toISOString().split('T')[0];
                         const safeTitle = userText.substring(0, 30).replace(/[^a-z0-9]/gi, " ").trim();
                         const noteTitle = `${datePrefix}_${safeTitle || "Inbox_Note"}`;
@@ -295,7 +296,7 @@ export class TelegramBot {
                     
                     try {
                         const { text, voiceBuffer } = await this.council.chatWithVoice(userText, chatId);
-                        await this.safeReply(ctx, `🤖 **Hapdabot Council**\n\n${text}`);
+                        await this.safeReply(ctx, `ðŸ¤– **Hapdabot Council**\n\n${text}`);
                         if (voiceBuffer) {
                             return await ctx.replyWithVoice({ source: voiceBuffer });
                         }
@@ -303,15 +304,15 @@ export class TelegramBot {
                         log(`[council] Processing failed: ${councilErr.message}`, "error");
                         console.error("[CORTEX ERROR]:", councilErr); // Log full stack for "Logic Tear" debugging
                         
-                        if (councilErr.message?.toLowerCase().includes("rate limit") || councilErr.message?.includes("429")) {
-                            return await this.safeReply(ctx, "⏳ **The Council is currently saturated.**\n\nRate limits reached. I'll be back in ~60 seconds once the circuit breaker resets.");
+                        if (councilErr.message?.toLowerCase()?.includes("rate limit") || councilErr.message?.includes("429")) {
+                            return await this.safeReply(ctx, "â³ **The Council is currently saturated.**\n\nRate limits reached. I'll be back in ~60 seconds once the circuit breaker resets.");
                         }
-                        return await this.safeReply(ctx, "🤖 **The Council encountered a logic tear.**\n\nI've logged the error. Trying to recover...");
+                        return await this.safeReply(ctx, "ðŸ¤– **The Council encountered a logic tear.**\n\nI've logged the error. Trying to recover...");
                     }
                 }
             } catch (err: any) { 
                 log(`[bot] Top-level handler catch: ${err.message}`, "error");
-                await this.safeReply(ctx, `⚠️ **System Alert**: ${err.message}`); 
+                await this.safeReply(ctx, `âš ï¸ **System Alert**: ${err.message}`); 
             }
         });
     }
@@ -325,20 +326,20 @@ export class TelegramBot {
 
     private renderDashboard(state: FactoryDashboardState): string {
         const getBar = (status: string) => {
-            if (status === "complete") return "[##########] COMPLETE ✅";
-            if (status === "running") return "[#####-----] BUILDING 🛠️";
-            if (status === "failed") return "[##########] FAILED ❌";
-            return "[----------] WAITING ⏳";
+            if (status === "complete") return "[##########] COMPLETE âœ…";
+            if (status === "running") return "[#####-----] BUILDING ðŸ› ï¸";
+            if (status === "failed") return "[##########] FAILED âŒ";
+            return "[----------] WAITING â³";
         };
 
         const lines = [
-            "📑 WEBSITE FACTORY",
+            "ðŸ“‘ WEBSITE FACTORY",
             "-------------------------------",
-            `🏗️ Architect  ${getBar(state.stages.architect.status)}`,
-            `🧵 Stitch     ${getBar(state.stages.stitch.status)}`,
-            `📊 Marketing  ${getBar(state.stages.marketing.status)}`,
-            `💻 Developer  ${getBar(state.stages.developer.status)}`,
-            `🚀 Deploy     ${getBar(state.stages.deploy.status)}`,
+            `ðŸ—ï¸ Architect  ${getBar(state.stages.architect.status)}`,
+            `ðŸ§µ Stitch     ${getBar(state.stages.stitch.status)}`,
+            `ðŸ“Š Marketing  ${getBar(state.stages.marketing.status)}`,
+            `ðŸ’» Developer  ${getBar(state.stages.developer.status)}`,
+            `ðŸš€ Deploy     ${getBar(state.stages.deploy.status)}`,
             "-------------------------------",
             `Build ID: ${state.id}`,
             `Status: ${state.status.toUpperCase()}`,
@@ -349,7 +350,7 @@ export class TelegramBot {
     }
 
     private async runBuild(prompt: string, ctx: Context) {
-        if (this.isBusy) return ctx.reply("⏳ Assembly line is currently busy...");
+        if (this.isBusy) return ctx.reply("â³ Assembly line is currently busy...");
         
         let dashboardMsg: any = null;
         const chatId = ctx.chat?.id;
@@ -360,12 +361,12 @@ export class TelegramBot {
             // Initial Dashboard View
             const res = await manager(prompt);
             if (!res.tasks || res.tasks[0]?.agent !== "factory") {
-                return ctx.reply("🤖 Switching to standard task executor...");
+                return ctx.reply("ðŸ¤– Switching to standard task executor...");
             }
 
             const initialStatus = "Initiating AI Factory Assembly Line...";
             dashboardMsg = await ctx.reply(
-                `📑 WEBSITE FACTORY\n-------------------------------\n${initialStatus}`
+                `ðŸ“‘ WEBSITE FACTORY\n-------------------------------\n${initialStatus}`
             );
 
             // Execute via the Website Factory (imported as manager in telegram.ts)
@@ -393,7 +394,7 @@ export class TelegramBot {
                 chatId, 
                 dashboardMsg.message_id, 
                 undefined, 
-                "✅ BUILD COMPLETE\n-------------------------------\nYour website has been assembled and deployed."
+                "âœ… BUILD COMPLETE\n-------------------------------\nYour website has been assembled and deployed."
             ).catch(() => {});
 
         } catch (e: any) { 
@@ -402,10 +403,10 @@ export class TelegramBot {
                     chatId, 
                     dashboardMsg.message_id, 
                     undefined, 
-                    `❌ BUILD FAILED\n-------------------------------\nError: ${e.message}`
+                    `âŒ BUILD FAILED\n-------------------------------\nError: ${e.message}`
                 ).catch(() => {});
             } else {
-                ctx.reply(`❌ Build failed: ${e.message}`); 
+                ctx.reply(`âŒ Build failed: ${e.message}`); 
             }
         } finally { 
             this.isBusy = false; 
@@ -437,3 +438,4 @@ export class TelegramBot {
     }
     public stop(signal: string) { this.bot.stop(signal); }
 }
+

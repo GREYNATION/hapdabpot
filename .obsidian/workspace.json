@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "claude-mem/node_modules/@modelcontextprotocol/sdk/README.md",
+                "file": "claude-obsidian/WIKI.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "README"
+              "title": "WIKI"
             }
           }
         ]
@@ -180,11 +180,43 @@
       "bases:Create new base": false
     }
   },
-  "active": "387e01c1d88a7c62",
+  "active": "8655ce95b589d56d",
   "lastOpenFiles": [
-    "src/commands/kimi.ts",
-    "src/commands/humanize.ts",
-    "src/core/humanizer.ts",
-    "humanizer"
+    "videos/hyperframes/audio__trending___tiktok_1778062501774.mp3",
+    "videos/hyperframes/audio__trending___tiktok_1778061906307.mp3",
+    "videos/hyperframes/audio__trending___tiktok_1778061679467.mp3",
+    "videos/hyperframes/audio__trending___tiktok_1778061408337.mp3",
+    "videos/hyperframes",
+    "src/commands/hyperframes.ts",
+    "src/services/hyperframesEngine.ts",
+    "src/commands/script.ts",
+    "src/services/scriptEngine.ts",
+    "src/commands/trend.ts",
+    "src/services/trendScanner.ts",
+    "brain/knowledge/sources/chat_1778056724355.md",
+    "brain/knowledge/sources/2026_05_06_let_s_supercharge_this_content.md",
+    "brain/knowledge/sources/2026_05_06_hey_what_s_the_vibes.md",
+    "brain/knowledge/sources/2026_05_06_hey__what_s_going_on__you_rea.md",
+    "brain/knowledge/sources/2026_05_06_so_would_you_think_the_reason.md",
+    "brain/knowledge/sources/2026_05_06_i_was_looking_for_a_deal_in_n.md",
+    "brain/knowledge/sources/chat_1778029348669.md",
+    "brain/knowledge/sources/2026_05_06_hey__could_you_tell_me_some_o.md",
+    "brain/knowledge/sources/2026_05_06_what_about_now.md",
+    "brain/knowledge/sources/2026_05_06_hey__what_s_going_on__let_me.md",
+    "brain/knowledge/log.md",
+    "brain/knowledge/sources/2026_05_06_hey__how_s_everything_going.md",
+    "humanizer/SKILL.md",
+    "humanizer/README.md",
+    "MEMORY.md",
+    "SUPERPOWERS.md",
+    "brain/knowledge/hot.md",
+    "node_modules/@claude-flow/plugin-gastown-bridge/node_modules/zod/README.md",
+    "node_modules/@jimp/plugin-blit/node_modules/zod/README.md",
+    "node_modules/chromium-bidi/node_modules/zod/README.md",
+    "claude-mem/node_modules/@modelcontextprotocol/sdk/README.md",
+    "node_modules/@jimp/types/node_modules/zod/README.md",
+    "node_modules/@jimp/plugin-resize/node_modules/zod/README.md",
+    "node_modules/@jimp/plugin-threshold/node_modules/zod/README.md",
+    "node_modules/@jimp/plugin-flip/node_modules/zod/README.md"
   ]
 }

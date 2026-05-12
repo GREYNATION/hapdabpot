@@ -81,6 +81,138 @@ export function initDb() {
   // 6. Stuyza Agency Leads table (Modular)
   initLeadsTable(db);
 
+  // 7. Wholesale Deals table
+  db.exec(`
+        CREATE TABLE IF NOT EXISTS deals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            address TEXT NOT NULL,
+            seller_name TEXT,
+            seller_phone TEXT,
+            arv REAL DEFAULT 0,
+            repair_estimate REAL DEFAULT 0,
+            max_offer REAL DEFAULT 0,
+            status TEXT DEFAULT 'lead',
+            assigned_buyer TEXT,
+            city TEXT,
+            profit REAL DEFAULT 0,
+            surplus REAL DEFAULT 0,
+            price REAL DEFAULT 0,
+            sale_price REAL DEFAULT 0,
+            buyer_id INTEGER,
+            assignment_fee REAL DEFAULT 0,
+            outcome TEXT,
+            notes TEXT,
+            last_call_status TEXT,
+            invoice_prompted INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+  // 8. Real Estate Buyers table
+  db.exec(`
+        CREATE TABLE IF NOT EXISTS buyers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT,
+            email TEXT,
+            city TEXT,
+            budget REAL,
+            buy_box TEXT, -- JSON criteria
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+  // 9. Outreach Sequences table
+  db.exec(`
+        CREATE TABLE IF NOT EXISTS outreach_sequences (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deal_id INTEGER NOT NULL,
+            status TEXT DEFAULT 'active',
+            current_step INTEGER DEFAULT 0,
+            next_run_at DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+  // 10. Outreach Logs table
+  db.exec(`
+        CREATE TABLE IF NOT EXISTS outreach_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deal_id INTEGER NOT NULL,
+            type TEXT NOT NULL, -- 'sms', 'call', 'email'
+            content TEXT,
+            status TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+  // 11. Lead Search Criteria (Modular)
+  db.exec(`
+        CREATE TABLE IF NOT EXISTS lead_search_criteria (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT NOT NULL,
+            state TEXT NOT NULL,
+            city TEXT NOT NULL,
+            zip_codes TEXT, -- Comma-separated list of target ZIPs
+            max_price REAL DEFAULT 500000,
+            min_profit REAL DEFAULT 20000,
+            active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+  // 12. Scraped Leads table (Cache)
+  db.exec(`
+        CREATE TABLE IF NOT EXISTS scraped_leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            address TEXT NOT NULL,
+            source TEXT,
+            price REAL,
+            estimated_arv REAL,
+            estimated_repairs REAL,
+            mao REAL,
+            potential_profit REAL,
+            days_on_market INTEGER,
+            motivation_signals TEXT, -- JSON
+            url TEXT,
+            alerted INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+  // 13. Real Estate Leads table (Parcel-based)
+  db.exec(`
+        CREATE TABLE IF NOT EXISTS leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            parcel TEXT UNIQUE,
+            address TEXT,
+            owner TEXT,
+            distress_type TEXT,
+            score INTEGER,
+            mao REAL DEFAULT 0,
+            status TEXT DEFAULT 'NEW',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+  // 14. Seed Default Criteria
+  const existing = db.prepare("SELECT COUNT(*) as count FROM lead_search_criteria").get() as any;
+  if (existing?.count === 0) {
+    // 🏗️ Seed Cleveland as the primary Gold Mine
+    db.prepare("INSERT INTO lead_search_criteria (label, state, city, zip_codes, max_price, min_profit) VALUES (?, ?, ?, ?, ?, ?)").run(
+        'Cleveland Gold Mine', 
+        'OH', 
+        'Cleveland', 
+        '44102,44105,44108,44110,44112,44128', 
+        250000, 
+        25000
+    );
+    db.prepare("INSERT INTO lead_search_criteria (label, state, city, max_price, min_profit) VALUES (?, ?, ?, ?, ?)").run('Houston Surplus', 'TX', 'Houston', 600000, 25000);
+    log("[db] Seeded Cleveland Gold Mine and Houston default search criteria.");
+  }
+
   log("[db] Database initialization complete.");
 }
 

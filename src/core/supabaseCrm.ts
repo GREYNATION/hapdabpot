@@ -2,7 +2,7 @@ import { getSupabase } from "./supabase.js";
 import { log, config } from "./config.js";
 import { PropertyScraper } from "./scraper.js";
 import { sendSms } from "../services/outreachService.js";
-import { Lead } from "../services/universalLeadScraper.js";
+import type { Lead } from "../types/lead.js";
 import { Telegraf } from "telegraf";
 
 export interface SupabaseDeal {

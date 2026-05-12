@@ -1,4 +1,4 @@
-import fs from "fs";
+﻿import fs from "fs";
 import path from "path";
 
 const PROMPTS_DIR = process.env.AI_PROMPTS_DIR || "./ai-prompts";
@@ -26,17 +26,17 @@ function listTools(): PromptTool[] {
 
 function searchTools(query: string): PromptTool[] {
   const q = query.toLowerCase();
-  return listTools().filter(t => t.name.toLowerCase().includes(q));
+  return listTools().filter(t => t.name.toLowerCase()?.includes(q));
 }
 
 function readPrompt(toolName: string, fileName?: string): string {
   const tools = listTools();
-  const tool = tools.find(t => t.name.toLowerCase().includes(toolName.toLowerCase()));
+  const tool = tools.find(t => t.name.toLowerCase()?.includes(toolName.toLowerCase()));
   if (!tool) return "Tool not found. Use /prompts list to see all tools.";
 
   const file = fileName
-    ? tool.files.find(f => f.toLowerCase().includes(fileName.toLowerCase()))
-    : tool.files.find(f => f.toLowerCase().includes("prompt")) || tool.files[0];
+    ? tool.files.find(f => f.toLowerCase()?.includes(fileName.toLowerCase()))
+    : tool.files.find(f => f.toLowerCase()?.includes("prompt")) || tool.files[0];
 
   if (!file) return "No prompt file found for " + tool.name;
 
@@ -71,7 +71,7 @@ export async function handlePromptsCommand(args: string): Promise<string> {
 
   if (sub === "files") {
     if (!rest) return "Usage: /prompts files [tool name]";
-    const tool = listTools().find(t => t.name.toLowerCase().includes(rest.toLowerCase()));
+    const tool = listTools().find(t => t.name.toLowerCase()?.includes(rest.toLowerCase()));
     if (!tool) return "Tool not found: " + rest;
     return tool.name + " files:\n\n" + tool.files.map((f, i) => (i + 1) + ". " + f).join("\n");
   }

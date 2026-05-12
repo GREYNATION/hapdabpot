@@ -5,10 +5,18 @@
 
 import { Telegraf } from "telegraf";
 import { DramaAgent, GILDED_CLAWS_CONFIG } from "./DramaAgent.js";
-import { GILDED_SCRIPTS } from "./GildedScripts.js";
+import { GILDED_SCRIPTS as SEASON_1_SCRIPTS } from "./GildedScripts.js";
+import { parseGildedScripts } from "./scriptImporter.js";
 import { log } from "../../core/config.js";
-import { GILDED_SEASON_1 } from "../ContentSchedulerAgent.js";
 import { produceDynamicEpisode } from "../cinema/CinemaAgent.js";
+import path from "path";
+
+// Load Season 2 from the local download folder
+const S2_PATH = "c:\\Users\\hustl\\Downloads\\GILDED_CLAWS_Season2_Scripts.md";
+const SEASON_2_SCRIPTS = parseGildedScripts(S2_PATH);
+
+// Merge all scripts
+const ALL_GILDED_SCRIPTS = { ...SEASON_1_SCRIPTS, ...SEASON_2_SCRIPTS };
 
 export function registerGildedCommands(bot: Telegraf) {
     const dramaAgent = new DramaAgent(GILDED_CLAWS_CONFIG);
@@ -23,30 +31,37 @@ export function registerGildedCommands(bot: Telegraf) {
                 "🐺 **Gilded Claws Production Studio**\n\n" +
                 "The luxury animal drama series.\n\n" +
                 "**Commands:**\n" +
-                "`/gilded produce S01E01` — Film the next episode\n" +
-                "`/gilded list` — View script library\n" +
+                "`/gilded produce S02E01` — Film Season 2, Episode 1\n" +
+                "`/gilded list 1` — List Season 1 scripts\n" +
+                "`/gilded list 2` — List Season 2 scripts\n" +
                 "`/gilded status` — Check studio status\n\n" +
                 "**Examples:**\n" +
-                "`/gilded produce S01E31` (Victor's Meltdown)",
+                "`/gilded produce S02E01` (The Return)",
                 { parse_mode: "Markdown" }
             );
         }
 
         switch (action) {
             case "list":
-                const listText = Object.values(GILDED_SCRIPTS).map((script) => `🎬 \`${script.id}\` — ${script.title}`).join("\n");
-                return ctx.reply(
-                    "📺 **Gilded Claws Script Library**\n\n" +
-                    listText + 
-                    "\n\nUse `/gilded produce [ep]` to start luxury filming.",
-                    { parse_mode: "Markdown" }
-                );
+                const season = args[1] || "2";
+                const filtered = Object.values(ALL_GILDED_SCRIPTS).filter(s => s.id.startsWith(`S0${season}`));
+                
+                if (filtered.length === 0) return ctx.reply(`❌ No scripts found for Season ${season}.`);
+
+                const listText = filtered.map((script) => `🎬 \`${script.id}\` — ${script.title}`).join("\n");
+                const chunks = listText.match(/[\s\S]{1,4000}/g) ?? [listText];
+                
+                await ctx.reply(`📺 **Gilded Claws Season ${season} Library**\n\n`, { parse_mode: "Markdown" });
+                for (const chunk of chunks) {
+                    await ctx.reply(chunk, { parse_mode: "Markdown" });
+                }
+                return;
 
             case "produce":
                 const epCode = args[1]?.toUpperCase();
-                if (!epCode) return ctx.reply("⚠️ Please specify an episode code (e.g., S01E01).");
+                if (!epCode) return ctx.reply("⚠️ Please specify an episode code (e.g., S02E01).");
 
-                const script = GILDED_SCRIPTS[epCode];
+                const script = ALL_GILDED_SCRIPTS[epCode];
                 if (!script) return ctx.reply(`❌ Script for \`${epCode}\` not found in library.`);
 
                 await ctx.reply(`🐺 **Gilded Claws Production START**\n\nEpisode: \`${epCode}\` - *${script.title}*\nStyle: **Luxury Elitewood (Pixar)**\nPipeline: Muapi + Wav2Lip...`, { parse_mode: "Markdown" });
@@ -64,7 +79,7 @@ export function registerGildedCommands(bot: Telegraf) {
 
                     const clips = await produceDynamicEpisode(
                         "Gilded Claws",
-                        parseInt(epCode.replace("S01E", "")),
+                        parseInt(epCode.split('E')[1]),
                         script.title,
                         cinemaScenes as any
                     );
@@ -85,7 +100,9 @@ export function registerGildedCommands(bot: Telegraf) {
                 break;
 
             case "status":
-                return ctx.reply("🏰 **Gilded Claws Studio**: System Online. Style: Luxury Pixar 9:16. Ready for production.");
+                const s1Count = Object.keys(SEASON_1_SCRIPTS).length;
+                const s2Count = Object.keys(SEASON_2_SCRIPTS).length;
+                return ctx.reply(`🏰 **Gilded Claws Studio Status**\n\nSeason 1: ${s1Count} scripts\nSeason 2: ${s2Count} scripts loaded from local\n\nReady for Pixar-style 9:16 production.`);
 
             default:
                 return ctx.reply("❓ Unknown gilded command. Try `/gilded` for help.");
@@ -94,3 +111,4 @@ export function registerGildedCommands(bot: Telegraf) {
 
     log("[gilded] Gilded Claws commands registered: /gilded");
 }
+

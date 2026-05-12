@@ -1,12 +1,9 @@
-import fs from "fs";
-import path from "path";
 import { config, log, logToOpsConsole } from "../core/config.js";
 import { askAI } from "../core/ai.js";
-import axios from "axios";
-import { agentMail } from "../services/agentmail.js";
 import { HiveMind } from "../core/hiveMind.js";
-import { ApifyService } from "../services/apifyService.js";
-import { SearchOrchestrator, addObservation } from "../core/memory.js";
+import { SearchOrchestrator } from "../core/memory.js";
+import { callMCPTool } from "../core/mcp.js";
+import { unpackContent } from "../core/unpack.js";
 
 export interface AgentResponse {
     content: string;
@@ -62,152 +59,21 @@ export abstract class BaseAgent {
         log(`[tool] ${this.getName()} executing ${name}...`);
         await logToOpsConsole(this.getName(), `Executing tool: ${name}`, "tool");
         try {
-            if (name === "list_shared_files") {
-                const dir = path.join(process.cwd(), "data", "shared");
-                if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-                const files = fs.readdirSync(dir);
-                return files.length > 0 ? `Files in shared data: ${files.join(", ")}` : "The shared data folder is empty.";
+            // --- LEGACY TOOLS (Now routed via MCP Bridge) ---
+            // list_shared_files, read_shared_file, add_memory, update_hive_mind, 
+            // pin_fact, pin_agent, unpin_agent, get_memory
+
+            // --- MCP BRIDGE (V3) ---
+            // This fallback intercepts any tool calls not handled locally and routes them
+            // to the new Master MCP Server Tool Registry.
+            log(`[mcp] Routing '${name}' through MCP bridge...`);
+            try {
+                const mcpResult = await callMCPTool(name, args);
+                return typeof mcpResult === 'string' ? mcpResult : JSON.stringify(mcpResult);
+            } catch (mcpError: any) {
+                log(`[mcp] MCP routing failed for '${name}': ${mcpError.message}`, "warn");
+                return `Unknown or failed tool: ${name}`;
             }
-            if (name === "read_shared_file") {
-                const fileName = path.basename(args.fileName);
-                const filePath = path.join(process.cwd(), "data", "shared", fileName);
-                if (!fs.existsSync(filePath)) return `Error: File '${fileName}' not found in shared data.`;
-                const content = fs.readFileSync(filePath, "utf-8");
-                return `Content of ${fileName}:\n\n${content.substring(0, 10000)}`;
-            }
-            if (name === "web_search") {
-                const query = args.query;
-                if (!config.braveApiKey) return "Error: Brave API Key missing.";
-                
-                const response = await axios.get("https://api.search.brave.com/res/v1/web/search", {
-                    params: { q: query, count: 5 },
-                    headers: { "Accept": "application/json", "X-Subscription-Token": config.braveApiKey }
-                });
-                const webResults = (response.data.web?.results || []).slice(0, 5);
-                return webResults.map((r: any) => `### [${r.title}](${r.url})\n${r.description}`).join("\n\n");
-            }
-            if (name === "read_url") {
-                const response = await axios.get(args.url, { timeout: 8000 });
-                const text = response.data.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-                return text.substring(0, 8000);
-            }
-            if (name === "send_email") {
-                const { to, subject, body } = args;
-                await agentMail.sendEmail(to, subject, body);
-                return `Email sent to ${to}.`;
-            }
-            if (name === "update_hive_mind") {
-                const hive = HiveMind.getInstance();
-                hive.updateState(args);
-                return "Hive Mind updated.";
-            }
-            if (name === "pin_fact") {
-                const hive = HiveMind.getInstance();
-                hive.pinFact(args.key, args.value);
-                return `Fact pinned: ${args.key}`;
-            }
-            if (name === "pin_agent") {
-                const hive = HiveMind.getInstance();
-                hive.pinAgent(args.agent_id);
-                return `Session pinned to ${args.agent_id}.`;
-            }
-            if (name === "unpin_agent") {
-                const hive = HiveMind.getInstance();
-                hive.pinAgent(null);
-                return "Session unpinned.";
-            }
-            if (name === "firecrawl_scrape") {
-                const { url } = args;
-                if (!config.firecrawlApiKey) return "Error: Firecrawl API Key missing.";
-                const res = await axios.post("https://api.firecrawl.dev/v2/scrape", { 
-                    url, 
-                    formats: ["markdown"] 
-                }, {
-                    headers: { "Authorization": `Bearer ${config.firecrawlApiKey}` }
-                });
-                return res.data.data.markdown || "No content extracted.";
-            }
-            if (name === "firecrawl_search") {
-                const { query } = args;
-                if (!config.firecrawlApiKey) return "Error: Firecrawl API Key missing.";
-                const res = await axios.post("https://api.firecrawl.dev/v2/search", { 
-                    query, 
-                    limit: 3,
-                    scrapeOptions: { formats: ["markdown"] }
-                }, {
-                    headers: { "Authorization": `Bearer ${config.firecrawlApiKey}` }
-                });
-                return res.data.data.map((r: any) => `### [${r.metadata.title}](${r.metadata.sourceURL})\n${r.markdown || r.metadata.description}`).join("\n\n");
-            }
-            if (name === "firecrawl_interact") {
-                const { url, prompt } = args;
-                if (!config.firecrawlApiKey) return "Error: Firecrawl API Key missing.";
-                const res = await axios.post("https://api.firecrawl.dev/v2/interact", { 
-                    url, 
-                    prompt 
-                }, {
-                    headers: { "Authorization": `Bearer ${config.firecrawlApiKey}` }
-                });
-                // Note: interact might be async, but V2 usually returns a result or status.
-                // For simplicity, we assume immediate result for now.
-                return JSON.stringify(res.data.data || res.data);
-            }
-            if (name === "tiktok_scrape") {
-                return await ApifyService.scrapeTikTok(args.url);
-            }
-            if (name === "skip_trace") {
-                const { skipTrace } = await import("../services/outreachService.js");
-                const res = await skipTrace(args.name, args.city);
-                return `SkipTrace Result for ${args.name}: Phone ${res.phone}`;
-            }
-            if (name === "find_deals") {
-                const { findMotivatedSellers } = await import("../services/universalLeadScraper.js");
-                const leads = await findMotivatedSellers(args.state, args.city);
-                return JSON.stringify(leads.slice(0, 5));
-            }
-            if (name === "generate_video") {
-                const { ContentAgent } = await import("./ContentAgent.js");
-                const agent = new ContentAgent();
-                return await agent.createVideo(args.topic, true); // true = preview/dryRun
-            }
-            if (name === "post_to_social") {
-                const { ContentAgent } = await import("./ContentAgent.js");
-                const agent = new ContentAgent();
-                return await agent.createVideo(args.topic, false); // false = actual post
-            }
-            if (name === "add_memory") {
-                const domain = args.domain || "global";
-                // We use a placeholder session ID or retrieve from context if possible
-                const sessionId = (this as any)._currentSessionId || "00000000-0000-0000-0000-000000000000";
-                await addObservation(sessionId, domain, args.content, args.importance || 1);
-                return `Memory added to ${domain}.`;
-            }
-            if (name === "get_memory") {
-                return await SearchOrchestrator.search(args.query, args.domain || "global");
-            }
-            // ─── Wiki / Obsidian Tools ──────────────────────────────────────────
-            if (name === "wiki_save") {
-                const { WikiService } = await import("../services/wikiService.js");
-                await WikiService.saveStructuredNote({
-                    title: args.title,
-                    summary: args.summary,
-                    concepts: args.concepts || [],
-                    content: args.content,
-                    sourceUrl: args.sourceUrl,
-                    tags: args.tags || []
-                });
-                return `Note '${args.title}' saved to library with automatic backlinking.`;
-            }
-            if (name === "wiki_search") {
-                const { WikiService } = await import("../services/wikiService.js");
-                const results = await WikiService.search(args.query);
-                return results.length > 0 ? `Found in library:\n${results.join("\n")}` : "No matches found in library.";
-            }
-            if (name === "wiki_read") {
-                const { WikiService } = await import("../services/wikiService.js");
-                return await WikiService.getLibraryContext(args.query, 1);
-            }
-            return "Unknown tool";
         } catch (e: any) {
             return `Error executing tool: ${e.message}`;
         }
@@ -218,7 +84,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "web_search",
+                    name: "research/web_search",
                     description: "Search the internet for information.",
                     parameters: {
                         type: "object",
@@ -230,7 +96,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "read_url",
+                    name: "research/read_url",
                     description: "Read website content.",
                     parameters: {
                         type: "object",
@@ -242,7 +108,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "firecrawl_scrape",
+                    name: "research/firecrawl_scrape",
                     description: "Scrape high-fidelity markdown from a URL using Firecrawl.",
                     parameters: {
                         type: "object",
@@ -254,7 +120,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "firecrawl_search",
+                    name: "research/firecrawl_search",
                     description: "Search the web and return high-quality scraped results using Firecrawl.",
                     parameters: {
                         type: "object",
@@ -266,7 +132,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "firecrawl_interact",
+                    name: "research/firecrawl_interact",
                     description: "Perform browser actions (clicks, forms) on a live page using Firecrawl.",
                     parameters: {
                         type: "object",
@@ -281,7 +147,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "tiktok_scrape",
+                    name: "social/tiktok_scrape",
                     description: "Scrape and analyze a TikTok video for metadata and content using Apify.",
                     parameters: {
                         type: "object",
@@ -295,7 +161,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "skip_trace",
+                    name: "real-estate/skip_trace",
                     description: "Find a property owner's phone number using skip tracing.",
                     parameters: {
                         type: "object",
@@ -310,7 +176,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "find_deals",
+                    name: "real-estate/find_deals",
                     description: "Find motivated seller leads in a specific city or state using the high-performance local scraper.",
                     parameters: {
                         type: "object",
@@ -325,7 +191,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "generate_video",
+                    name: "media/generate_video",
                     description: "Generate a cinematic preview video for a specific topic or deal.",
                     parameters: {
                         type: "object",
@@ -339,7 +205,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "post_to_social",
+                    name: "media/post_to_social",
                     description: "Generate and AUTOMATICALLY post a video to TikTok and Instagram.",
                     parameters: {
                         type: "object",
@@ -353,7 +219,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "update_hive_mind",
+                    name: "system/hive/update",
                     description: "Update the shared mission state (active_mission, objectives, agent_handoffs).",
                     parameters: {
                         type: "object",
@@ -368,7 +234,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "pin_fact",
+                    name: "system/facts/pin",
                     description: "Pin a permanent fact to the global knowledge base (pinned_facts).",
                     parameters: {
                         type: "object",
@@ -383,7 +249,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "pin_agent",
+                    name: "system/agent/pin",
                     description: "Pin the current user session to a specific agent (e.g. 'researcher', 'marketer').",
                     parameters: {
                         type: "object",
@@ -397,7 +263,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "unpin_agent",
+                    name: "system/agent/unpin",
                     description: "Clear the current agent pin and return to the Dispatcher/Triage routing.",
                     parameters: { type: "object", properties: {} }
                 }
@@ -405,7 +271,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "add_memory",
+                    name: "system/memory/add",
                     description: "Save an important observation or fact to long-term episodic memory.",
                     parameters: {
                         type: "object",
@@ -421,7 +287,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "get_memory",
+                    name: "system/memory/get",
                     description: "Retrieve relevant past memories based on a query.",
                     parameters: {
                         type: "object",
@@ -436,7 +302,29 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "wiki_save",
+                    name: "system/files/list",
+                    description: "List all files in the shared data directory.",
+                    parameters: { type: "object", properties: {} }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "system/files/read",
+                    description: "Read the content of a shared file.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            filename: { type: "string" }
+                        },
+                        required: ["filename"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "knowledge/library_save",
                     description: "Save a structured markdown note to the Obsidian vault library.",
                     parameters: {
                         type: "object",
@@ -455,7 +343,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "wiki_search",
+                    name: "knowledge/wiki_search",
                     description: "Search the local Obsidian library for relevant notes.",
                     parameters: {
                         type: "object",
@@ -467,7 +355,7 @@ export abstract class BaseAgent {
             {
                 type: "function",
                 function: {
-                    name: "wiki_read",
+                    name: "knowledge/wiki_read",
                     description: "Read the full content of a specific note from the library.",
                     parameters: {
                         type: "object",
@@ -481,7 +369,7 @@ export abstract class BaseAgent {
 
     async chat(userText: string): Promise<string> {
         const res = await this.ask(userText);
-        return res.content;
+        return unpackContent(res);
     }
 
     async ask(userText: any, history: any[] = [], systemOverride?: string): Promise<any> {

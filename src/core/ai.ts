@@ -1,5 +1,5 @@
-/*
- * core/ai.ts — Modernized
+﻿/*
+ * core/ai.ts â€” Modernized
  * Unified AI provider interface with Groq SDK + Timeout.
  */
 
@@ -10,7 +10,7 @@ import { config, log } from "./config.js";
 import { withTimeout, getErrorMessage, delay } from "./timeout.js";
 import { puterService } from "./puter.js";
 
-// ── Clients (Re-initialized via initializeClients) ───────────────────────────
+// â”€â”€ Clients (Re-initialized via initializeClients) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 import * as cfg from "./config.js";
 
 const GROQ_MODEL = "llama-3.3-70b-versatile"; // keep this exact string
@@ -38,10 +38,10 @@ export function initializeClients() {
         defaultHeaders: { "HTTP-Referer": "https://hapdabot.railway.app" },
     });
 
-    log(`[ai] 🚀 Infrastructure version: 1.0.2 (Fixed Anthropic roles & HiveMind schema)`);
+    log(`[ai] ðŸš€ Infrastructure version: 1.0.2 (Fixed Anthropic roles & HiveMind schema)`);
 }
 
-// ── Rate Limiting & Throttling ───────────────────────────────────────────────
+// â”€â”€ Rate Limiting & Throttling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 import PQueue from "p-queue";
 export { PQueue };
 
@@ -64,7 +64,7 @@ class CircuitBreaker {
         log(`[ai] Circuit Breaker entering HALF-OPEN state (testing recovery)...`, "warn");
         this.state = "HALF_OPEN";
       } else {
-        throw new Error("⚠️ System cooling down (rate limit reached). Try again in a few seconds.");
+        throw new Error("âš ï¸ System cooling down (rate limit reached). Try again in a few seconds.");
       }
     }
 
@@ -78,8 +78,8 @@ class CircuitBreaker {
       return result;
     } catch (err: any) {
       const isRateLimit = err.status === 429 || 
-                          (err.message && err.message.toLowerCase().includes("rate limit")) ||
-                          (err.message && err.message.toLowerCase().includes("429"));
+                          (err.message && err.message.toLowerCase()?.includes("rate limit")) ||
+                          (err.message && err.message.toLowerCase()?.includes("429"));
 
       if (isRateLimit) {
         this.failures++;
@@ -115,8 +115,8 @@ const breaker = new CircuitBreaker();
 
 function isRetryable(err: any): boolean {
     return err.status === 429 || 
-           (err.message && err.message.toLowerCase().includes("rate limit")) ||
-           (err.message && err.message.toLowerCase().includes("429")) ||
+           (err.message && err.message.toLowerCase()?.includes("rate limit")) ||
+           (err.message && err.message.toLowerCase()?.includes("429")) ||
            err.status === 502 || err.status === 503 || err.status === 504;
 }
 
@@ -150,7 +150,7 @@ export async function runAgentTask(task: () => Promise<any>) {
 // Initial call
 initializeClients();
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type AIMessage = OpenAI.ChatCompletionMessageParam;
 
@@ -198,13 +198,13 @@ export interface AIOptions {
     freeTierOnly?: boolean; // new flag for free-tier restrictions
 }
 
-// ── Message Helpers ───────────────────────────────────────────────────────────
+// â”€â”€ Message Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function systemMsg(content: string): AIMessage { return { role: "system", content }; }
 export function userMsg(content: string): AIMessage { return { role: "user", content }; }
 
 /**
- * buildTool — Construct an AITool object efficiently (Claw Agent compatibility)
+ * buildTool â€” Construct an AITool object efficiently (Claw Agent compatibility)
  */
 export function buildTool(
     name: string, 
@@ -226,14 +226,11 @@ export function buildTool(
     };
 }
 
-// ── Groq ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Groq â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function cleanForGroq(
     messages: OpenAI.ChatCompletionMessageParam[]
 ): OpenAI.ChatCompletionMessageParam[] {
-    // OLD: was filtering out 'tool' role entirely.
-    // NEW: We preserve tool history so agents remember their findings.
-    // However, some older Groq-SDK versions prefer assistant content to be non-null if tool_calls exist.
     return messages.map((m) => {
         if (m.role === "assistant" && (m as any).tool_calls && !m.content) {
             return { ...m, content: "Executing functions..." };
@@ -242,20 +239,48 @@ function cleanForGroq(
     });
 }
 
+/**
+ * ðŸ›¡ï¸ Token guard for Groq â€” rough estimate: 1 token â‰ˆ 4 chars.
+ * Groq free-tier models have ~6k context windows; trim before sending.
+ */
+function trimForGroq(
+    messages: OpenAI.ChatCompletionMessageParam[]
+): OpenAI.ChatCompletionMessageParam[] {
+    const totalChars = messages.reduce((acc, m) => {
+        const content = typeof m.content === "string" ? m.content : JSON.stringify(m.content ?? "");
+        return acc + content.length;
+    }, 0);
+    const estimatedTokens = Math.ceil(totalChars / 4);
+
+    if (estimatedTokens > 3000) {
+        log(`[ai] âš ï¸ Groq prompt too large (~${estimatedTokens} tokens). Trimming to 8000 chars...`, "warn");
+        // Keep system message intact, trim only the last user message
+        return messages.map((m, i) => {
+            if (i === messages.length - 1 && typeof m.content === "string" && m.content.length > 8000) {
+                return { ...m, content: m.content.slice(0, 8000) + "\n[...content trimmed for token limit]" };
+            }
+            return m;
+        });
+    }
+    return messages;
+}
+
 async function callGroq(
     messages: OpenAI.ChatCompletionMessageParam[],
     options: AIOptions
 ): Promise<AIResponse> {
     const model = options.model || config.groqModel || GROQ_MODEL;
     const cleaned = cleanForGroq(messages);
+    // ðŸ›¡ï¸ Trim oversized prompts before they hit the API
+    const trimmed = trimForGroq(cleaned);
 
     try {
         if (options.stream && options.onChunk) {
             const stream = await groqClient.chat.completions.create({
                 model,
-                messages: cleaned as any,
+                messages: trimmed as any,
                 temperature: options.temperature ?? 0.7,
-                max_tokens: options.maxTokens || 1000,
+                max_tokens: options.maxTokens || 1500,
                 stream: true,
             });
 
@@ -272,9 +297,9 @@ async function callGroq(
 
         const completion = await groqClient.chat.completions.create({
             model,
-            messages: cleaned as any,
-            temperature: Math.min(options.temperature ?? 0.7, 2.0), // REMOVE if above 2.0
-            max_tokens: options.maxTokens || 1024, // Optimized for versatile
+            messages: trimmed as any,
+            temperature: Math.min(options.temperature ?? 0.7, 2.0),
+            max_tokens: options.maxTokens || 1500,
             tools: options.tools as any,
             tool_choice: (options.toolChoice ?? "auto") as any,
             response_format: options.jsonMode ? { type: "json_object" } : undefined,
@@ -303,7 +328,7 @@ async function callGroq(
     }
 }
 
-// ── Anthropic ────────────────────────────────────────────────────────────────
+// â”€â”€ Anthropic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function callAnthropic(
     messages: OpenAI.ChatCompletionMessageParam[],
     options: AIOptions
@@ -311,7 +336,7 @@ async function callAnthropic(
     if (!anthropicClient) throw new Error("Anthropic client not initialized");
 
     let model = options.model || config.anthropicModel || "claude-3-5-sonnet-20241022";
-    if (model.includes("-latest")) {
+    if ((model ?? "")?.includes("-latest")) {
         model = model.replace("-latest", "-20241022");
     }
     const systemMsgRaw = messages.find(m => m.role === "system")?.content as string || "";
@@ -423,7 +448,7 @@ async function callAnthropic(
     };
 }
 
-// ── Kimi-K2 ──────────────────────────────────────────────────────────────────
+// â”€â”€ Kimi-K2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function callKimi(
     messages: OpenAI.ChatCompletionMessageParam[],
@@ -459,7 +484,7 @@ async function callKimi(
 }
 
 
-// ── Fallbacks ─────────────────────────────────────────────────────────────────
+// â”€â”€ Fallbacks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function callOpenRouter(
     messages: OpenAI.ChatCompletionMessageParam[],
@@ -498,11 +523,11 @@ async function callOpenRouter(
 }
 
 /**
- * mapModel — Ensure model names have correct provider prefixes for OpenRouter
+ * mapModel â€” Ensure model names have correct provider prefixes for OpenRouter
  */
 function mapModel(model: string): string {
     if (!model) return "google/gemini-2.0-flash-001"; // Default OR model
-    if (model.includes("/")) return model; // Already has prefix
+    if ((model ?? "")?.includes("/")) return model; // Already has prefix
     
     if (model.startsWith("claude-")) return `anthropic/${model}`;
     if (model.startsWith("gpt-")) return `openai/${model}`;
@@ -512,7 +537,7 @@ function mapModel(model: string): string {
     return model;
 }
 
-// ── Main Interface ────────────────────────────────────────────────────────────
+// â”€â”€ Main Interface â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function askAI(
     prompt: string,
@@ -525,7 +550,7 @@ export async function askAI(
     ];
 
     let model = options.model || "";
-    const isExplicitCloud = model.includes("google/") || model.includes("anthropic/");
+    const isExplicitCloud = (model ?? "")?.includes("google/") || (model ?? "")?.includes("anthropic/");
     const isGroqMode = config.aiProvider === "groq";
     const isOpenRouterMode = config.aiProvider === "openrouter";
 
@@ -537,7 +562,7 @@ export async function askAI(
             }
             if (effectiveProvider === "groq") {
                 const timeoutMs = options.tools?.length ? 45_000 : 30_000;
-                if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
+                if (model?.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
                     options.model = config.groqModel || "llama-3.3-70b-versatile";
                 }
                 return await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
@@ -554,7 +579,7 @@ export async function askAI(
 
             if (isGroqMode && !isExplicitCloud) {
                 const timeoutMs = options.tools?.length ? 120_000 : 60_000;
-                if (model.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
+                if (model?.includes("gpt-") || !model || model === "llama-3.1-70b-versatile") {
                     options.model = config.groqModel || GROQ_MODEL;
                 }
                 return await withTimeout(callGroq(messages, options), timeoutMs, "askAI:groq");
@@ -564,14 +589,16 @@ export async function askAI(
             options.model = mapModel(model);
             return await withTimeout(callOpenRouter(messages, options), 45_000, "askAI:openrouter");
         } catch (err: any) {
-            const isCreditOrModelError = err.status === 402 || 
+            const isCreditOrModelError = err.status === 401 ||
+                                        err.status === 402 || 
                                         err.status === 400 || 
                                         err.status === 404 ||
                                         err.status === 429 ||
-                                        err.message?.toLowerCase().includes("credit") ||
-                                        err.message?.toLowerCase().includes("not exist") ||
-                                        err.message?.toLowerCase().includes("not_found_error") ||
-                                        err.message?.toLowerCase().includes("rate limit");
+                                        err.message?.toLowerCase()?.includes("credit") ||
+                                        err.message?.toLowerCase()?.includes("not exist") ||
+                                        err.message?.toLowerCase()?.includes("user not found") ||
+                                        err.message?.toLowerCase()?.includes("not_found_error") ||
+                                        err.message?.toLowerCase()?.includes("rate limit");
 
             if (isCreditOrModelError) {
                 log(`[ai] Provider issue (${err.status}): ${err.message}. Triggering emergency Groq fallback...`, "error");
@@ -582,7 +609,7 @@ export async function askAI(
                 }
             }
 
-            if (!model.includes("openrouter")) {
+            if (!model?.includes("openrouter")) {
                 log(`[ai] AI call failed: ${err.message}. Attempting general fallback...`, "error");
                 try {
                     options.model = "google/gemini-2.0-flash-001"; // Rock solid fallback
@@ -609,7 +636,7 @@ export async function askAI(
 }
 
 /**
- * callAI — Wrapper for multi-message chat sessions (DramaAgent compatible)
+ * callAI â€” Wrapper for multi-message chat sessions (DramaAgent compatible)
  */
 export async function callAI(
     messages: AIMessage[],
@@ -626,3 +653,4 @@ export function parseToolArgs<T = Record<string, unknown>>(toolCall: ToolCall): 
         throw new Error(`Failed to parse args for "${toolCall.function.name}"`);
     }
 }
+

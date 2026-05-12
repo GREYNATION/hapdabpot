@@ -1,6 +1,6 @@
 import "./core/init.js";
 import 'dotenv/config';
-// webServer.ts — build: 2026-04-05T16:30Z (force redeploy)
+// webServer.ts â€” build: 2026-04-05T16:30Z (force redeploy)
 import express, { Request, Response } from 'express';
 import { handleStripeWebhook } from './bot/invoiceHandlers.js';
 import { log } from './core/config.js';
@@ -16,11 +16,14 @@ import { aiNegotiate } from './core/negotiation/aiCloser.js';
 import { DataIngestionService } from './services/dataIngestionService.js';
 import { createLeadsRouter } from './routes/leads.js';
 import { CouncilOrchestrator } from './core/orchestrator/councilOrchestrator.js';
+import { tradingViewRouter } from './integrations/TradingViewWebhook.js';
 import cors from 'cors';
 import fs from 'fs';
 import { WebSocketServer } from 'ws';
 import type { WebSocket } from 'ws';
 import { getSupabase } from './core/supabase.js';
+import net from 'net';
+import { getErrorMessage } from './core/timeout.js';
 const orchestrator = new CouncilOrchestrator();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -34,13 +37,13 @@ app.use(express.urlencoded({ extended: true }));  // parse form data
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
 
-// FORCED TIKTOK VERIFICATION ROUTE — must be first, before any middleware
+// FORCED TIKTOK VERIFICATION ROUTE â€” must be first, before any middleware
 app.get('/terms/tiktokoM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK.txt', (req: Request, res: Response) => {
   res.header('Content-Type', 'text/plain');
   res.send('tiktok-developers-site-verification=oM7VyFDCYlZw3544ZTa2qHS1JJP2e7xK');
 });
 
-// TikTok Domain Verification — .well-known format
+// TikTok Domain Verification â€” .well-known format
 app.get('/.well-known/tiktok-developers-site-verification=CoXgVUDwGj2vZPuC0jcBXnGzEoK6U7S6', (req: Request, res: Response) => {
   res.type('text/plain');
   res.send('tiktok-developers-site-verification=CoXgVUDwGj2vZPuC0jcBXnGzEoK6U7S6');
@@ -77,7 +80,7 @@ app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Supabase Config for Frontend
+// â”€â”€ Webhooks & Integrations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.get('/api/config', (req: Request, res: Response) => {
   res.json({
     supabaseUrl: process.env.SUPABASE_URL,
@@ -85,7 +88,9 @@ app.get('/api/config', (req: Request, res: Response) => {
   });
 });
 
-// ── Council Command Bridge ──────────────────────────────────────────────────
+app.use('/webhook/tradingview', tradingViewRouter);
+
+// â”€â”€ Council Command Bridge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.post('/api/command', async (req: Request, res: Response) => {
   const { message, chatId } = req.body;
   if (!message) return res.status(400).json({ success: false, error: 'Message required' });
@@ -103,7 +108,7 @@ app.post('/api/command', async (req: Request, res: Response) => {
   return res.json({ success: true, message: 'Command accepted for processing.' });
 });
 
-// ── Librarian API (Obsidian Capture) ────────────────────────────────────────
+// â”€â”€ Librarian API (Obsidian Capture) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.post('/api/archive', async (req: Request, res: Response) => {
   const { url, text, chatId } = req.body;
   if (!url && !text) return res.status(400).json({ success: false, error: 'URL or text required' });
@@ -116,10 +121,10 @@ app.post('/api/archive', async (req: Request, res: Response) => {
   // Use CouncilOrchestrator fast-path
   orchestrator.chat(`[LIBRARIAN ARCHIVE] ${input}`, cid).then((result) => {
     log(`[Librarian] API Archive processed: ${url || 'Text'}`);
-    if (cid > 0) sendTelegram(`📚 **Archive Complete**:\n${result}`, cid);
+    if (cid > 0) sendTelegram(`ðŸ“š **Archive Complete**:\n${result}`, cid);
   }).catch(err => {
     log(`[Librarian] API Archive failed: ${err.message}`, "error");
-    if (cid > 0) sendTelegram(`❌ **Archive Failed**:\n${err.message}`, cid);
+    if (cid > 0) sendTelegram(`âŒ **Archive Failed**:\n${err.message}`, cid);
   });
 
   return res.json({ success: true, message: 'Content queued for archiving.' });
@@ -128,7 +133,7 @@ app.post('/api/archive', async (req: Request, res: Response) => {
 import { createAgentRouter } from './routes/agent.js';
 import gamificationRouter from './web/routes/gamification.js';
 
-// ── Game API Integration (Modularized via Architectual Plan) ───────────────
+// â”€â”€ Game API Integration (Modularized via Architectual Plan) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.use('/api', createAgentRouter());
 app.use('/api/gamification', gamificationRouter);
 
@@ -234,7 +239,7 @@ app.post('/api/voice/surplus', express.urlencoded({ extended: false }), async (r
     if (deals.length > 0) {
       dealId = deals[0].id;
     } else {
-      log(`[webServer] ⚠️ Failed to resolve dealId from: ${dealIdRaw}`, "warn");
+      log(`[webServer] âš ï¸ Failed to resolve dealId from: ${dealIdRaw}`, "warn");
       dealId = null;
     }
   }
@@ -270,7 +275,7 @@ app.post('/api/voice/status', express.urlencoded({ extended: false }), async (re
     if (CallStatus === 'completed') {
        // Only update to completed if it wasn't already marked interested/not_interested
        const deal = CrmManager.getDeal(Number(dealId));
-       if (deal && !['Interested', 'Not interested'].includes(deal.last_call_status || "")) {
+       if (deal && !['Interested', 'Not interested']?.includes(deal.last_call_status || "")) {
          status = 'Completed';
        } else {
          return res.sendStatus(200);
@@ -376,7 +381,7 @@ app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: R
   }
 });
 
-// Twilio SMS Webhook — UPGRADED: AI NEGOTIATOR
+// Twilio SMS Webhook â€” UPGRADED: AI NEGOTIATOR
 app.post('/webhook/twilio', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
   const fromPhone = req.body.From;
   const messageBody = req.body.Body || "";
@@ -442,9 +447,9 @@ app.get("/tiktokIfxgUQYQCixpunReOoWQpEWQnqhTD32r.txt", (req: Request, res: Respo
   res.send("tiktok-developers-site-verification=IFxgUOYQCixpunRe0oWOpEW0nqhTD32r");
 });
 
-// Configure Static Serving — Stuyza Command Center
+// Configure Static Serving â€” Stuyza Command Center
 const possibleStaticPaths = [
-  path.join(process.cwd(), 'src', 'web'),   // ★ Stuyza Command Center
+  path.join(process.cwd(), 'src', 'web'),   // â˜… Stuyza Command Center
   path.join(__dirname, 'web'),               // Compiled fallback
   path.join(process.cwd(), 'dist', 'web')
 ];
@@ -465,18 +470,18 @@ if (!staticPathSet) {
 // Dashboard Stats API
 app.get('/api/dashboard/stats', (req: Request, res: Response) => {
   try {
-    const totalLeads = getDb().prepare("SELECT COUNT(*) as count FROM scraped_leads").get() as any;
-    const surplusDeals = getDb().prepare("SELECT COUNT(*) as count FROM deals").get() as any;
-    const callsMade = getDb().prepare("SELECT COUNT(*) as count FROM outreach_logs WHERE type = 'call'").get() as any;
-    const interestedLeads = getDb().prepare("SELECT COUNT(*) as count FROM deals WHERE status = 'interested'").get() as any;
-    const totalProfit = getDb().prepare("SELECT SUM(profit) as total FROM deals").get() as any;
+    const { getDb: getHermesDb } = require('./db/index.js');
+    const hermesDb = getHermesDb();
+    
+    const stuyzaStats = hermesDb.prepare("SELECT COUNT(*) as count FROM stuyza_leads").get() as any;
+    const qualifiedStats = hermesDb.prepare("SELECT COUNT(*) as count FROM stuyza_leads WHERE status = 'qualified'").get() as any;
+    const contentStats = hermesDb.prepare("SELECT COUNT(*) as count FROM generated_content").get() as any;
 
     res.json({
-      totalLeads: totalLeads?.count || 0,
-      surplusDeals: surplusDeals?.count || 0,
-      callsMade: callsMade?.count || 0,
-      interestedLeads: interestedLeads?.count || 0,
-      estimatedProfit: totalProfit?.total || 0
+      totalLeads: stuyzaStats?.count || 0,
+      interestedLeads: qualifiedStats?.count || 0,
+      dailyScripts: contentStats?.count || 0,
+      estimatedProfit: (qualifiedStats?.count || 0) * 5000
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -486,8 +491,9 @@ app.get('/api/dashboard/stats', (req: Request, res: Response) => {
 // Dashboard Deals API
 app.get('/api/dashboard/deals', (req: Request, res: Response) => {
   try {
-    const deals = getDb().prepare("SELECT * FROM deals ORDER BY created_at DESC LIMIT 50").all();
-    res.json(deals);
+    const { getDb: getHermesDb } = require('./db/index.js');
+    const leads = getHermesDb().prepare("SELECT * FROM stuyza_leads ORDER BY created_at DESC LIMIT 50").all();
+    res.json(leads);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -589,60 +595,132 @@ app.post('/api/dashboard/send-contract', async (req: Request, res: Response) => 
 // lead Capture API for Stuyza Agency is now handled by leadsRouter
 // Mounted in startWebServer below
 
-export function startWebServer(bot: any) {
-  // Mount modular leads router using new boilerplate pattern
-  app.use('/api/leads', createLeadsRouter(getDb(), bot));
+let isServerRunning = false;
+let serverPromise: Promise<any> | null = null;
 
-  const server = app.listen(PORT, '0.0.0.0', () => {
-    log(`[WebServer] Started on port ${PORT} (0.0.0.0)`);
-    log(`[WebServer] Stripe webhook endpoint: POST /webhook/stripe`);
-    log(`[WebServer] Stuyza leads: POST /api/leads`);
-    log(`[WebServer] Health check: GET /health`);
-  });
+async function isPortAvailable(port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+        const server = net.createServer();
+        server.once('error', (err: any) => {
+            if (err.code === 'EADDRINUSE') {
+                resolve(false);
+            } else {
+                resolve(true); 
+            }
+        });
+        server.once('listening', () => {
+            server.close(() => {
+                resolve(true);
+            });
+        });
+        server.listen(port, '0.0.0.0');
+    });
+}
 
-  // ── Unified WebSocket Neural Bridge ───────────────────────────────────────
-  const wss = new WebSocketServer({ server });
-  
-  wss.on('connection', (socket: any) => {
-    log('[WebSocket] Dashboard connected to Neural Bridge.');
-    socket.send(JSON.stringify({ type: 'status', agent: 'SYSTEM', message: 'BRIDGE_CONNECTED: Neural sync established.' }));
-  });
-
-  // Relay logs and handle Heartbeats
-  const supabase = getSupabase();
-  if (supabase) {
-    supabase
-      .channel('ops_logs_unified')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ops_logs' }, (payload: any) => {
-          const row = payload.new;
-          const broadcastMessage = JSON.stringify({
-              type: row.type || 'status',
-              agent: row.agent || 'SYSTEM',
-              message: row.message,
-              timestamp: row.timestamp
-          });
-          
-          wss.clients.forEach((client: any) => {
-              if (client.readyState === 1) client.send(broadcastMessage);
-          });
-      })
-      .subscribe();
+export async function startWebServer(bot: any) {
+  if (serverPromise) {
+    return serverPromise;
   }
 
-  // ── Periodic Stellar Heartbeat ───────────────────────────────────────────
-  setInterval(() => {
-    const heartbeat = JSON.stringify({
-        type: 'heartbeat',
-        agent: 'SYSTEM',
-        status: 'online',
-        timestamp: new Date().toISOString()
-    });
-    
-    wss.clients.forEach((client: any) => {
-        if (client.readyState === 1) client.send(heartbeat);
-    });
-  }, 5000); 
+  serverPromise = (async () => {
+    if (isServerRunning) {
+      log("[WebServer] Server state says running. Returning existing instance.");
+      return;
+    }
 
-  return server;
+    // Pre-flight check
+    const available = await isPortAvailable(PORT);
+    if (!available) {
+        log(`[WebServer] CRITICAL: Port ${PORT} is already in use. Attempting to hijack...`, "warn");
+        if (process.platform === 'win32') {
+            try {
+                const { execSync } = await import('child_process');
+                // Improved command to handle multiple connections and silence errors
+                const command = `powershell -Command "Get-NetTCPConnection -LocalPort ${PORT} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`;
+                execSync(command);
+                log(`[WebServer] Successfully cleared port ${PORT}.`);
+                // Wait a moment for OS to release
+                await new Promise(r => setTimeout(r, 1000));
+            } catch (e) {
+                log(`[WebServer] Hijack failed: ${getErrorMessage(e)}`, "error");
+            }
+        }
+    }
+
+    // Mount modular leads router
+    app.use('/api/leads', createLeadsRouter(getDb(), bot));
+
+    return new Promise((resolve, reject) => {
+      try {
+        const server = app.listen(PORT, '0.0.0.0', () => {
+          isServerRunning = true;
+          log(`[WebServer] âœ… Started on port ${PORT} (0.0.0.0)`);
+          log(`[WebServer] Health check: GET /health`);
+          
+          // â”€â”€ Unified WebSocket Neural Bridge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          const wss = new WebSocketServer({ server });
+          
+          wss.on('connection', (socket: any) => {
+            log('[WebSocket] Dashboard connected to Neural Bridge.');
+            socket.send(JSON.stringify({ type: 'status', agent: 'SYSTEM', message: 'BRIDGE_CONNECTED: Neural sync established.' }));
+          });
+
+          // Relay logs and handle Heartbeats
+          const supabase = getSupabase();
+          if (supabase) {
+            supabase
+              .channel('ops_logs_unified')
+              .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ops_logs' }, (payload: any) => {
+                  const row = payload?.new; if (!row) return;
+                  const broadcastMessage = JSON.stringify({
+                      type: row.type || 'status',
+                      agent: row.agent || 'SYSTEM',
+                      message: row.message || "Empty log",
+                      timestamp: row.timestamp
+                  });
+                  
+                  wss.clients.forEach((client: any) => {
+                      if (client.readyState === 1) client.send(broadcastMessage);
+                  });
+              })
+              .subscribe();
+          }
+
+          // â”€â”€ Periodic Stellar Heartbeat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          setInterval(() => {
+            const heartbeat = JSON.stringify({
+                type: 'heartbeat',
+                agent: 'SYSTEM',
+                status: 'online',
+                timestamp: new Date().toISOString()
+            });
+            
+            wss.clients.forEach((client: any) => {
+                if (client.readyState === 1) client.send(heartbeat);
+            });
+          }, 5000); 
+
+          resolve(server);
+        });
+
+        server.on('error', (err: any) => {
+          if (err.code === 'EADDRINUSE') {
+            log(`[WebServer] âŒ Port ${PORT} already bound. Fatal collision.`, "error");
+          } else {
+            log(`[WebServer] âŒ Server Error: ${err.message}`, "error");
+          }
+          serverPromise = null; // Allow retry
+          reject(err);
+        });
+      } catch (err) {
+        serverPromise = null;
+        reject(err);
+      }
+    });
+  })();
+
+  return serverPromise;
 }
+
+
 

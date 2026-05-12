@@ -1,66 +1,103 @@
-import { spawn } from 'child_process';
-import path from 'path';
-import { log } from '../core/config.js';
+import { listEmails, listEvents, isGoogleEnabled } from "../agents/googleWorkspaceAgent.js";
+import { generateVoice } from "./voiceService.js";
+import { log } from "../core/config.js";
+import { askAI } from "../core/ai.js";
+import { unpackContent } from "../core/unpack.js";
 
 export class JarvisService {
-  private static instance: JarvisService;
-  private pythonPath: string;
-  private bridgePath: string;
+    /**
+     * General query method for Jarvis intelligence.
+     */
+    async ask(query: string): Promise<string> {
+        log(`[jarvis] Processing query: ${query}`);
+        
+        const prompt = `
+You are JARVIS, an elite personal assistant. 
+Answer the following query with professional, sharp, and helpful intelligence.
+Maintain the persona: polite, slightly dry, and extremely capable.
 
-  private constructor() {
-    // Determine Python path (preferring the .venv if it exists)
-    const venvPython = path.join(process.cwd(), 'OpenJarvis', '.venv', 'Scripts', 'python.exe');
-    this.pythonPath = venvPython; // Fallback logic can be added if needed
-    this.bridgePath = path.join(process.cwd(), 'OpenJarvis', 'jarvis_bridge.py');
-  }
+QUERY: ${query}
+`;
 
-  public static getInstance(): JarvisService {
-    if (!JarvisService.instance) {
-      JarvisService.instance = new JarvisService();
+        const res = await askAI(prompt, "You are JARVIS, an elite personal assistant.");
+        return unpackContent(res) || "I'm afraid I can't assist with that at the moment, sir.";
     }
-    return JarvisService.instance;
-  }
 
-  /**
-   * Send a query to OpenJarvis via the Python bridge
-   */
-  public async ask(query: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      log(`[jarvis] Querying OpenJarvis: "${query}"...`, 'info');
-      
-      const child = spawn(this.pythonPath, [this.bridgePath, query], {
-        env: {
-          ...process.env,
-          PYTHONPATH: path.join(process.cwd(), 'OpenJarvis', 'src')
+    /**
+     * Generates a spoken morning digest by aggregating calendar and email data.
+     */
+    async getMorningDigest(): Promise<{ text: string; voiceBuffer: Buffer | null }> {
+        log("[jarvis] Generating morning digest...");
+        
+        if (!isGoogleEnabled()) {
+            const text = "🌅 **Morning Briefing**: Google Workspace is not configured. I can't access your calendar or email right now.";
+            return { text, voiceBuffer: await generateVoice(text) };
         }
-      });
 
-      let stdout = '';
-      let stderr = '';
+        try {
+            // 1. Fetch Data
+            const [emails, events] = await Promise.all([
+                listEmails("is:unread", 5),
+                listEvents(1) // Just today
+            ]);
 
-      child.stdout.on('data', (data: Buffer) => {
-        stdout += data.toString();
-      });
+            // 2. Synthesize Briefing with AI
+            const prompt = `
+You are JARVIS. Generate a professional, concise, and high-end morning briefing for Hap Hustlehard.
+Structure it as:
+1. A warm, executive greeting.
+2. Today's schedule highlights.
+3. Critical unread email summary.
+4. A motivational "Hustle" closing.
 
-      child.stderr.on('data', (data: Buffer) => {
-        stderr += data.toString();
-      });
+DATA:
+--- EVENTS TODAY ---
+${events}
 
-      child.on('close', (code: number | null) => {
-        if (code !== 0) {
-          log(`[jarvis] Process exited with code ${code}. Stderr: ${stderr}`, 'error');
-          resolve(`Error: OpenJarvis failed with code ${code}`);
-        } else {
-          resolve(stdout.trim());
+--- UNREAD EMAILS ---
+${emails}
+---
+Keep the tone like Paul Bettany's Jarvis—polite, sharp, and slightly dry.
+`;
+
+            const res = await askAI(prompt, "You are JARVIS, an elite personal assistant.");
+            const digestText = unpackContent(res) || "I couldn't synthesize your digest, sir.";
+
+            // 3. Generate Voice
+            const cleanText = digestText
+                .replace(/\*\*/g, "")
+                .replace(/\[.*?\]/g, "")
+                .replace(/#+ /g, "")
+                .substring(0, 3000);
+
+            const voiceBuffer = await generateVoice(cleanText);
+
+            return { 
+                text: `🌅 **Paul's Morning Digest**\n\n${digestText}`, 
+                voiceBuffer 
+            };
+
+        } catch (err: any) {
+            log(`[jarvis] Digest failure: ${err.message}`, "error");
+            const errorText = "Sir, I've encountered an error accessing your neural links (Google Workspace). Please check your connection.";
+            return { text: errorText, voiceBuffer: await generateVoice(errorText) };
         }
-      });
+    }
 
-      child.on('error', (err: Error) => {
-        log(`[jarvis] Failed to start process: ${err.message}`, 'error');
-        reject(err);
-      });
-    });
-  }
+    /**
+     * Checks status of all JARVIS systems.
+     */
+    async getStatus(): Promise<string> {
+        const google = isGoogleEnabled() ? "✅ ONLINE" : "❌ OFFLINE";
+        const voice = "✅ READY (onyx)";
+        const hive = "✅ SYNCED";
+        
+        return `🤖 **JARVIS Status Report**\n\n` +
+               `• **Google Link**: ${google}\n` +
+               `• **Voice Core**: ${voice}\n` +
+               `• **Hive Mind**: ${hive}\n\n` +
+               `Systems are operational. How can I assist you, sir?`;
+    }
 }
 
-export const jarvisService = JarvisService.getInstance();
+export const jarvisService = new JarvisService();

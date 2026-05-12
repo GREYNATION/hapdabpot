@@ -3,6 +3,7 @@ import { detectSurplus, formatSurplusMessage } from "../core/property/surplus.js
 import { skipTrace, triggerAICall, sendTelegram } from "./outreachService.js";
 import { log } from "../core/config.js";
 import { Property } from "../core/property/types.js";
+import { CrmManager } from "../core/crm.js";
 
 /**
  * High-Profit Surplus Pipeline
@@ -34,15 +35,28 @@ export async function runAutomatedSurplusScan(preHarvestedProperties: Property[]
                 log(`[surplusPipeline] 💰 HIGH-VALUE DEAL FOUND: ${deal.address} (Surplus: $${deal.surplus})`);
 
                 try {
+                    // 2.5 Save to CRM
+                    const dealId = CrmManager.addDeal({
+                        address: deal.address,
+                        seller_name: deal.owner || "Unknown Owner",
+                        surplus: deal.surplus,
+                        status: "lead",
+                        notes: `Automated surplus discovery. Debt: $${deal.debt}`
+                    });
+
                     // 3. Skip Trace (Identify the owner and contact info)
                     log(`[surplusPipeline] 🔍 Triggering SkipTrace for ${deal.owner || 'Unknown Owner'}...`);
                     const ownerData = await skipTrace(deal.owner || "Current Owner", deal.city);
                     
                     const enrichedDeal = {
                         ...deal,
+                        id: dealId, // Pass the new DB ID
                         owner: ownerData.name,
                         phone: ownerData.phone
                     };
+
+                    // Update deal with phone
+                    CrmManager.updateDeal(dealId, { seller_phone: ownerData.phone });
 
                     // 4. Alert the Human Operator (Telegram)
                     log(`[surplusPipeline] 📲 Sending Telegram alert for ${enrichedDeal.address}...`);

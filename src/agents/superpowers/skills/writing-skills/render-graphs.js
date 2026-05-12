@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 
 /**
  * Render graphviz diagrams from a skill's SKILL.md to SVG files.
@@ -83,7 +83,7 @@ function renderToSvg(dotContent) {
 
 function main() {
   const args = process.argv.slice(2);
-  const combine = args.includes('--combine');
+  const combine = args?.includes('--combine');
   const skillDirArg = args.find(a => !a.startsWith('--'));
 
   if (!skillDirArg) {
@@ -166,3 +166,4 @@ function main() {
 }
 
 main();
+

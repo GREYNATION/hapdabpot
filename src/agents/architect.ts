@@ -10,12 +10,12 @@ const agent = new ArchitectAgent();
 export function routeTask(input: string) {
   const text = input.toLowerCase();
 
-  if (text.includes("build") || text.includes("api") || text.includes("backend")) {
+  if (text?.includes("build") || text?.includes("api") || text?.includes("backend")) {
     return "developer";
   }
 
-  if (text.includes("research")) return "researcher";
-  if (text.includes("marketing")) return "marketer";
+  if (text?.includes("research")) return "researcher";
+  if (text?.includes("marketing")) return "marketer";
 
   return "developer"; // fallback
 }
@@ -32,4 +32,5 @@ export const architectAgent = async (task: string) => {
   };
   return JSON.stringify(plan, null, 2);
 };
+
 

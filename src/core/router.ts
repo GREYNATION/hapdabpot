@@ -1,4 +1,4 @@
-import { findSkillByIntent } from "./skills.js";
+﻿import { findSkillByIntent } from "./skills.js";
 import { HiveMind } from "./hiveMind.js";
 import { log, config } from "./config.js";
 import { askAI } from "./ai.js";
@@ -73,7 +73,7 @@ export class CommandRouter {
 
                 // 3b. REAL ESTATE: Route wholesale/property questions to researcher
         const realEstateKeywords = ["real estate", "mao", "arv", "wholesale", "property", "lead", "seller", "deal", "repair", "offer", "motivated"];
-        if (realEstateKeywords.some(k => lower.includes(k))) {
+        if (realEstateKeywords.some(k => lower?.includes(k))) {
             log("[router] Real estate intent detected -> researcher");
             return {
                 goal: "Real estate wholesale analysis",
@@ -88,7 +88,7 @@ export class CommandRouter {
         const { SKILLS } = await import("./skills.js");
         const skillList = SKILLS.map(s => `- ${s.id}: ${s.name} (${s.description})`).join("\n");
 
-        const systemPrompt = `You are Hapdabot � autonomous AI operator for Hap Hustlehard's wholesale real estate and content business. Markets: South Jersey, Brooklyn, Philadelphia. 
+        const systemPrompt = `You are Hapdabot — autonomous AI operator for Hap Hustlehard's wholesale real estate and content business. Markets: South Jersey, Brooklyn, Philadelphia. 
 Analyze the user's message and delegate to the appropriate Council specialist.
 
 Council Personas (use these for delegation):
@@ -160,5 +160,6 @@ Message: "${message}"`;
         }
     }
 }
+
 
 

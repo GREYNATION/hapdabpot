@@ -1,4 +1,4 @@
-import { BaseAgent } from '../baseAgent.js';
+﻿import { BaseAgent } from '../baseAgent.js';
 import { spawn } from 'child_process';
 import path from 'path';
 import { log } from '../../core/config.js';
@@ -85,11 +85,11 @@ export class GeneticTraderAgent extends BaseAgent {
     }
 
     public async ask(query: string): Promise<{ content: string }> {
-        if (query.toLowerCase().includes("status")) {
+        if (query.toLowerCase()?.includes("status")) {
             return { content: `**[Genetics Trader]**: Current status: ${this.getStatus()}` };
         }
         
-        if (query.toLowerCase().includes("run") || query.toLowerCase().includes("start")) {
+        if (query.toLowerCase()?.includes("run") || query.toLowerCase()?.includes("start")) {
             this.runEvolution();
             return { content: "**[Genetics Trader]**: Evolution process initiated. I will notify you of significant progress." };
         }
@@ -97,3 +97,4 @@ export class GeneticTraderAgent extends BaseAgent {
         return { content: "**[Genetics Trader]**: I am the evolution engine. You can ask me to 'run' a new strategy evolution or check the 'status'." };
     }
 }
+
