@@ -41,7 +41,7 @@ export const sendTelegramAlert = async (bot: Telegraf, lead: Lead) => {
 export function registerHermesHandlers(targetBot: Telegraf) {
     const OWNER_CHAT_ID = Number(process.env.OWNER_CHAT_ID!);
 
-    targetBot.command('leads', (ctx) => {
+    targetBot.command('hleads', (ctx) => {
         if (ctx.chat.id !== OWNER_CHAT_ID) return;
         try {
             const topLeads = db.prepare("SELECT address, score FROM leads WHERE status = 'NEW' ORDER BY score DESC LIMIT 5").all() as any[];
