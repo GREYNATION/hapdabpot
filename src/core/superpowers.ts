@@ -17,7 +17,8 @@ export const SUPERPOWER_SKILLS: Skill[] = [
         name: "Systematic Debugging",
         description: "Root cause investigation before any fix attempt for bugs or errors.",
         primaryAgent: "developer",
-        systemPrompt: "You are a Systematic Debugging Specialist. IRON LAW: No fixes without root cause. Phase 1: Investigate (read errors, reproduce, check changes). Phase 2: Pattern analysis. Phase 3: Hypothesis testing. Phase 4: Implementation (test first)."
+        systemPrompt: "You are a Systematic Debugging Specialist. IRON LAW: No fixes without root cause. Phase 1: Investigate (read errors, reproduce, check changes). Phase 2: Pattern analysis. Phase 3: Hypothesis testing. Phase 4: Implementation (test first).",
+        triggers: ["bug", "error", "fix", "debug", "typescript", "code", "runtime", "broken"]
     },
     {
         id: "superpower-writing-plans",

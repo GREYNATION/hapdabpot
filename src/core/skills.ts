@@ -1,4 +1,4 @@
-﻿import { AgentType } from "./router.js";
+import { AgentType } from "./router.js";
 import { SUPERPOWER_SKILLS } from "./superpowers.js";
 import { CLAUDE_SKILLS } from "./claudeSkills.js";
 
@@ -8,6 +8,9 @@ export interface Skill {
     description: string;
     primaryAgent: AgentType;
     systemPrompt: string;
+    triggers?: string[];
+    collaboration?: string[];
+    embedding?: number[];
 }
 
 export const SKILLS: Skill[] = [
@@ -86,6 +89,7 @@ export const SKILLS: Skill[] = [
         name: "Real Estate Comps",
         description: "Find comparable sales and value properties.",
         primaryAgent: "researcher",
+        triggers: ["comps", "comparable", "valuation", "worth", "appraisal"],
         systemPrompt: "You are a Real Estate Valuation Expert. Your goal is to find 'comps' (comparable sales) for properties. Focus on proximity (within 1 mile), recentness (last 6-12 months), and similar characteristics (sqft, beds/baths). Use 'web_search' to find Zillow/Redfin data. Once you find a value, proactively suggest saving it to a deal using the '/deal' CRM if appropriate."
     },
     {
@@ -114,6 +118,7 @@ export const SKILLS: Skill[] = [
         name: "Seller Research",
         description: "Identify and research motivated or distressed sellers.",
         primaryAgent: "researcher",
+        triggers: ["leads", "motivated seller", "off-market", "distressed", "foreclosure", "probate"],
         systemPrompt: "You are a Motivated Seller Specialist. Your goal is to help find and research distressed property owners (Absentee, Probate, Foreclosure, Tax Delinquent). Propose a search strategy to find owner names or contact info using 'web_search'. Focus on finding off-market leads and skip tracing tactics. Do not just ask questions; suggest a research path if an address or city is mentioned."
     },
     {
@@ -177,6 +182,7 @@ export const SKILLS: Skill[] = [
         name: "Strategic Finance",
         description: "High-level financial analysis, debt auditing, and MAO calculation.",
         primaryAgent: "researcher",
+        triggers: ["mao", "profit", "financial", "roi", "deal analysis", "calculate", "maximum allowed offer", "underwriting"],
         systemPrompt: "You are the Strategic Finance Officer. Your goal is to protect the profit margins. You perform deep financial audits, calculate Maximum Allowed Offers (MAO), and analyze debt structures for surplus deals."
     },
     {
@@ -263,6 +269,37 @@ export const SKILLS: Skill[] = [
     ...SUPERPOWER_SKILLS
 ];
 
+// Dynamic Skill Loading
+import { SkillRegistry } from "./registry.js";
+
+export async function initializeSkills() {
+    const registry = SkillRegistry.getInstance();
+    const dynamicSkills = await registry.loadSkills();
+    
+    // Merge dynamic skills into the registry
+    for (const skill of dynamicSkills) {
+        const existing = SKILLS.find(s => s.id === skill.id);
+        if (existing) {
+            // Merge metadata that might be missing in hardcoded versions
+            existing.triggers = skill.triggers || existing.triggers;
+            existing.collaboration = skill.collaboration || existing.collaboration;
+            existing.primaryAgent = skill.primaryAgent || existing.primaryAgent;
+            // Prefer dynamic system prompt if SKILL.md exists
+            if (skill.systemPrompt && skill.systemPrompt !== skill.description) {
+                existing.systemPrompt = skill.systemPrompt;
+            }
+        } else {
+            SKILLS.push(skill);
+        }
+    }
+
+    // Warm up the Intent Engine (local embeddings)
+    const { IntentEngine } = await import("./intent.js");
+    await IntentEngine.getInstance().initialize().catch(err => 
+        console.error("[intent] Failed to initialize:", err)
+    );
+}
+
 export function getSkill(id: string): Skill | undefined {
     return SKILLS.find(s => s.id === id);
 }
@@ -330,7 +367,47 @@ export function findSkillByIntent(message: string): Skill | undefined {
     if ((lower ?? "")?.includes("ui") || (lower ?? "")?.includes("ux") || (lower ?? "")?.includes("design") || (lower ?? "")?.includes("layout") || (lower ?? "")?.includes("palette")) return getSkill("ui-ux-pro-max");
     if ((lower ?? "")?.includes("jarvis") || (lower ?? "")?.includes("morning digest") || (lower ?? "")?.includes("briefing") || (lower ?? "")?.includes("local ai")) return getSkill("open-jarvis");
 
+    // Dynamic Skill Matching
+    const dynamicMatch = SKILLS.find(skill => 
+        skill.triggers?.some(trigger => lower.includes(trigger.toLowerCase()))
+    );
+    if (dynamicMatch) return dynamicMatch;
+
     return undefined;
 }
+
+/**
+ * Uses LLM to find the best skill for a message when keyword matching fails.
+ */
+export async function findSkillBySemanticIntent(message: string): Promise<Skill | undefined> {
+    const { askAI } = await import("./ai.js");
+    const { config } = await import("./config.js");
+    
+    // Only use top-tier skills for semantic matching to avoid noise
+    const skillSummary = SKILLS
+        .filter(s => !s.id.startsWith("superpower-")) // Exclude low-level superpowers
+        .map(s => `- ${s.id}: ${s.name} (${s.description})`).join("\n");
+    
+    const prompt = `Given the user message, which specialized skill ID is most relevant? 
+If none are a perfect match, return "NONE".
+If multiple match, pick the most specific one.
+
+Available Skills:
+${skillSummary}
+
+User Message: "${message}"
+
+Return ONLY the skill ID or "NONE".`;
+
+    try {
+        const res = await askAI(message, prompt, { model: config.openaiModel });
+        const skillId = res.content.trim().replace(/['"`]/g, ""); // Clean formatting
+        if (skillId === "NONE" || skillId.length > 50) return undefined;
+        return getSkill(skillId);
+    } catch (e) {
+        return undefined;
+    }
+}
+
 
 

@@ -24,6 +24,10 @@ import type { WebSocket } from 'ws';
 import { getSupabase } from './core/supabase.js';
 import net from 'net';
 import { getErrorMessage } from './core/timeout.js';
+import { applySecurityConfig } from './middleware/security.js';
+import { authenticate } from './middleware/auth.js';
+import { validateTwilioSignature } from './middleware/twilio.js';
+
 const orchestrator = new CouncilOrchestrator();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,6 +35,10 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.set('trust proxy', 1);  // trust first proxy (Railway/Render)
+
+// Apply security headers and rate limiting
+applySecurityConfig(app);
+
 app.use(cors());            // allow Phaser Game UI to communicate with this backend
 app.use(express.json());     // parse JSON request bodies
 app.use(express.urlencoded({ extended: true }));  // parse form data
@@ -81,17 +89,18 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // â”€â”€ Webhooks & Integrations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-app.get('/api/config', (req: Request, res: Response) => {
-  res.json({
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseKey: process.env.SUPABASE_ANON_KEY
-  });
-});
+// app.get('/api/config', (req: Request, res: Response) => {
+//   res.json({
+//     supabaseUrl: process.env.SUPABASE_URL,
+//     supabaseKey: process.env.SUPABASE_ANON_KEY
+//   });
+// });
+// SECURED: Moved config exposure to internal-only or removed.
 
 app.use('/webhook/tradingview', tradingViewRouter);
 
 // â”€â”€ Council Command Bridge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-app.post('/api/command', async (req: Request, res: Response) => {
+app.post('/api/command', authenticate, async (req: Request, res: Response) => {
   const { message, chatId } = req.body;
   if (!message) return res.status(400).json({ success: false, error: 'Message required' });
 
@@ -108,8 +117,17 @@ app.post('/api/command', async (req: Request, res: Response) => {
   return res.json({ success: true, message: 'Command accepted for processing.' });
 });
 
+app.get('/api/skills', async (req: Request, res: Response) => {
+  try {
+    const { SKILLS } = await import("./core/skills.js");
+    return res.json({ success: true, skills: SKILLS });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // â”€â”€ Librarian API (Obsidian Capture) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-app.post('/api/archive', async (req: Request, res: Response) => {
+app.post('/api/archive', authenticate, async (req: Request, res: Response) => {
   const { url, text, chatId } = req.body;
   if (!url && !text) return res.status(400).json({ success: false, error: 'URL or text required' });
 
@@ -139,7 +157,7 @@ app.use('/api/gamification', gamificationRouter);
 
 // api/voice POST is already handled by uploadAudioAndGetUrl in some places, 
 // but we need a specific bridge for the dashboard's manual calls
-app.post('/api/voice', async (req: Request, res: Response) => {
+app.post('/api/voice', authenticate, async (req: Request, res: Response) => {
   const { text } = req.body;
   if (!text) return res.status(400).json({ success: false, error: 'Text required' });
 
@@ -206,7 +224,7 @@ const notifyYou = async (msg: string) => {
 };
 
 // ElevenLabs Audio Streamer Route
-app.get('/api/voice/audio', async (req: Request, res: Response) => {
+app.get('/api/voice/audio', authenticate, async (req: Request, res: Response) => {
   const text = req.query.text as string;
   if (!text) return res.status(400).send("Missing text");
 
@@ -229,7 +247,7 @@ app.get('/api/voice/audio', async (req: Request, res: Response) => {
 });
 
 // Twilio Active Voice Call Webhook (Initiation)
-app.post('/api/voice/surplus', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
+app.post('/api/voice/surplus', validateTwilioSignature, express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
   let dealIdRaw = req.query.dealId || req.body.dealId;
   let dealId: number | null = parseInt(String(dealIdRaw));
   
@@ -259,7 +277,7 @@ app.post('/api/voice/surplus', express.urlencoded({ extended: false }), async (r
 });
 
 // Twilio Status Callback Webhook
-app.post('/api/voice/status', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
+app.post('/api/voice/status', validateTwilioSignature, express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
   const { CallStatus } = req.body;
   const dealIdRaw = req.query.dealId;
   const dealId = parseInt(String(dealIdRaw));
@@ -300,7 +318,7 @@ app.post('/api/voice/status', express.urlencoded({ extended: false }), async (re
 });
 
 // Twilio Conversational Loop Webhook
-app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
+app.post('/api/voice/ai', validateTwilioSignature, express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
   const speech = (req.body.SpeechResult || "").toLowerCase();
   const dealIdRaw = req.query.dealId;
   const dealId = parseInt(String(dealIdRaw));
@@ -382,7 +400,7 @@ app.post('/api/voice/ai', express.urlencoded({ extended: false }), async (req: R
 });
 
 // Twilio SMS Webhook â€” UPGRADED: AI NEGOTIATOR
-app.post('/webhook/twilio', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
+app.post('/webhook/twilio', validateTwilioSignature, express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
   const fromPhone = req.body.From;
   const messageBody = req.body.Body || "";
 
@@ -468,28 +486,43 @@ if (!staticPathSet) {
 }
 
 // Dashboard Stats API
-app.get('/api/dashboard/stats', (req: Request, res: Response) => {
+app.get('/api/dashboard/stats', authenticate, (req: Request, res: Response) => {
   try {
     const { getDb: getHermesDb } = require('./db/index.js');
     const hermesDb = getHermesDb();
     
+    // Stuyza Agency Stats
     const stuyzaStats = hermesDb.prepare("SELECT COUNT(*) as count FROM stuyza_leads").get() as any;
-    const qualifiedStats = hermesDb.prepare("SELECT COUNT(*) as count FROM stuyza_leads WHERE status = 'qualified'").get() as any;
-    const contentStats = hermesDb.prepare("SELECT COUNT(*) as count FROM generated_content").get() as any;
+    
+    // Real Estate Deal Stats
+    const dealStats = CrmManager.getStats();
+    const revenue = CrmManager.getTotalRevenue();
 
     res.json({
       totalLeads: stuyzaStats?.count || 0,
-      interestedLeads: qualifiedStats?.count || 0,
-      dailyScripts: contentStats?.count || 0,
-      estimatedProfit: (qualifiedStats?.count || 0) * 5000
+      activeDeals: dealStats.leads + dealStats.contacted + dealStats.interested,
+      contracts: dealStats.contracts,
+      closedDeals: dealStats.closed,
+      monthlyRevenue: revenue.month,
+      allTimeRevenue: revenue.allTime
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Dashboard Deals API
-app.get('/api/dashboard/deals', (req: Request, res: Response) => {
+// Dashboard Deals API (Real Estate Properties)
+app.get('/api/dashboard/deals', authenticate, (req: Request, res: Response) => {
+  try {
+    const deals = CrmManager.listDeals(50);
+    res.json(deals);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Dashboard Leads API (Stuyza Agency Intake)
+app.get('/api/dashboard/leads', authenticate, (req: Request, res: Response) => {
   try {
     const { getDb: getHermesDb } = require('./db/index.js');
     const leads = getHermesDb().prepare("SELECT * FROM stuyza_leads ORDER BY created_at DESC LIMIT 50").all();
@@ -499,8 +532,19 @@ app.get('/api/dashboard/deals', (req: Request, res: Response) => {
   }
 });
 
+// Promote Lead to Deal API
+app.post('/api/dashboard/promote', authenticate, async (req: Request, res: Response) => {
+  const { leadId } = req.body;
+  try {
+    const dealId = CrmManager.promoteLeadToDeal(leadId);
+    res.json({ success: true, message: "Lead promoted to Deal successfully", dealId });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Manual Call Trigger API
-app.post('/api/dashboard/call', async (req: Request, res: Response) => {
+app.post('/api/dashboard/call', authenticate, async (req: Request, res: Response) => {
   const { dealId } = req.body;
   try {
     const deal = CrmManager.getDeal(dealId);
@@ -514,7 +558,7 @@ app.post('/api/dashboard/call', async (req: Request, res: Response) => {
 });
 
 // Update Deal Outcome API
-app.post('/api/dashboard/outcome', async (req: Request, res: Response) => {
+app.post('/api/dashboard/outcome', authenticate, async (req: Request, res: Response) => {
   const { dealId, outcome, notes } = req.body;
   try {
     await CrmManager.updateDealOutcome(dealId, outcome, notes);
@@ -525,7 +569,7 @@ app.post('/api/dashboard/outcome', async (req: Request, res: Response) => {
 });
 
 // Fetch AI Insights API
-app.get('/api/dashboard/insights', async (req: Request, res: Response) => {
+app.get('/api/dashboard/insights', authenticate, async (req: Request, res: Response) => {
   try {
     const { InsightsAgent } = await import('./agents/insightsAgent.js');
     const insights = await InsightsAgent.generateMarketInsights();
@@ -536,7 +580,7 @@ app.get('/api/dashboard/insights', async (req: Request, res: Response) => {
 });
 
 // List All Buyers API
-app.get('/api/dashboard/buyers', (req: Request, res: Response) => {
+app.get('/api/dashboard/buyers', authenticate, (req: Request, res: Response) => {
   try {
     const buyers = CrmManager.listBuyers();
     res.json(buyers);
@@ -545,8 +589,30 @@ app.get('/api/dashboard/buyers', (req: Request, res: Response) => {
   }
 });
 
+// Agentic Console: List All Tasks API
+app.get('/api/tasks', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { getTasks } = await import('./core/taskMemory.js');
+    const tasks = getTasks();
+    res.json(tasks);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Agentic Console: List All Plans API
+app.get('/api/plans', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { getPlans } = await import('./core/taskMemory.js');
+    const plans = getPlans();
+    res.json(plans);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Match Buyers for Deal API
-app.get('/api/dashboard/match-buyers', (req: Request, res: Response) => {
+app.get('/api/dashboard/match-buyers', authenticate, (req: Request, res: Response) => {
   const { dealId } = req.query;
   try {
     const deal = CrmManager.getDeal(Number(dealId));
@@ -560,7 +626,7 @@ app.get('/api/dashboard/match-buyers', (req: Request, res: Response) => {
 });
 
 // Alert Matched Buyers API
-app.post('/api/dashboard/alert-buyers', async (req: Request, res: Response) => {
+app.post('/api/dashboard/alert-buyers', authenticate, async (req: Request, res: Response) => {
   const { dealId } = req.body;
   try {
     await CrmManager.alertMatchedBuyers(dealId);
@@ -571,7 +637,7 @@ app.post('/api/dashboard/alert-buyers', async (req: Request, res: Response) => {
 });
 
 // Assign Deal to Buyer API
-app.post('/api/dashboard/assign-deal', async (req: Request, res: Response) => {
+app.post('/api/dashboard/assign-deal', authenticate, async (req: Request, res: Response) => {
   const { dealId, buyerId, salePrice } = req.body;
   try {
     await CrmManager.assignToBuyer(dealId, buyerId, Number(salePrice));
@@ -582,7 +648,7 @@ app.post('/api/dashboard/assign-deal', async (req: Request, res: Response) => {
 });
 
 // Send Contract to Seller API
-app.post('/api/dashboard/send-contract', async (req: Request, res: Response) => {
+app.post('/api/dashboard/send-contract', authenticate, async (req: Request, res: Response) => {
   const { dealId } = req.body;
   try {
     const contractText = await CrmManager.sendContractAction(dealId);
@@ -662,7 +728,12 @@ export async function startWebServer(bot: any) {
           
           wss.on('connection', (socket: any) => {
             log('[WebSocket] Dashboard connected to Neural Bridge.');
-            socket.send(JSON.stringify({ type: 'status', agent: 'SYSTEM', message: 'BRIDGE_CONNECTED: Neural sync established.' }));
+            socket.send(JSON.stringify({ 
+                type: 'status', 
+                agent: 'SYSTEM', 
+                message: 'BRIDGE_CONNECTED: Neural sync established.',
+                timestamp: new Date().toISOString()
+            }));
           });
 
           // Relay logs and handle Heartbeats
@@ -676,6 +747,9 @@ export async function startWebServer(bot: any) {
                       type: row.type || 'status',
                       agent: row.agent || 'SYSTEM',
                       message: row.message || "Empty log",
+                      stage: row.stage,
+                      progress: row.progress,
+                      metadata: row.metadata,
                       timestamp: row.timestamp
                   });
                   
@@ -684,6 +758,7 @@ export async function startWebServer(bot: any) {
                   });
               })
               .subscribe();
+
           }
 
           // â”€â”€ Periodic Stellar Heartbeat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

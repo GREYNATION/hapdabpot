@@ -79,6 +79,35 @@ app.get('/api/voice/audio', async (c) => {
     }
 });
 
+import { globalPlans, globalTasks } from './orchestration/state.js';
+import { processUserInput } from './taskOrchestrator.js';
+
+// API: Agentic Console - Plans
+app.get('/api/plans', (c) => {
+    return c.json({ success: true, plans: globalPlans });
+});
+
+// API: Agentic Console - Tasks
+app.get('/api/tasks', (c) => {
+    return c.json({ success: true, tasks: globalTasks });
+});
+
+// API: Direct Orchestration
+app.post('/api/orchestrate', async (c) => {
+    const { message, userId } = await c.req.json();
+    if (!message) return c.json({ success: false, error: 'Message required' }, 400);
+
+    // Process in background to keep UI responsive
+    processUserInput(message, userId || "web-user").catch(err => {
+        log(`[orchestrate] Execution failed: ${err.message}`, "error");
+    });
+
+    return c.json({ 
+        success: true, 
+        message: 'Plan generated and execution started.' 
+    });
+});
+
 // API: Command Bridge
 app.post('/api/command', async (c) => {
     const { message, chatId } = await c.req.json();
@@ -87,17 +116,14 @@ app.post('/api/command', async (c) => {
 
     log(`[bridge] Command received from dashboard: ${message}`);
     
-    // Trigger orchestrator (Background processing)
-    const cid = chatId || 0;
-    orchestrator.chat(message, cid).then(response => {
-        log(`[bridge] Command processed. Result available in ops_logs.`);
-    }).catch(err => {
-        log(`[bridge] Command failed: ${err.message}`, "error");
+    // Redirect bridge commands to the new orchestrator as well
+    processUserInput(message, chatId?.toString() || "0").catch(err => {
+        log(`[bridge] Orchestration failed: ${err.message}`, "error");
     });
 
     return c.json({ 
         success: true, 
-        message: 'Command accepted for processing.' 
+        message: 'Command accepted for orchestrated processing.' 
     });
 });
 

@@ -17,6 +17,7 @@
  */
 
 import { log, logToOpsConsole, config } from "../../core/config.js";
+import { sanitizeHTML } from "../../core/telegramUtils.js";
 import { askAI } from "../../core/ai.js";
 import { comfyClient, ComfyOutput } from "./ComfyClient.js";
 import {
@@ -61,14 +62,13 @@ export class ComfyAgent {
         const online = await comfyClient.isOnline().catch(() => false);
         if (!online) {
             return (
-                `❌ **ComfyUI Offline**\n\n` +
-                `The ComfyUI server is not reachable at \`${comfyClient.baseUrl}\`.\n\n` +
+                `❌ <b>ComfyUI Offline</b>\n\n` +
+                `The ComfyUI server is not reachable at <code>${sanitizeHTML(comfyClient.baseUrl)}</code>.\n\n` +
                 `To start it locally:\n` +
-                `\`\`\`\ncd ComfyUI && python main.py\n\`\`\`\n\n` +
-                `Or set \`COMFYUI_HOST=your-host:8188\` in your environment.`
+                `<code>cd ComfyUI &amp;&amp; python main.py</code>\n\n` +
+                `Or set <code>COMFYUI_HOST=your-host:8188</code> in your environment.`
             );
         }
-
         try {
             const stats = await comfyClient.getSystemStats();
             const queue = await comfyClient.getQueueStatus();
@@ -77,12 +77,12 @@ export class ComfyAgent {
                 "N/A";
 
             return (
-                `✅ **ComfyUI Online** — \`${comfyClient.baseUrl}\`\n\n` +
-                `🖥️ **VRAM**: ${vram}\n` +
-                `⏳ **Queue**: ${queue?.queue_running?.length || 0} running, ${queue?.queue_pending?.length || 0} pending`
+                `✅ <b>ComfyUI Online</b> — <code>${sanitizeHTML(comfyClient.baseUrl)}</code>\n\n` +
+                `🖥️ <b>VRAM</b>: ${sanitizeHTML(vram)}\n` +
+                `⏳ <b>Queue</b>: ${queue?.queue_running?.length || 0} running, ${queue?.queue_pending?.length || 0} pending`
             );
         } catch (err: any) {
-            return `✅ ComfyUI is online but could not fetch full stats: ${err.message}`;
+            return `✅ ComfyUI is online but could not fetch full stats: ${sanitizeHTML(err.message)}`;
         }
     }
 
@@ -95,10 +95,10 @@ export class ComfyAgent {
         try {
             const models = await comfyClient.getAvailableModels();
             if (!models.length) return "⚠️ No checkpoints found. Add models to `ComfyUI/models/checkpoints/`.";
-            return `🤖 **Available Checkpoints** (${models.length}):\n\n` + 
-                   models.map((m, i) => `${i + 1}. \`${m}\``).join("\n");
+            return `🤖 <b>Available Checkpoints</b> (${models.length}):\n\n` + 
+                   models.map((m, i) => `${i + 1}. <code>${sanitizeHTML(m)}</code>`).join("\n");
         } catch (err: any) {
-            return `❌ Failed to list models: ${err.message}`;
+            return `❌ Failed to list models: ${sanitizeHTML(err.message)}`;
         }
     }
 
@@ -122,7 +122,7 @@ export class ComfyAgent {
         const online = await comfyClient.isOnline().catch(() => false);
         if (!online) {
             return {
-                text: "❌ **ComfyUI is offline.** Start it with `python main.py` in the ComfyUI directory.",
+                text: "❌ <b>ComfyUI is offline.</b> Start it with <code>python main.py</code> in the ComfyUI directory.",
                 imageBuffers: [],
             };
         }
@@ -178,19 +178,19 @@ export class ComfyAgent {
             await logToOpsConsole(AGENT_NAME, `Image generation complete: ${imageOutputs.length} outputs`, "chat");
 
             const caption =
-                `🎨 **Image Generated**\n\n` +
-                `📝 **Original**: ${rawPrompt.slice(0, 100)}${rawPrompt.length > 100 ? "..." : ""}\n` +
+                `🎨 <b>Image Generated</b>\n\n` +
+                `📝 <b>Original</b>: ${sanitizeHTML(rawPrompt.slice(0, 100))}${rawPrompt.length > 100 ? "..." : ""}\n` +
                 (doEnhance && finalPrompt !== rawPrompt 
-                    ? `✨ **Enhanced**: ${finalPrompt.slice(0, 120)}${finalPrompt.length > 120 ? "..." : ""}\n` 
+                    ? `✨ <b>Enhanced</b>: ${sanitizeHTML(finalPrompt.slice(0, 120))}${finalPrompt.length > 120 ? "..." : ""}\n` 
                     : "") +
-                `🤖 **Model**: ${useFlux ? "FLUX" : "Stable Diffusion"}\n` +
-                `📐 **Size**: ${options.width || (useFlux ? 1024 : 512)}×${options.height || (useFlux ? 1024 : 512)}`;
+                `🤖 <b>Model</b>: ${useFlux ? "FLUX" : "Stable Diffusion"}\n` +
+                `📐 <b>Size</b>: ${options.width || (useFlux ? 1024 : 512)}×${options.height || (useFlux ? 1024 : 512)}`;
 
             return { text: caption, imageBuffers };
         } catch (err: any) {
             await logToOpsConsole(AGENT_NAME, `Generation failed: ${err.message}`, "error");
             return {
-                text: `❌ **Generation Failed**\n\n${err.message}\n\n_Make sure a compatible checkpoint is loaded in ComfyUI._`,
+                text: `❌ <b>Generation Failed</b>\n\n${sanitizeHTML(err.message)}\n\n<i>Make sure a compatible checkpoint is loaded in ComfyUI.</i>`,
                 imageBuffers: [],
             };
         } finally {
@@ -206,7 +206,7 @@ export class ComfyAgent {
         const online = await comfyClient.isOnline().catch(() => false);
         if (!online) {
             return {
-                text: "❌ **ComfyUI is offline.** Start it with `python main.py` in the ComfyUI directory.",
+                text: "❌ <b>ComfyUI is offline.</b> Start it with <code>python main.py</code> in the ComfyUI directory.",
                 imageBuffers: [],
             };
         }
@@ -226,12 +226,12 @@ export class ComfyAgent {
             }
 
             return {
-                text: `✅ **Upscaled** (4x) — ${imageOutputs.length} output(s)`,
+                text: `✅ <b>Upscaled</b> (4x) — ${imageOutputs.length} output(s)`,
                 imageBuffers,
             };
         } catch (err: any) {
             return {
-                text: `❌ **Upscale Failed**: ${err.message}\n\n_Ensure a 4x upscale model is in \`ComfyUI/models/upscale_models/\`_`,
+                text: `❌ <b>Upscale Failed</b>: ${sanitizeHTML(err.message)}\n\n<i>Ensure a 4x upscale model is in <code>ComfyUI/models/upscale_models/</code></i>`,
                 imageBuffers: [],
             };
         }
@@ -253,7 +253,7 @@ export class ComfyAgent {
         const online = await comfyClient.isOnline().catch(() => false);
         if (!online) {
             return {
-                text: "❌ **ComfyUI is offline.**",
+                text: "❌ <b>ComfyUI is offline.</b>",
                 videoBuffers: [],
             };
         }
@@ -283,12 +283,12 @@ export class ComfyAgent {
             }
 
             return {
-                text: `🎬 **Video Generated (LTX-V)**\n\n📝 **Prompt**: ${rawPrompt}\n📐 **Res**: ${options.resolution || "512x512"}\n⏱️ **Duration**: ${options.duration || 2}s`,
+                text: `🎬 <b>Video Generated (LTX-V)</b>\n\n📝 <b>Prompt</b>: ${sanitizeHTML(rawPrompt)}\n📐 <b>Res</b>: ${sanitizeHTML(options.resolution || "512x512")}\n⏱️ <b>Duration</b>: ${options.duration || 2}s`,
                 videoBuffers,
             };
         } catch (err: any) {
             await logToOpsConsole(AGENT_NAME, `Video failed: ${err.message}`, "error");
-            return { text: `❌ **Video Failed**: ${err.message}`, videoBuffers: [] };
+            return { text: `❌ <b>Video Failed</b>: ${sanitizeHTML(err.message)}`, videoBuffers: [] };
         }
     }
 
@@ -296,23 +296,23 @@ export class ComfyAgent {
 
     getHelp(): string {
         const wfList = Object.entries(WORKFLOW_DESCRIPTIONS)
-            .map(([k, v]) => `  \`${k}\` — ${v}`)
+            .map(([k, v]) => `  <code>${sanitizeHTML(k)}</code> — ${sanitizeHTML(v)}`)
             .join("\n");
 
         return (
-            `🎨 **ComfyUI Agent** — Local AI Media Generation\n\n` +
-            `**Commands:**\n` +
-            `/imagine <prompt> — Generate an image (SD1.5)\n` +
-            `/imagine flux <prompt> — Generate via FLUX.1\n` +
-            `/video <prompt> — Generate text-to-video (LTX-V)\n` +
-            `/upscale <url> — 4x AI upscale an image URL\n` +
+            `🎨 <b>ComfyUI Agent</b> — Local AI Media Generation\n\n` +
+            `<b>Commands:</b>\n` +
+            `/imagine &lt;prompt&gt; — Generate an image (SD1.5)\n` +
+            `/imagine flux &lt;prompt&gt; — Generate via FLUX.1\n` +
+            `/video &lt;prompt&gt; — Generate text-to-video (LTX-V)\n` +
+            `/upscale &lt;url&gt; — 4x AI upscale an image URL\n` +
             `/comfy status — Check ComfyUI server health\n` +
             `/comfy models — List available checkpoints\n` +
             `/comfy queue — Current generation queue\n` +
             `/comfy help — This menu\n\n` +
-            `**Workflow types:**\n${wfList}\n\n` +
-            `📡 Server: \`${comfyClient.baseUrl}\`\n` +
-            `_Set \`COMFYUI_HOST=host:port\` to change the target._`
+            `<b>Workflow types:</b>\n${wfList}\n\n` +
+            `📡 Server: <code>${sanitizeHTML(comfyClient.baseUrl)}</code>\n` +
+            `<i>Set <code>COMFYUI_HOST=host:port</code> to change the target.</i>`
         );
     }
 }

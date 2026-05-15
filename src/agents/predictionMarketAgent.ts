@@ -7,6 +7,7 @@
 import { groq as openai } from "../core/config.js";
 import axios from "axios";
 import { log } from "../core/config.js";
+import { sanitizeHTML } from "../core/telegramUtils.js";
 
 // ── Types ──────────────────────────────────────────────────
 export type Market = {
@@ -110,32 +111,35 @@ export async function scanMarkets(): Promise<{
 // ── Format for Telegram ────────────────────────────────────
 export function formatMarketsReport(markets: Market[]): string {
     if (markets.length === 0) {
-        return "🔍 No markets matched all filters right now. Try again later or adjust thresholds.";
+        return "🔍 <b>No markets matched</b> all filters right now. Try again later or adjust thresholds.";
     }
 
     const top = markets.slice(0, 8); // cap at 8 for readability
     const lines = top.map((m, i) => {
         const dir = m.priceChange > 0 ? "📈" : "📉";
         const urgency = m.daysToResolve <= 3 ? "🔥" : m.daysToResolve <= 7 ? "⚡" : "📅";
+        const safeName = sanitizeHTML(m.name.slice(0, 60)) + (m.name.length > 60 ? "…" : "");
+        
         return (
-            `${i + 1}. ${m.name.slice(0, 60)}${m.name.length > 60 ? "…" : ""}\n` +
+            `<b>${i + 1}. ${safeName}</b>\n` +
             `   ${dir} ${m.priceChange > 0 ? "+" : ""}${m.priceChange.toFixed(1)}% | ` +
             `YES: ${m.bestYes}¢ | ` +
             `Vol: $${(m.volume / 1000).toFixed(0)}K | ` +
             `Liq: $${(m.liquidity / 1000).toFixed(0)}K | ` +
             `${urgency} ${m.daysToResolve}d\n` +
-            `   🔗 ${m.url}`
+            `   🔗 <a href="${m.url}">View Market</a>`
         );
     });
 
     return (
-        `📊 PREDICTION MARKET SCANNER\n` +
+        `📊 <b>PREDICTION MARKET SCANNER</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `Filters: Liq >$50K | Vol >$10K | <14 days | Edge >3%\n` +
-        `Found ${markets.length} signal(s)\n\n` +
+        `Filters: Liq >$50K | Vol >$10K | &lt;14 days | Edge >3%\n` +
+        `Found <b>${markets.length}</b> signal(s)\n\n` +
         lines.join("\n\n")
     );
 }
+
 // ── AI Decision Layer ───────────────────────────────────
 export async function analyzeWithAI(filteredMarkets: Market[]): Promise<string> {
     if (filteredMarkets.length === 0) {
@@ -181,4 +185,3 @@ export async function analyzeWithAI(filteredMarkets: Market[]): Promise<string> 
         return `AI analysis unavailable: ${err.message}`;
     }
 }
-

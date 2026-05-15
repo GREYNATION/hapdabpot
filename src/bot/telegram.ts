@@ -1,4 +1,4 @@
-﻿import { Telegraf, type Context } from 'telegraf';
+import { Telegraf, type Context } from 'telegraf';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
@@ -31,6 +31,7 @@ import { VoiceService } from '../services/voiceService.js';
 import { jarvisService } from '../services/jarvisService.js';
 
 export class TelegramBot {
+    public static instance: TelegramBot | null = null;
     private bot: Telegraf<Context>;
     private ownerIds: number[];
     private isBusy: boolean = false;
@@ -43,6 +44,7 @@ export class TelegramBot {
     }
 
     constructor() {
+        TelegramBot.instance = this;
         if (!config.telegramToken) {
             throw new Error("TELEGRAM_BOT_TOKEN is missing in environment variables.");
         }

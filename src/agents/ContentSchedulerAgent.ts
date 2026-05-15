@@ -10,6 +10,7 @@ import * as https from 'https';
 import * as cron from 'node-cron';
 import { Telegraf, Context } from 'telegraf';
 import { fileURLToPath } from 'url';
+import { sanitizeHTML } from '../core/telegramUtils.js';
 
 // ─── CONFIG ─────────────────────────────────────────────────
 const TIKTOK_ACCESS_TOKEN = process.env.TIKTOK_ACCESS_TOKEN!;
@@ -314,7 +315,7 @@ async function notifyTelegram(message: string): Promise<void> {
   const body = JSON.stringify({
     chat_id: ADMIN_CHAT_ID,
     text: message,
-    parse_mode: 'Markdown'
+    parse_mode: 'HTML'
   });
 
   return new Promise((resolve) => {
@@ -368,7 +369,7 @@ export class ContentSchedulerAgent {
     });
 
     console.log('[ContentScheduler] ✅ Cron jobs active: 7AM / 3PM / 8PM EST');
-    notifyTelegram('🕷️ *Spidey Jr. Scheduler ONLINE*\n\nPosting: 7AM · 3PM · 8PM EST\nSeason 1 ready to roll!');
+    notifyTelegram('🕷️ <b>Spidey Jr. Scheduler ONLINE</b>\n\nPosting: 7AM · 3PM · 8PM EST\nSeason 1 ready to roll!');
   }
 
   /** Pick next unposted episode with a ready video file */
@@ -386,12 +387,12 @@ export class ContentSchedulerAgent {
 
     if (!ep) {
       console.log(`[ContentScheduler] No ready episodes for ${window} post. Skipping.`);
-      await notifyTelegram(`🕷️ *Spidey Jr. ${window} post skipped*\nNo video files ready. Render more episodes!`);
+      await notifyTelegram(`🕷️ <b>Spidey Jr. ${window} post skipped</b>\nNo video files ready. Render more episodes!`);
       return;
     }
 
     console.log(`[ContentScheduler] ${window} post: ${ep.ep} - ${ep.title}`);
-    await notifyTelegram(`🎬 *Posting ${ep.ep}: ${ep.title}*\nWindow: ${window}\nUploading to TikTok...`);
+    await notifyTelegram(`🎬 <b>Posting ${sanitizeHTML(ep.ep)}: ${sanitizeHTML(ep.title)}</b>\nWindow: ${window}\nUploading to TikTok...`);
 
     const result = await postEpisodeToTikTok(ep);
 
@@ -402,15 +403,15 @@ export class ContentSchedulerAgent {
 
       const remaining = this.episodes.filter(e => !e.posted).length;
       await notifyTelegram(
-        `✅ *${ep.ep}: ${ep.title} POSTED!* ${ep.emoji}\n\n` +
-        `📋 Publish ID: \`${result.publishId}\`\n` +
+        `✅ <b>${sanitizeHTML(ep.ep)}: ${sanitizeHTML(ep.title)} POSTED!</b> ${ep.emoji}\n\n` +
+        `📋 Publish ID: <code>${sanitizeHTML(result.publishId || '')}</code>\n` +
         `📅 Posted: ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}\n` +
-        `📺 Caption: ${ep.caption.slice(0, 80)}...\n\n` +
+        `📺 Caption: ${sanitizeHTML(ep.caption.slice(0, 80))}...\n\n` +
         `📦 Episodes remaining: ${remaining}/8`
       );
     } else {
       await notifyTelegram(
-        `❌ *${ep.ep} post FAILED*\n\nError: ${result.error}\n\nCheck Railway logs for details.`
+        `❌ <b>${sanitizeHTML(ep.ep)} post FAILED</b>\n\nError: ${sanitizeHTML(result.error || 'Unknown error')}\n\nCheck Railway logs for details.`
       );
     }
   }
@@ -425,7 +426,7 @@ export class ContentSchedulerAgent {
       const postedInfo = ep.postedAt
         ? ` · Posted ${new Date(ep.postedAt).toLocaleDateString()}`
         : videoReady ? ' · Ready to post' : ' · Waiting for video';
-      return `${statusIcon} *${ep.ep}* ${ep.emoji} ${ep.title}${postedInfo}`;
+      return `${statusIcon} <b>${sanitizeHTML(ep.ep)}</b> ${ep.emoji} ${sanitizeHTML(ep.title)}${postedInfo}`;
     });
 
     const posted   = this.episodes.filter(e => e.posted).length;
@@ -433,12 +434,12 @@ export class ContentSchedulerAgent {
     const pending  = this.episodes.filter(e => !e.posted && !fs.existsSync(path.join(VIDEO_UPLOAD_DIR, e.filename))).length;
 
     await ctx.reply(
-      `🕷️ *Spidey Jr. Season 1 · Content Dashboard*\n\n` +
+      `🕷️ <b>Spidey Jr. Season 1 · Content Dashboard</b>\n\n` +
       lines.join('\n') +
-      `\n\n📊 *Summary:* ${posted} posted · ${ready} ready · ${pending} pending video\n` +
-      `\n📅 *Schedule:* 7AM · 3PM · 8PM EST daily` +
-      `\n\n_Commands: /post_now · /mark_ready [ep] · /schedule_`,
-      { parse_mode: 'Markdown' }
+      `\n\n📊 <b>Summary:</b> ${posted} posted · ${ready} ready · ${pending} pending video\n` +
+      `\n📅 <b>Schedule:</b> 7AM · 3PM · 8PM EST daily` +
+      `\n\n<i>Commands: /post_now · /mark_ready [ep] · /schedule</i>`,
+      { parse_mode: 'HTML' }
     );
   }
 
@@ -449,15 +450,15 @@ export class ContentSchedulerAgent {
     const nextEp = this.getNextEpisode();
 
     await ctx.reply(
-      `📅 *Spidey Jr. Post Schedule*\n\n` +
+      `📅 <b>Spidey Jr. Post Schedule</b>\n\n` +
       `🌅 Morning: 7:00 AM EST\n` +
       `☀️ Afternoon: 3:00 PM EST\n` +
       `🌙 Evening: 8:00 PM EST\n\n` +
       `🕐 Current EST: ${est.toLocaleTimeString('en-US')}\n\n` +
       (nextEp
-        ? `🎬 *Next up:* ${nextEp.ep} — ${nextEp.emoji} ${nextEp.title}`
-        : `⏳ *No ready episodes.* Add video files to: \`${VIDEO_UPLOAD_DIR}\``),
-      { parse_mode: 'Markdown' }
+        ? `🎬 <b>Next up:</b> ${sanitizeHTML(nextEp.ep)} — ${nextEp.emoji} ${sanitizeHTML(nextEp.title)}`
+        : `⏳ <b>No ready episodes.</b> Add video files to: <code>${sanitizeHTML(VIDEO_UPLOAD_DIR)}</code>`),
+      { parse_mode: 'HTML' }
     );
   }
 
@@ -469,22 +470,22 @@ export class ContentSchedulerAgent {
       await ctx.reply(
         '⏳ No episodes ready to post.\n\n' +
         'Add rendered .mp4 files to the videos/spidey directory, then use:\n' +
-        '`/mark_ready S01E01` to flag an episode as available.',
-        { parse_mode: 'Markdown' }
+        '<code>/mark_ready S01E01</code> to flag an episode as available.',
+        { parse_mode: 'HTML' }
       );
       return;
     }
 
-    await ctx.reply(`🚀 Posting *${ep.ep}: ${ep.title}* ${ep.emoji} to TikTok now...`, { parse_mode: 'Markdown' });
+    await ctx.reply(`🚀 Posting <b>${sanitizeHTML(ep.ep)}: ${sanitizeHTML(ep.title)}</b> ${ep.emoji} to TikTok now...`, { parse_mode: 'HTML' });
     const result = await postEpisodeToTikTok(ep);
 
     if (result.success) {
       ep.posted = true;
       ep.postedAt = new Date().toISOString();
       saveState(this.episodes);
-      await ctx.reply(`✅ *${ep.ep} posted!*\nPublish ID: \`${result.publishId}\``, { parse_mode: 'Markdown' });
+      await ctx.reply(`✅ <b>${sanitizeHTML(ep.ep)} posted!</b>\nPublish ID: <code>${sanitizeHTML(result.publishId || '')}</code>`, { parse_mode: 'HTML' });
     } else {
-      await ctx.reply(`❌ Post failed: ${result.error}`);
+      await ctx.reply(`❌ Post failed: ${sanitizeHTML(result.error || 'Unknown error')}`, { parse_mode: 'HTML' });
     }
   }
 
@@ -510,10 +511,10 @@ export class ContentSchedulerAgent {
     }
 
     await ctx.reply(
-      `🎬 *${ep.ep}: ${ep.title}* marked as ready!\n\n` +
-      `⚠️ Replace \`${ep.filename}\` with your real Veo-rendered video before the next scheduled post.\n\n` +
-      `📂 Path: \`${placeholderPath}\``,
-      { parse_mode: 'Markdown' }
+      `🎬 <b>${sanitizeHTML(ep.ep)}: ${sanitizeHTML(ep.title)}</b> marked as ready!\n\n` +
+      `⚠️ Replace <code>${sanitizeHTML(ep.filename)}</code> with your real Veo-rendered video before the next scheduled post.\n\n` +
+      `📂 Path: <code>${sanitizeHTML(placeholderPath)}</code>`,
+      { parse_mode: 'HTML' }
     );
   }
 }

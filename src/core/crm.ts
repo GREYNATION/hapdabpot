@@ -1,4 +1,5 @@
 import { getDb } from "./memory.js";
+import { getDb as getHermesDb } from "../db/index.js";
 import { log } from "./config.js";
 
 export interface Deal {
@@ -12,6 +13,7 @@ export interface Deal {
     status: string;
     assigned_buyer?: string;
     city?: string;
+    zip_code?: string;
     profit: number;
     surplus?: number;
     price?: number;
@@ -22,6 +24,14 @@ export interface Deal {
     notes?: string;
     last_call_status?: string;
     invoice_prompted: number;
+    acquisition_score?: number;
+    summary_why_it_matters?: string;
+    summary_risk_level?: string;
+    summary_opportunity?: string;
+    summary_market_signals?: string;
+    summary_strategy?: string;
+    intelligence_status?: string;
+    intelligence_retries?: number;
     created_at: string;
     updated_at: string;
 }
@@ -49,9 +59,16 @@ export class CrmManager {
         const repairs = deal.repair_estimate || 0;
         const maxOffer = this.calculateMaxOffer(arv, repairs);
 
+        // Attempt ZIP extraction
+        let zip = deal.zip_code;
+        if (!zip && deal.address) {
+            const zipMatch = deal.address.match(/\b\d{5}(?:-\d{4})?\b/);
+            if (zipMatch) zip = zipMatch[0];
+        }
+
         const stmt = getDb().prepare(`
-            INSERT INTO deals (address, seller_name, seller_phone, arv, repair_estimate, max_offer, status, assigned_buyer, profit, surplus, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO deals (address, seller_name, seller_phone, arv, repair_estimate, max_offer, status, assigned_buyer, profit, surplus, notes, zip_code)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         const info = stmt.run(
             deal.address,
@@ -64,9 +81,38 @@ export class CrmManager {
             deal.assigned_buyer || null,
             deal.profit || 0,
             deal.surplus || 0,
-            deal.notes || null
+            deal.notes || null,
+            zip || null
         );
-        return info.lastInsertRowid as number;
+
+        const dealId = info.lastInsertRowid as number;
+
+        // Trigger AI Enrichment in the background
+        import("../services/leadIntelligence.js").then(({ LeadIntelligenceService }) => {
+            LeadIntelligenceService.enrichDeal(dealId).catch(err => {
+                log(`[crm] Background enrichment failed for ${dealId}: ${err.message}`, "error");
+            });
+        }).catch(err => log(`[crm] Failed to load LeadIntelligenceService: ${err.message}`, "error"));
+
+        // Mirror to Supabase
+        import("./supabaseCrm.js").then(({ SupabaseCrm }) => {
+            SupabaseCrm.insertDeal({
+                address: deal.address!,
+                seller: deal.seller_name,
+                phone: deal.seller_phone,
+                arv: arv,
+                repairs: repairs,
+                max_offer: maxOffer,
+                status: deal.status || "new",
+                source: "promoted"
+            }).catch(err => {
+                log(`[crm] Failed to mirror new deal ${dealId} to Supabase: ${err.message}`, "error");
+            });
+        }).catch(err => {
+            log(`[crm] Failed to load SupabaseCrm for mirroring: ${err.message}`, "error");
+        });
+
+        return dealId;
     }
 
     static updateDeal(id: number, updates: Partial<Deal>) {
@@ -298,6 +344,25 @@ Reply FAST if interested. This will move quickly.
 
     static getFollowUpsDueToday(): Deal[] {
         return this.getColdLeads(3);
+    }
+
+    static promoteLeadToDeal(leadId: number): number {
+        const hDb = getHermesDb();
+        const lead = hDb.prepare("SELECT * FROM stuyza_leads WHERE id = ?").get(leadId) as any;
+        if (!lead) throw new Error("Lead not found in Stuyza database");
+
+        const dealId = this.addDeal({
+            address: lead.notes || `Lead #${lead.id} - ${lead.fname} ${lead.lname || ''}`,
+            seller_name: `${lead.fname} ${lead.lname || ''}`,
+            seller_phone: lead.phone,
+            status: "lead",
+            notes: `Promoted from Stuyza Lead #${lead.id}\nBiz Type: ${lead.biz_type || 'N/A'}\nService: ${lead.service || 'N/A'}\nOriginal Notes: ${lead.notes || ''}`
+        });
+
+        hDb.prepare("UPDATE stuyza_leads SET status = 'promoted' WHERE id = ?").run(leadId);
+        log(`[crm] Lead #${leadId} promoted to Deal #${dealId}`);
+
+        return dealId;
     }
 }
 

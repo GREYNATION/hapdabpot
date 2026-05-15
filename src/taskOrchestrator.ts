@@ -1,43 +1,53 @@
-import { aiRoute } from "./agents/aiRouter.js";
-import { TraderAgent } from "./agents/TraderAgent.js";
-import { ContentAgent } from "./agents/ContentAgent.js";
+import { SkillRouter } from "./orchestration/skillRouter.js";
+import { createExecutionPlan } from "./orchestration/taskPlanner.js";
+import { executePlan } from "./orchestration/dispatcher.js";
+import { addPlan } from "./orchestration/state.js";
+import { initializeIntentEngine } from "./orchestration/intentEngine.js";
 
-const agents = {
-  TraderAgent: new TraderAgent(),
-  ContentAgent: new ContentAgent()
-};
+// Initialize the intent engine on startup
+initializeIntentEngine().catch(err => console.error("â Œ Intent Engine initialization failed:", err));
 
 export async function processUserInput(userInput: string, userId: string = "default-user") {
-  console.log("ðŸ” Processing user input:", userInput);
+  console.log("ðŸ”  Processing user input (Orchestrated):", userInput);
   
-  // Step 1: AI Router decides which agent to use
-  console.log("ðŸ§  AI Router analyzing request...");
-  const agentName = await aiRoute(userInput);
+  // Step 1: Semantic Intent Matching (via Skill Router)
+  console.log("ðŸ§  Routing intent against skill registry...");
+  const matchedSkills = await SkillRouter.route(userInput);
   
-  if (!agentName || !agents[agentName as keyof typeof agents]) {
+  if (matchedSkills.length === 0) {
     return {
       success: false,
-      response: "ðŸ¤– AI could not determine the best agent for your request.",
+      response: "ðŸ¤– I couldn't find any specialized skills to handle that request.",
       agent: null
     };
   }
   
-  // Step 2: Best Agent Selected
-  const selectedAgent = agents[agentName as keyof typeof agents];
-  console.log(`âœ… Selected agent: ${agentName}`);
+  // Step 2: Task Planning
+  console.log("ðŸ“‹ Creating execution plan...");
+  const plan = await createExecutionPlan(userInput, matchedSkills);
+  addPlan(plan);
   
-  // Step 3-6: Agent handles the task (includes vector memory search and storage)
-  console.log("ðŸ“Š Agent executing with vector memory search...");
-  const result = await selectedAgent.execute(userInput, userId);
+  if (plan.steps.length === 0) {
+    return {
+      success: false,
+      response: "ðŸ¤– I matched your intent but couldn't generate a plan to execute it.",
+      agent: null
+    };
+  }
+
+  // Step 3: Multi-Agent Execution (Dispatch)
+  console.log("ðŸš€ Dispatching plan execution...");
+  const results = await executePlan(plan);
   
+  // Consolidate results for the user
+  const finalResponse = Object.values(results || {}).join("\n\n");
+
   return {
     success: true,
-    response: result,
-    agent: agentName,
+    response: finalResponse || "Plan executed successfully.",
+    planId: plan.id,
+    steps: plan.steps,
+    agent: plan.steps[0]?.skillId, // Primary agent
     userId
   };
 }
-
-// Example usage:
-// const result = await processUserInput("Analyze forex trends", "user-123");
-// console.log(result.response);

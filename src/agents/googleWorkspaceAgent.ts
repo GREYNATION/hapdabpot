@@ -6,6 +6,7 @@
 
 import { google } from "googleapis";
 import { log } from "../core/config.js";
+import { sanitizeHTML } from "../core/telegramUtils.js";
 
 // â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export let googleAuthBroken = false;
@@ -166,7 +167,12 @@ export async function listEmails(query = "is:unread", maxResults = 5): Promise<s
             const msg = await gmail.users.messages.get({ userId: "me", id: m.id!, format: "metadata", metadataHeaders: ["From", "Subject", "Date"] });
             const headers = msg.data.payload?.headers ?? [];
             const get = (name: string) => headers.find((h: any) => h.name === name)?.value ?? "N/A";
-            return `📧 From: ${get("From")}\n   Subject: ${get("Subject")}\n   Date: ${get("Date")}`;
+            
+            const from = sanitizeHTML(get("From"));
+            const subject = sanitizeHTML(get("Subject"));
+            const date = sanitizeHTML(get("Date"));
+            
+            return `📧 <b>From</b>: ${from}\n   <b>Subject</b>: ${subject}\n   <b>Date</b>: ${date}`;
         }));
 
         return details.join("\n\n");

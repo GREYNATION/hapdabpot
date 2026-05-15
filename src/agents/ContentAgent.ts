@@ -1,6 +1,7 @@
 import { BaseAgent } from "./baseAgent.js";
 import { log } from "../core/config.js";
 import { askAI } from "../core/ai.js";
+import { sanitizeHTML } from "../core/telegramUtils.js";
 import { CinemaAgent, runOutTheWayEpisode } from "./cinema/CinemaAgent.js";
 
 // ── LTX Video 2.3 via fal.ai ──────────────────────────────────────────────────
@@ -185,7 +186,7 @@ export class ContentAgent extends BaseAgent {
     log(`[ContentAgent] Generating video: "${topic}"`);
 
     if (!process.env.FAL_API_KEY) {
-      return `❌ FAL_API_KEY not set. Add it to your .env and Railway vars.\nGet a free key at: fal.ai`;
+      return `❌ <b>FAL_API_KEY not set</b>. Add it to your .env and Railway vars.\nGet a free key at: <code>fal.ai</code>`;
     }
 
     // Generate AI video prompt
@@ -201,7 +202,7 @@ export class ContentAgent extends BaseAgent {
 
     if (dryRun) {
       const caption = await generateCaption(topic, "tiktok");
-      return `✅ *Video Generated (Preview)*\n\n🎥 ${videoUrl}\n\n📝 *Caption:*\n${caption.slice(0, 300)}...`;
+      return `✅ <b>Video Generated (Preview)</b>\n\n🎥 ${videoUrl}\n\n📝 <b>Caption:</b>\n${sanitizeHTML(caption.slice(0, 300))}...`;
     }
 
     // Generate captions for all platforms
@@ -225,7 +226,7 @@ export class ContentAgent extends BaseAgent {
       `${instagram.success ? "✅" : "❌"} Instagram${instagram.error ? `: ${instagram.error}` : ""}`,
     ].join("\n");
 
-    return `🎬 *Video Posted*\n\n${results}\n\n🎥 ${videoUrl}\n\n📝 *TikTok Caption:*\n${tiktokCaption.slice(0, 200)}...`;
+    return `🎬 <b>Video Posted</b>\n\n${results}\n\n🎥 ${videoUrl}\n\n📝 <b>TikTok Caption:</b>\n${sanitizeHTML(tiktokCaption.slice(0, 200))}...`;
   }
 
   async dealAlertVideo(address: string, mao: number): Promise<string> {
@@ -245,7 +246,7 @@ export class ContentAgent extends BaseAgent {
       "Suggest 5 short-form video topics for a real estate wholesaling brand targeting South Jersey, Brooklyn, and Philadelphia. Numbered list, one per line.",
       "You are a social media strategist."
     );
-    return `💡 *Content Ideas*\n\n${response.content}`;
+    return `💡 <b>Content Ideas</b>\n\n${sanitizeHTML(response.content)}`;
   }
 
   // ── Cinema / Drama Production ────────────────────────────────────────────────
@@ -310,12 +311,12 @@ export class ContentAgent extends BaseAgent {
 
     } else {
       await ctx.reply(
-        "🎬 *Out the Way Cinema Commands*\n\n" +
-        "`/produce ep 1` — Produce full Episode 1\n" +
-        "`/produce scene <description>` — Quick single scene test\n" +
-        "`/drama` — Series overview\n" +
-        "`/scene 1 3` — Scene 3 from Episode 1",
-        { parse_mode: "Markdown" }
+        "🎬 <b>Out the Way Cinema Commands</b>\n\n" +
+        "<code>/produce ep 1</code> — Produce full Episode 1\n" +
+        "<code>/produce scene &lt;description&gt;</code> — Quick single scene test\n" +
+        "<code>/drama</code> — Series overview\n" +
+        "<code>/scene 1 3</code> — Scene 3 from Episode 1",
+        { parse_mode: "HTML" }
       );
     }
   }

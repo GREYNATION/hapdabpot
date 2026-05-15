@@ -1,6 +1,7 @@
-﻿import axios from "axios";
+import axios from "axios";
 import { config, log } from "../core/config.js";
 import { askAI } from "../core/ai.js";
+import { BraveSearch } from "./braveSearch.js";
 
 export interface TrendData {
     title: string;
@@ -29,39 +30,16 @@ export class TrendScannerService {
      * 1. Scrapes trends for a specific platform using Brave Search
      */
     static async scrapePlatformTrends(platform: string): Promise<TrendData[]> {
-        log(`[TrendScanner] ðŸ”Ž Scanning ${platform} for trending topics...`);
-        const apiKey = (config.braveApiKey || process.env.BRAVE_API_KEY || "").trim();
+        log(`[TrendScanner] 🔍 Scanning ${platform} for trending topics...`);
         
-        if (!apiKey) {
-            log("[TrendScanner] âŒ BRAVE_API_KEY is missing.", "error");
-            return [];
-        }
-
-        // Relaxed query to ensure we get results
         const query = `${platform} trending OR viral`;
         
         try {
-        
-
-            const response = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=10&freshness=pw`, {
-                signal: AbortSignal.timeout(5000), headers: {
-                    "Accept": "application/json",
-                    "Accept-Encoding": "gzip",
-                    "Cache-Control": "no-cache",
-                    "X-Subscription-Token": apiKey
-                }
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP ${response.status}: ${errorText}`);
-            }
-
-            const data = await response.json();
+            const data = await BraveSearch.search(query, 10);
             const results = data.web?.results || [];
             
             if (results.length === 0) {
-                log(`[TrendScanner] âš ï¸ Zero results for "${query}". API Response: ${JSON.stringify(data)}`, "warn");
+                log(`[TrendScanner] ⚠️ Zero results for "${query}".`, "warn");
             }
             
             return results.map((r: any) => ({
@@ -72,7 +50,7 @@ export class TrendScannerService {
             }));
             
         } catch (error: any) {
-            log(`[TrendScanner] âŒ Search failed: ${error.message} - ${JSON.stringify(error.response?.data || 'No response data')}`, "error");
+            log(`[TrendScanner] ❌ Search failed: ${error.message}`, "error");
             return [];
         }
     }
@@ -81,7 +59,7 @@ export class TrendScannerService {
      * 2. Engagement Prediction Engine: Ranks scraped trends based on viral potential
      */
     static async scoreTrends(trends: TrendData[]): Promise<ScoredTrend[]> {
-        log(`[TrendScanner] ðŸ¤– Scoring top 3 trends for virality (to avoid token limits)...`);
+        log(`[TrendScanner] 🤖 Scoring top 3 trends for virality (to avoid token limits)...`);
         
         if (trends.length === 0) return [];
         
@@ -106,8 +84,6 @@ export class TrendScannerService {
         `;
 
         try {
-        
-
             const aiResponse = await askAI(prompt, "You are an elite viral marketing algorithm. Return ONLY raw JSON array.");
             
             // Clean up markdown formatting if present
@@ -131,10 +107,8 @@ export class TrendScannerService {
 
             return scoredTrends;
         } catch (err: any) {
-            log(`[TrendScanner] âŒ AI Scoring failed: ${err.message}`, "error");
+            log(`[TrendScanner] ❌ AI Scoring failed: ${err.message}`, "error");
             return [];
         }
     }
 }
-
-

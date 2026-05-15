@@ -1,6 +1,7 @@
 import { Telegraf } from 'telegraf';
 import { humanize } from '../core/humanizer.js';
 import { log } from '../core/config.js';
+import { sanitizeHTML } from '../core/telegramUtils.js';
 
 export function registerHumanizeCommand(bot: Telegraf) {
     bot.command('humanize', async (ctx: any) => {
@@ -8,15 +9,15 @@ export function registerHumanizeCommand(bot: Telegraf) {
         
         if (!text) {
             return ctx.reply(
-                "✍️ **Humanizer Service**\n\n" +
+                "✍️ <b>Humanizer Service</b>\n\n" +
                 "Refines AI-generated text to sound natural and human.\n\n" +
-                "Usage: `/humanize [text]`\n" +
-                "Example: `/humanize Our revolutionary platform serves as a testament to innovation.`",
-                { parse_mode: 'Markdown' }
+                "Usage: <code>/humanize [text]</code>\n" +
+                "Example: <code>/humanize Our revolutionary platform serves as a testament to innovation.</code>",
+                { parse_mode: 'HTML' }
             );
         }
 
-        await ctx.reply("✍️ **Humanizing text...**");
+        await ctx.reply("✍️ <b>Humanizing text...</b>", { parse_mode: 'HTML' });
 
         try {
             const result = await humanize(text);
@@ -29,7 +30,7 @@ export function registerHumanizeCommand(bot: Telegraf) {
             }
         } catch (err: any) {
             log(`[humanize] Command failed: ${err.message}`, "error");
-            ctx.reply(`❌ **Humanization failed**: ${err.message}`);
+            ctx.reply(`❌ <b>Humanization failed</b>: ${sanitizeHTML(err.message)}`, { parse_mode: 'HTML' });
         }
     });
 }

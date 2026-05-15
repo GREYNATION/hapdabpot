@@ -1,15 +1,14 @@
-﻿import fetch from "node-fetch";
+import fetch from "node-fetch";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 export async function aiRoute(task: string) {
   if (!process.env.GROQ_API_KEY) {
-    console.warn("âš ï¸  GROQ_API_KEY not set - AI routing unavailable");
+    console.warn("⚠️  GROQ_API_KEY not set - AI routing unavailable");
     return null;
   }
 
-  
-try {
+  try {
     const res = await fetch(GROQ_URL, {
       method: "POST",
       headers: {
@@ -25,12 +24,15 @@ try {
 You are an AI router.
 
 Available agents:
+- Hermes (Search & Scraping, finding leads, data extraction)
+- Athena (Analysis & Scoring, strategic insights, deal evaluation)
+- Ares (Outreach Automation, communication, marketing, execution)
+- Atlas (Market Intelligence, knowledge management, trend tracking)
+- Hephaestus (Infrastructure, system health, mission orchestration)
 - TraderAgent (trading, forex, stocks, crypto)
 - RealEstateAgent (properties, houses, deals)
 - ContentAgent (TikTok, social media, content creation)
-- DramaAgent (TikTok 3D mini-drama scripts, character direction, scene blocking)
-- GeneticTraderAgent (genetic programming, strategy evolution, algorithm optimization)
-- VisionAgent (analyze images, screen captures, desktop view, "what do you see")
+- VisionAgent (analyze images, screen captures, desktop view)
 
 Respond ONLY with the agent name.
 `
@@ -46,16 +48,13 @@ Respond ONLY with the agent name.
     const data: any = await res.json();
     
     if (data.error) {
-      console.error("âŒ Groq error:", data.error);
+      console.error("❌ Groq error:", data.error);
       return null;
     }
 
     return data.choices?.[0]?.message?.content?.trim();
   } catch (error) {
-    console.error("âŒ AI router failed:", error);
+    console.error("❌ AI router failed:", error);
     return null;
   }
 }
-
-
-

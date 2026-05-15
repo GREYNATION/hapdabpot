@@ -14,7 +14,7 @@ export function startHeartbeat(bot: Telegraf) {
             if (pulse) {
                 const ownerId = config.ownerId;
                 if (ownerId) {
-                    await bot.telegram.sendMessage(ownerId, pulse, { parse_mode: "Markdown" });
+                    await bot.telegram.sendMessage(ownerId, pulse, { parse_mode: "HTML" });
                     log("[cron] Heartbeat pulse sent to owner.");
                 }
             }

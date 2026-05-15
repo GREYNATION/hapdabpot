@@ -12,6 +12,7 @@
 import { Telegraf } from "telegraf";
 import { comfyAgent } from "./ComfyAgent.js";
 import { log } from "../../core/config.js";
+import { sanitizeHTML } from "../../core/telegramUtils.js";
 
 export function registerComfyCommands(bot: Telegraf) {
 
@@ -22,14 +23,14 @@ export function registerComfyCommands(bot: Telegraf) {
 
         if (!raw) {
             return ctx.reply(
-                "🎨 **ComfyUI Image Generator**\n\n" +
+                "<b>🎨 ComfyUI Image Generator</b>\n\n" +
                 "Usage:\n" +
-                "`/imagine <prompt>` — SD1.5 (512×512)\n" +
-                "`/imagine flux <prompt>` — FLUX.1 (1024×1024)\n\n" +
+                "<code>/imagine &lt;prompt&gt;</code> — SD1.5 (512×512)\n" +
+                "<code>/imagine flux &lt;prompt&gt;</code> — FLUX.1 (1024×1024)\n\n" +
                 "Examples:\n" +
-                "`/imagine a golden hour street scene in Brooklyn`\n" +
-                "`/imagine flux a futuristic city at night, cinematic`",
-                { parse_mode: "Markdown" }
+                "<code>/imagine a golden hour street scene in Brooklyn</code>\n" +
+                "<code>/imagine flux a futuristic city at night, cinematic</code>",
+                { parse_mode: "HTML" }
             );
         }
 
@@ -37,15 +38,15 @@ export function registerComfyCommands(bot: Telegraf) {
         const useFlux = raw.toLowerCase().startsWith("flux ");
         const prompt = useFlux ? raw.slice(5).trim() : raw;
 
-        if (!prompt) {
-            return ctx.reply("⚠️ Please provide a prompt after `flux`.", { parse_mode: "Markdown" });
+        if (!prompt && useFlux) {
+            return ctx.reply("⚠️ Please provide a prompt after <code>flux</code>.", { parse_mode: "HTML" });
         }
 
         const thinkingMsg = await ctx.reply(
             useFlux
-                ? "⚡ **FLUX.1 Generating...**\nEnhancing your prompt and queuing in ComfyUI. This may take 30–90 seconds..."
-                : "🎨 **Generating Image...**\nEnhancing your prompt and queuing in ComfyUI. This may take 20–60 seconds...",
-            { parse_mode: "Markdown" }
+                ? "⚡ <b>FLUX.1 Generating...</b>\nEnhancing your prompt and queuing in ComfyUI. This may take 30–90 seconds..."
+                : "🎨 <b>Generating Image...</b>\nEnhancing your prompt and queuing in ComfyUI. This may take 20–60 seconds...",
+            { parse_mode: "HTML" }
         );
 
         try {
@@ -56,17 +57,17 @@ export function registerComfyCommands(bot: Telegraf) {
                 for (const buf of imageBuffers) {
                     await ctx.replyWithPhoto(
                         { source: buf },
-                        { caption: text, parse_mode: "Markdown" }
+                        { caption: text, parse_mode: "HTML" }
                     ).catch(async () => {
                         // If photo send fails (e.g. too large), send text only
-                        await ctx.reply(text + "\n\n⚠️ _Image too large for direct send._", { parse_mode: "Markdown" });
+                        await ctx.reply(text + "\n\n⚠️ <i>Image too large for direct send.</i>", { parse_mode: "HTML" });
                     });
                 }
             } else {
-                await ctx.reply(text, { parse_mode: "Markdown" });
+                await ctx.reply(text, { parse_mode: "HTML" });
             }
         } catch (err: any) {
-            await ctx.reply(`❌ **ComfyUI Error**: ${err.message}`, { parse_mode: "Markdown" });
+            await ctx.reply(`❌ <b>ComfyUI Error</b>: ${sanitizeHTML(err.message)}`, { parse_mode: "HTML" });
         }
     });
 
@@ -77,14 +78,13 @@ export function registerComfyCommands(bot: Telegraf) {
 
         if (!prompt) {
             return ctx.reply(
-                "🎬 **LTX-Video Generator**\n\n" +
-                "Usage: `/video <prompt>`\n\n" +
-                "Example:\n`/video Spider Jr walking through a futuristic city, cartoon style`",
-                { parse_mode: "Markdown" }
+                "<b>🎬 LTX-Video Generator</b>\n\n" +
+                "Usage: <code>/video &lt;prompt&gt;</code>\n\n" +
+                "Example:\n<code>/video Spider Jr walking through a futuristic city, cartoon style</code>",
             );
         }
 
-        await ctx.reply("🎬 **Generating Video (LTX-V)...**\nThis will take a significant amount of time on CPU (10–30 mins). Please be patient!", { parse_mode: "Markdown" });
+        await ctx.reply("🎬 <b>Generating Video (LTX-V)...</b>\nThis will take a significant amount of time on CPU (10–30 mins). Please be patient!", { parse_mode: "HTML" });
 
         try {
             const { text, videoBuffers } = await comfyAgent.video(prompt);
@@ -93,16 +93,16 @@ export function registerComfyCommands(bot: Telegraf) {
                 for (const buf of videoBuffers) {
                     await ctx.replyWithVideo(
                         { source: buf },
-                        { caption: text, parse_mode: "Markdown" }
+                        { caption: text, parse_mode: "HTML" }
                     ).catch(async () => {
-                        await ctx.reply(text + "\n\n⚠️ _Video too large for direct send._", { parse_mode: "Markdown" });
+                        await ctx.reply(text + "\n\n⚠️ <i>Video too large for direct send.</i>", { parse_mode: "HTML" });
                     });
                 }
             } else {
-                await ctx.reply(text, { parse_mode: "Markdown" });
+                await ctx.reply(text, { parse_mode: "HTML" });
             }
         } catch (err: any) {
-            await ctx.reply(`❌ **Video Error**: ${err.message}`, { parse_mode: "Markdown" });
+            await ctx.reply(`❌ <b>Video Error</b>: ${sanitizeHTML(err.message)}`, { parse_mode: "HTML" });
         }
     });
 
@@ -113,15 +113,15 @@ export function registerComfyCommands(bot: Telegraf) {
 
         if (!imageUrl || !imageUrl.startsWith("http")) {
             return ctx.reply(
-                "🔍 **4x AI Upscaler**\n\n" +
-                "Usage: `/upscale <image_url>`\n\n" +
-                "Example:\n`/upscale https://example.com/image.jpg`\n\n" +
-                "_Requires an upscale model in `ComfyUI/models/upscale_models/`_",
-                { parse_mode: "Markdown" }
+                "<b>🔍 4x AI Upscaler</b>\n\n" +
+                "Usage: <code>/upscale &lt;image_url&gt;</code>\n\n" +
+                "Example:\n<code>/upscale https://example.com/image.jpg</code>\n\n" +
+                "<i>Requires an upscale model in <code>ComfyUI/models/upscale_models/</code></i>",
+                { parse_mode: "HTML" }
             );
         }
 
-        await ctx.reply("🔬 **Upscaling (4x)...**\nThis may take 20–60 seconds...", { parse_mode: "Markdown" });
+        await ctx.reply("🔬 <b>Upscaling (4x)...</b>\nThis may take 20–60 seconds...", { parse_mode: "HTML" });
 
         try {
             const { text, imageBuffers } = await comfyAgent.upscale(imageUrl);
@@ -130,16 +130,16 @@ export function registerComfyCommands(bot: Telegraf) {
                 for (const buf of imageBuffers) {
                     await ctx.replyWithPhoto(
                         { source: buf },
-                        { caption: text, parse_mode: "Markdown" }
+                        { caption: text, parse_mode: "HTML" }
                     ).catch(async () => {
-                        await ctx.reply(text + "\n\n⚠️ _Image too large for direct send._", { parse_mode: "Markdown" });
+                        await ctx.reply(text + "\n\n⚠️ <i>Image too large for direct send.</i>", { parse_mode: "HTML" });
                     });
                 }
             } else {
-                await ctx.reply(text, { parse_mode: "Markdown" });
+                await ctx.reply(text, { parse_mode: "HTML" });
             }
         } catch (err: any) {
-            await ctx.reply(`❌ **Upscale Error**: ${err.message}`, { parse_mode: "Markdown" });
+            await ctx.reply(`❌ <b>Upscale Error</b>: ${sanitizeHTML(err.message)}`, { parse_mode: "HTML" });
         }
     });
 
@@ -153,17 +153,17 @@ export function registerComfyCommands(bot: Telegraf) {
             switch (sub) {
                 case "status": {
                     const statusText = await comfyAgent.checkStatus();
-                    await ctx.reply(statusText, { parse_mode: "Markdown" });
+                    await ctx.reply(statusText, { parse_mode: "HTML" });
                     break;
                 }
                 case "models": {
-                    await ctx.reply("📂 **Fetching available checkpoints...**");
+                    await ctx.reply("<b>📂 Fetching available checkpoints...</b>", { parse_mode: "HTML" });
                     const modelText = await comfyAgent.listModels();
                     if (modelText.length <= 4096) {
-                        await ctx.reply(modelText, { parse_mode: "Markdown" });
+                        await ctx.reply(modelText, { parse_mode: "HTML" });
                     } else {
                         const chunks = modelText.match(/[\s\S]{1,4000}/g) ?? [modelText];
-                        for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: "Markdown" }).catch(() => {});
+                        for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: "HTML" }).catch(() => {});
                     }
                     break;
                 }
@@ -176,15 +176,15 @@ export function registerComfyCommands(bot: Telegraf) {
                     const running = queue?.queue_running?.length || 0;
                     const pending = queue?.queue_pending?.length || 0;
                     await ctx.reply(
-                        `⏳ **ComfyUI Queue**\n\n🏃 Running: ${running}\n⏸️ Pending: ${pending}`,
-                        { parse_mode: "Markdown" }
+                        `⏳ <b>ComfyUI Queue</b>\n\n🏃 Running: ${running}\n⏸️ Pending: ${pending}`,
+                        { parse_mode: "HTML" }
                     );
                     break;
                 }
                 case "help":
                 default: {
                     const helpText = comfyAgent.getHelp();
-                    await ctx.reply(helpText, { parse_mode: "Markdown" });
+                    await ctx.reply(helpText, { parse_mode: "HTML" });
                     break;
                 }
             }

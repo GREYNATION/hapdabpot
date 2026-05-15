@@ -1,6 +1,7 @@
-﻿import { Telegraf, Context } from 'telegraf';
+import { Telegraf, Context } from 'telegraf';
 import { DealWatcher } from '../core/dealWatcher.js';
 import { config, log } from '../core/config.js';
+import { sanitizeHTML } from '../core/telegramUtils.js';
 
 export function setupInvoiceHandlers(bot: Telegraf) {
   // Check for pending invoices every 30 seconds
@@ -47,19 +48,19 @@ async function sendInvoiceConfirmation(bot: Telegraf, invoice: any) {
     return;
   }
   
-  const message = `ðŸ’° **Invoice Ready for Confirmation**
+  const message = `💰 <b>Invoice Ready for Confirmation</b>
   
-ðŸ“ Property: ${invoice.address}
-ðŸ’µ Amount: $${invoice.amount.toLocaleString()}
-ðŸ”¢ Deal ID: ${invoice.dealId}
+📍 Property: ${sanitizeHTML(invoice.address)}
+💵 Amount: <b>$${invoice.amount.toLocaleString()}</b>
+🔢 Deal ID: <code>${invoice.dealId}</code>
 
 Send invoice to client?`;
 
   const keyboard = {
     inline_keyboard: [
       [
-        { text: 'âœ… Yes, Send Invoice', callback_data: `invoice_yes_${invoice.dealId}` },
-        { text: 'âŒ No, Skip', callback_data: `invoice_no_${invoice.dealId}` }
+        { text: '✅ Yes, Send Invoice', callback_data: `invoice_yes_${invoice.dealId}` },
+        { text: '❌ No, Skip', callback_data: `invoice_no_${invoice.dealId}` }
       ]
     ]
   };
@@ -71,7 +72,7 @@ Send invoice to client?`;
       return;
     }
     await bot.telegram.sendMessage(chatId, message, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: keyboard
     });
     

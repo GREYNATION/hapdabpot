@@ -3,6 +3,7 @@ import { generateVoice } from "./voiceService.js";
 import { log } from "../core/config.js";
 import { askAI } from "../core/ai.js";
 import { unpackContent } from "../core/unpack.js";
+import { sanitizeHTML } from "../core/telegramUtils.js";
 
 export class JarvisService {
     /**
@@ -20,7 +21,8 @@ QUERY: ${query}
 `;
 
         const res = await askAI(prompt, "You are JARVIS, an elite personal assistant.");
-        return unpackContent(res) || "I'm afraid I can't assist with that at the moment, sir.";
+        const content = unpackContent(res) || "I'm afraid I can't assist with that at the moment, sir.";
+        return sanitizeHTML(content);
     }
 
     /**
@@ -30,8 +32,8 @@ QUERY: ${query}
         log("[jarvis] Generating morning digest...");
         
         if (!isGoogleEnabled()) {
-            const text = "🌅 **Morning Briefing**: Google Workspace is not configured. I can't access your calendar or email right now.";
-            return { text, voiceBuffer: await generateVoice(text) };
+            const text = "🌅 <b>Morning Briefing</b>: Google Workspace is not configured. I can't access your calendar or email right now.";
+            return { text, voiceBuffer: await generateVoice("Google Workspace is not configured, sir.") };
         }
 
         try {
@@ -57,13 +59,13 @@ ${events}
 --- UNREAD EMAILS ---
 ${emails}
 ---
-Keep the tone like Paul Bettany's Jarvis—polite, sharp, and slightly dry.
+Keep the tone like Paul Bettany's Jarvis—polite, sharp, and slightly dry. Use plain text only, no markdown.
 `;
 
             const res = await askAI(prompt, "You are JARVIS, an elite personal assistant.");
             const digestText = unpackContent(res) || "I couldn't synthesize your digest, sir.";
 
-            // 3. Generate Voice
+            // 3. Generate Voice (Clean text for TTS)
             const cleanText = digestText
                 .replace(/\*\*/g, "")
                 .replace(/\[.*?\]/g, "")
@@ -73,7 +75,7 @@ Keep the tone like Paul Bettany's Jarvis—polite, sharp, and slightly dry.
             const voiceBuffer = await generateVoice(cleanText);
 
             return { 
-                text: `🌅 **Paul's Morning Digest**\n\n${digestText}`, 
+                text: `🌅 <b>Paul's Morning Digest</b>\n\n${sanitizeHTML(digestText)}`, 
                 voiceBuffer 
             };
 
@@ -92,10 +94,10 @@ Keep the tone like Paul Bettany's Jarvis—polite, sharp, and slightly dry.
         const voice = "✅ READY (onyx)";
         const hive = "✅ SYNCED";
         
-        return `🤖 **JARVIS Status Report**\n\n` +
-               `• **Google Link**: ${google}\n` +
-               `• **Voice Core**: ${voice}\n` +
-               `• **Hive Mind**: ${hive}\n\n` +
+        return `🤖 <b>JARVIS Status Report</b>\n\n` +
+               `• <b>Google Link</b>: ${google}\n` +
+               `• <b>Voice Core</b>: ${voice}\n` +
+               `• <b>Hive Mind</b>: ${hive}\n\n` +
                `Systems are operational. How can I assist you, sir?`;
     }
 }

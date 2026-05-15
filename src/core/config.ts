@@ -15,7 +15,14 @@ export function log(msg: string, level: "info" | "warn" | "error" = "info") {
 /**
  * Broadcasts a log entry to the Supabase 'ops_logs' table for the web Command Center.
  */
-export async function logToOpsConsole(agent: string, message: string, type: "think" | "tool" | "error" | "status" | "chat" = "status") {
+export async function logToOpsConsole(
+    agent: string, 
+    message: string, 
+    type: "think" | "tool" | "error" | "status" | "chat" = "status",
+    stage?: string,
+    progress?: number,
+    metadata?: any
+) {
     const supabase = getSupabase();
     if (!supabase) return;
 
@@ -24,12 +31,16 @@ export async function logToOpsConsole(agent: string, message: string, type: "thi
             agent,
             message,
             type,
+            stage,
+            progress,
+            metadata: metadata || null,
             timestamp: new Date().toISOString()
         });
     } catch (e) {
         // Silently fail to avoid crashing the bot if logging fails
     }
 }
+
 
 const env = process.env;
 
@@ -68,6 +79,8 @@ export const config = {
     openaiBaseUrl: env.OPENAI_BASE_URL || "",
     kimiApiKey: env.KIMI_API_KEY || "",
     freeTierOnly: env.FREE_TIER === "true" || !env.OPENAI_API_KEY && !env.ANTHROPIC_API_KEY, // Default to true if major paid keys missing
+    dashboardApiKey: env.DASHBOARD_API_KEY || "",
+    twilioAuthToken: env.TWILIO_AUTH_TOKEN || "",
 };
 
 // ── AI Clients (Exports are updated by initializeClients) ──────────────────
@@ -159,6 +172,12 @@ export async function initializeConfig() {
             }
             if (row.key === "PUTER_AUTH_TOKEN") {
                 config.puterAuthToken = row.value;
+            }
+            if (row.key === "DASHBOARD_API_KEY") {
+                config.dashboardApiKey = row.value;
+            }
+            if (row.key === "TWILIO_AUTH_TOKEN") {
+                config.twilioAuthToken = row.value;
             }
         });
         log(`[config] Loaded ${data.length} credentials from Master Brain.`);

@@ -1,7 +1,8 @@
-﻿import { log, initializeConfig } from "./config.js";
+import { log, initializeConfig } from "./config.js";
 import { initDb } from "./memory.js";
 import { initializeClients } from "./ai.js";
 import { initVault } from "../services/vaultService.js";
+import { initializeSkills } from "./skills.js";
 
 /**
  * Global application startup sequence.
@@ -23,6 +24,9 @@ export async function startupSequence() {
 
         // 3.5 Initialize Obsidian Vault structure
         initVault();
+
+        // 3.6 Initialize Dynamic Skill Registry
+        await initializeSkills();
 
         // 4. Initialize Master MCP Server
         const { getMCPServer } = await import("./mcp.js");

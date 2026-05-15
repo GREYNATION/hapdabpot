@@ -1,4 +1,4 @@
-﻿import fs from 'fs';
+import fs from 'fs';
 import path from 'path';
 import { openai, groq, config, log, logToOpsConsole } from '../core/config.js';
 import { openRouterClient } from '../core/ai.js';
@@ -288,7 +288,7 @@ export async function uploadAudioAndGetUrl(file: Buffer): Promise<string> {
 
     const fileName = `voice_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
     const { data, error } = await supabase.storage
-        .from('tracks')
+        .from('audio')
         .upload(fileName, file, {
             contentType: 'audio/mpeg',
             cacheControl: '3600',
@@ -301,7 +301,7 @@ export async function uploadAudioAndGetUrl(file: Buffer): Promise<string> {
     }
 
     const { data: { publicUrl } } = supabase.storage
-        .from('tracks')
+        .from('audio')
         .getPublicUrl(fileName);
 
     log(`[voice] Audio uploaded: ${publicUrl}`);

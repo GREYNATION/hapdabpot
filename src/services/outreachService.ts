@@ -6,6 +6,7 @@ import { config, log } from '../core/config.js';
 import { CrmManager } from '../core/crm.js';
 import { logEvent } from "../core/telemetry.js";
 import { SupabaseCrm } from "../core/supabaseCrm.js";
+import { sanitizeHTML } from '../core/telegramUtils.js';
 
 // Outreach Steps config
 const OUTREACH_STEPS = [
@@ -182,17 +183,17 @@ export function registerOutreachHandlers(bot: Telegraf) {
                 VALUES (?, 'active', 0, ?)
             `).run(dealId, nextRun);
 
-            await ctx.editMessageText(`✅ Initial SMS sent to ${deal.seller_name}! Sequence started.`);
+            await ctx.editMessageText(`✅ Initial SMS sent to <b>${sanitizeHTML(deal.seller_name || 'Seller')}</b>! Sequence started.`, { parse_mode: 'HTML' });
             await ctx.answerCbQuery();
         } catch (err: any) {
-            await ctx.reply(`❌ SMS failed: ${err.message}`);
+            await ctx.reply(`❌ <b>SMS failed</b>: <code>${sanitizeHTML(err.message)}</code>`, { parse_mode: 'HTML' });
             await ctx.answerCbQuery();
         }
     });
 
     bot.action(/outreach_skip_(\d+)/, async (ctx) => {
         const dealId = ctx.match[1];
-        await ctx.editMessageText(`🔕 Outreach skipped for deal #${dealId}.`);
+        await ctx.editMessageText(`🔕 Outreach skipped for deal <b>#${dealId}</b>.`, { parse_mode: 'HTML' });
         await ctx.answerCbQuery();
     });
 
@@ -203,14 +204,14 @@ export function registerOutreachHandlers(bot: Telegraf) {
         const active = getDb().prepare("SELECT * FROM outreach_sequences WHERE status = 'active'").all() as any[];
         if (active.length === 0) return ctx.reply("No active outreach sequences.");
 
-        let msg = "📊 **Active Outreach Sequences**\n\n";
+        let msg = "📊 <b>Active Outreach Sequences</b>\n\n";
         for (const seq of active) {
             const deal = CrmManager.getDeal(seq.deal_id);
-            msg += `📍 ${deal?.address}\n`;
-            msg += `Step: ${seq.current_step + 1}/${OUTREACH_STEPS.length}\n`;
-            msg += `Next: ${new Date(seq.next_run_at).toLocaleDateString()}\n\n`;
+            msg += `📍 ${sanitizeHTML(deal?.address || 'Unknown Address')}\n`;
+            msg += `Step: <b>${seq.current_step + 1}/${OUTREACH_STEPS.length}</b>\n`;
+            msg += `Next: <code>${new Date(seq.next_run_at).toLocaleDateString()}</code>\n\n`;
         }
-        await ctx.reply(msg, { parse_mode: 'Markdown' });
+        await ctx.reply(msg, { parse_mode: 'HTML' });
     });
 }
 
@@ -230,12 +231,12 @@ export async function promptOutreachApproval(bot: Telegraf, dealId: number) {
     ]);
 
     await bot.telegram.sendMessage(ownerId, 
-        `🆕 **New Potential Lead**\n\n` +
-        `📍 ${deal.address}\n` +
-        `👤 ${deal.seller_name || 'Unknown'}\n` +
-        `📱 ${deal.seller_phone || 'No phone'}\n\n` +
+        `🆕 <b>New Potential Lead</b>\n\n` +
+        `📍 ${sanitizeHTML(deal.address)}\n` +
+        `👤 ${sanitizeHTML(deal.seller_name || 'Unknown')}\n` +
+        `📱 <code>${sanitizeHTML(deal.seller_phone || 'No phone')}</code>\n\n` +
         `Should I start the SMS outreach sequence?`,
-        keyboard
+        { ...keyboard, parse_mode: 'HTML' }
     );
 }
 
@@ -367,7 +368,7 @@ export async function notifyUser(chatId: string | number, message: string): Prom
             body: JSON.stringify({
                 chat_id: chatId,
                 text: message,
-                parse_mode: 'Markdown'
+                parse_mode: 'HTML'
             })
         });
     } catch (e: any) {
@@ -380,16 +381,16 @@ export async function notifyUser(chatId: string | number, message: string): Prom
  */
 export function formatSurplusMessage(deal: { address: string, surplus: number, debt: number, owner: string, phone: string }): string {
     return `
-🏛️ SURPLUS DEAL FOUND
+🏛️ <b>SURPLUS DEAL FOUND</b>
 
-📍 ${deal.address}
-💰 Surplus: $${deal.surplus}
-🏦 Debt: $${deal.debt}
+📍 ${sanitizeHTML(deal.address)}
+💰 Surplus: <b>$${deal.surplus}</b>
+🏦 Debt: <b>$${deal.debt}</b>
 
-👤 Owner: ${deal.owner}
-📞 ${deal.phone}
+👤 Owner: <b>${sanitizeHTML(deal.owner)}</b>
+📞 <code>${sanitizeHTML(deal.phone)}</code>
 
-⚡ Status: AI CALL INITIATED
+⚡ Status: <b>AI CALL INITIATED</b>
 `;
 }
 

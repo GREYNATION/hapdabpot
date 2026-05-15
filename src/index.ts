@@ -1,4 +1,4 @@
-﻿// Force UTF-8 encoding
+// Force UTF-8 encoding
 process.stdout.setEncoding("utf8");
 process.stderr.setEncoding("utf8");
 import "./core/init.js";
@@ -8,6 +8,7 @@ import { startupSequence } from "./core/startup.js";
 import { TelegramBot } from "./bot/telegram.js";
 import { setupRouter } from "./bot/router.js";
 import { startLeadAlerts, registerLeadAlertHandlers } from "./cron/leadAlerts.js";
+import { startTrendAlerts } from "./cron/trendAlerts.js";
 import { startHeartbeat } from "./cron/heartbeat.js";
 import { startWebServer } from "./webServer.js";
 import { contentScheduler } from "./agents/ContentSchedulerAgent.js";
@@ -54,6 +55,7 @@ async function main() {
         } else {
             log("[index] Step 2: Initializing Lead Alerts...");
             await startLeadAlerts(bot);
+            startTrendAlerts(bot);
             startHeartbeat(bot);
             contentScheduler.startScheduler();
             log("[index] Step 2 Complete: Market Scans & Heartbeat.");

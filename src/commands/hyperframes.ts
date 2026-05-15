@@ -3,6 +3,7 @@ import { log } from "../core/config.js";
 import { TrendScannerService } from "../services/trendScanner.js";
 import { AdaptiveScriptEngine } from '../services/scriptEngine.js';
 import { HyperFramesEngine } from '../services/hyperframesEngine.js';
+import { sanitizeHTML } from "../core/telegramUtils.js";
 
 export function registerHyperFramesCommand(bot: Telegraf) {
     bot.command('render', async (ctx: any) => {
@@ -26,7 +27,7 @@ export function registerHyperFramesCommand(bot: Telegraf) {
             return ctx.reply(`❌ No cached script found for this trend. Please run /script ${trendIndex + 1} first!`);
         }
 
-        const msg = await ctx.reply(`🎥 *HyperFrames Cinematic Engine Online*\nSending B-Roll Prompt to Fal.ai (LTX-Video) for rendering...\n\n_Prompt:_ ${cachedScript.brollPrompt}`, { parse_mode: "Markdown" });
+        const msg = await ctx.reply(`🎥 <b>HyperFrames Cinematic Engine Online</b>\nSending B-Roll Prompt to Fal.ai (LTX-Video) for rendering...\n\n<i>Prompt:</i> ${sanitizeHTML(cachedScript.brollPrompt)}`, { parse_mode: "HTML" });
         
         try {
             const result = await HyperFramesEngine.generateCinematicBRoll(cachedScript, async (progressMsg) => {
@@ -35,16 +36,16 @@ export function registerHyperFramesCommand(bot: Telegraf) {
             });
 
             if (result.success && result.url) {
-                await ctx.reply(`✅ *Cinematic B-Roll Rendered!* ✅\n\nSaving file to server storage...`, { parse_mode: "Markdown" });
+                await ctx.reply(`✅ <b>Cinematic B-Roll Rendered!</b> ✅\n\nSaving file to server storage...`, { parse_mode: "HTML" });
                 
                 // Attempt to send the video preview via Telegram
                 try {
                     await ctx.replyWithVideo({ source: result.url }, { caption: `🎥 B-Roll: ${selectedTrend.title}` });
                 } catch (vidErr: any) {
-                    await ctx.reply(`✅ Video saved locally to: \`${result.url}\`\n(File might be too large for Telegram preview).`, { parse_mode: "Markdown" });
+                    await ctx.reply(`✅ Video saved locally to: <code>${sanitizeHTML(result.url)}</code>\n(File might be too large for Telegram preview).`, { parse_mode: "HTML" });
                 }
             } else {
-                await ctx.reply(`❌ *Rendering Failed:* ${result.error}`, { parse_mode: "Markdown" });
+                await ctx.reply(`❌ <b>Rendering Failed:</b> ${sanitizeHTML(result.error || "Unknown error")}`, { parse_mode: "HTML" });
             }
 
         } catch (err: any) {

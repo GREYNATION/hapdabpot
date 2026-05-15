@@ -1,4 +1,4 @@
-﻿import { ResearcherAgent } from '../agents/researcherAgent.js';
+import { ResearcherAgent } from '../agents/researcherAgent.js';
 import { log } from './config.js';
 
 export interface PropertyLead {
@@ -10,7 +10,14 @@ export interface PropertyLead {
 }
 
 export class PropertyScraper {
-    private static researcher = new ResearcherAgent();
+    private static _researcher: ResearcherAgent | null = null;
+
+    private static getResearcher(): ResearcherAgent {
+        if (!this._researcher) {
+            this._researcher = new ResearcherAgent();
+        }
+        return this._researcher;
+    }
 
     /**
      * Finds recent properties that might be motivated sellers in a given area.
@@ -35,7 +42,7 @@ export class PropertyScraper {
         `;
 
         try {
-            const response = await this.researcher.ask(prompt);
+            const response = await this.getResearcher().ask(prompt);
             const content = response.content;
 
             const leads: PropertyLead[] = [];

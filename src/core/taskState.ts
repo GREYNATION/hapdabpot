@@ -1,21 +1,23 @@
-﻿import { randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import { saveTask, updateTaskInDB, getTasks, getTask as getTaskFromDB } from "./taskMemory.js";
 
 export type TaskStatus = "pending" | "running" | "complete" | "failed";
 
 export interface Task {
   id: string;
+  plan_id: string;
   agent: string;
   task: string;
   status: TaskStatus;
   result?: string;
 }
 
-export function createTask(agent: string, task: string): Task {
+export function createTask(agent: string, task: string, plan_id: string = "standalone"): Task {
   const id = randomUUID();
 
   const newTask: Task = {
     id,
+    plan_id,
     agent,
     task,
     status: "pending",

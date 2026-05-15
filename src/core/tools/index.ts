@@ -1,5 +1,6 @@
 import { SupabaseCrm, SupabaseDeal } from "../supabaseCrm.js";
 import { CrmManager } from "../crm.js";
+import { wikiSave } from "../memory.js";
 import { sendSms as twilioSendSms, skipTrace as apiSkipTrace, sendTelegram as apiSendTelegram, sendSurplusAlert as botSendSurplusAlert, generateContract as apiGenerateContract } from "../../services/outreachService.js";
 import { findAuctionDeals as scrapeAuctionDeals } from "../../services/universalLeadScraper.js";
 
@@ -67,5 +68,9 @@ export const tools = {
 
   alertBuyers: async ({ dealId }: { dealId: number }) => {
     return await CrmManager.alertMatchedBuyers(dealId);
+  },
+
+  wiki_save: async ({ filename, content }: { filename: string, content: string }) => {
+    return await wikiSave(filename, content);
   }
 };

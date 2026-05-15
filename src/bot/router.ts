@@ -1,14 +1,14 @@
-﻿import { Telegraf } from 'telegraf';
+import { Telegraf } from 'telegraf';
 import { log } from '../core/config.js';
 import { safeString } from "../core/unpack.js";
 import { MasterTraderAgent } from '../agents/MasterTraderAgent.js';
-import { realEstateAgent } from '../agents/realEstateAgent.js';
-import { AdsAgent } from '../agents/ads/AdsAgent.js';
+
 import { registerWebsiteCommand } from '../agents/website/websiteCommand.js';
 import { TradingSwarmAgent } from '../agents/trading/TradingSwarmAgent.js';
 import * as dramaAgent from '../agents/drama/DramaAgent.js';
 import { registerLeadCommands } from '../commands/leads.js';
 import { registerCinemaCommands } from '../agents/cinema/cinemaCommand.js';
+import { sanitizeHTML, safeReply } from "../core/telegramUtils.js";
 import { registerStuyzaCommands } from '../agents/stuyza/stuyzaCommand.js';
 import { registerHumanizeCommand } from '../commands/humanize.js';
 import { registerKimiCommand } from '../commands/kimi.js';
@@ -45,6 +45,12 @@ import { registerGildedCommands } from '../agents/drama/gildedCommand.js';
 import { registerTrendCommand } from '../commands/trend.js';
 import { registerScriptCommand } from '../commands/script.js';
 import { registerHyperFramesCommand } from '../commands/hyperframes.js';
+import { HermesAgent } from '../agents/hermesAgent.js';
+import { AthenaAgent } from '../agents/athenaAgent.js';
+import { AresAgent } from '../agents/aresAgent.js';
+import { AtlasAgent } from '../agents/atlasAgent.js';
+import { HephaestusAgent } from '../agents/hephaestusAgent.js';
+import { CouncilOrchestrator } from '../core/orchestrator/councilOrchestrator.js';
 
 
 
@@ -71,7 +77,7 @@ export function setupRouter(bot: Telegraf) {
             // Only block if we have a non-empty auth list
             if (allowedIds.length > 0 && !allowedIds?.includes(userId)) {
                 log(`[router] Blocking unauthorized command attempt from UID: ${userId}`);
-                return ctx.reply(`âŒ **Unauthorized Access**\n\nYour Telegram ID is: \`${userId}\`\n\nPlease add this ID to your \`TELEGRAM_ALLOWED_USER_IDS\` inRailway or the \`.env\` file to activate all commands.`, { parse_mode: 'Markdown' });
+                return ctx.reply(`❌ <b>Unauthorized Access</b>\n\nYour Telegram ID is: <code>${userId}</code>\n\nPlease add this ID to your <code>TELEGRAM_ALLOWED_USER_IDS</code> in Railway or the <code>.env</code> file to activate all commands.`, { parse_mode: 'HTML' });
             }
         }
         return next();
@@ -107,38 +113,54 @@ export function setupRouter(bot: Telegraf) {
         "/listsystems - View all built client systems\n" +
         "/viewsystem [id] - Pull full config for a client\n" +
         "/proposal [id] - Generate PDF contract\n" +
-        "/imagine <prompt> - ComfyUI text-to-image (SD1.5)\n" +
         "/imagine flux <prompt> - FLUX.1 high-quality image gen\n" +
         "/upscale <url> - 4x AI image upscaler\n" +
-        "/comfy [status|models|queue] - ComfyUI server controls"
+        "/comfy [status|models|queue] - ComfyUI server controls\n" +
+        "/hscan - **Full Autonomous Evolution Scan**"
     ));
 
     bot.command('kb', handleKBCommand);
 
 
-    // 3. Real Estate Commands
+    // 3. Real Estate Commands (Now routed via Hermes & Athena)
     bot.command('scrape', async (ctx: any) => {
-        await ctx.reply("Searching for motivated sellers...");
-        const res = await realEstateAgent.handle("find leads");
-        ctx.reply(safeString(res));
+        await ctx.reply("ðŸ”  **Hermes Scout Activated**: Searching for motivated sellers...");
+        const hermes = new HermesAgent();
+        const res = await hermes.chat("find real estate leads and motivated sellers");
+        ctx.reply(res);
     });
-
+    
     bot.command('surplus', async (ctx: any) => {
-        await ctx.reply("Initiating Surplus Overage Scan...");
-        const res = await realEstateAgent.handle("auto scan surplus");
-        ctx.reply(safeString(res));
+        await ctx.reply("ðŸ”  **Athena Strategic Scan**: Initiating Surplus Overage Analysis...");
+        const athena = new AthenaAgent();
+        const res = await athena.chat("auto scan surplus opportunities and calculate equity");
+        ctx.reply(res);
     });
-
+    
     bot.command('mao', async (ctx: any) => {
         const text = ctx.message.text.replace('/mao', '').trim();
-        const res = await realEstateAgent.handle(text ? `mao ${text}` : "mao");
-        ctx.reply(safeString(res));
+        const athena = new AthenaAgent();
+        const res = await athena.chat(text ? `Calculate MAO for: ${text}` : "Explain how to calculate MAO for a distressed property");
+        ctx.reply(res);
+    });
+    
+    bot.command('gold', async (ctx: any) => {
+        await ctx.reply("💰 **Hapda Gold Mission**: Hermes Playwright Stealth Engine Engaged...");
+        const hermes = new HermesAgent();
+        const res = await hermes.chat("find motivated sellers in Cleveland OH gold ZIPs: 44102, 44105, 44108, 44110, 44112, 44128");
+        ctx.reply(res);
     });
 
-    bot.command('gold', async (ctx: any) => {
-        await ctx.reply("ðŸ’° **Hapda Gold Mission: Cleveland Money Pull** ðŸ’°\nInitiating Playwright Stealth Engine for Gold ZIPs: 44102, 44105, 44108, 44110, 44112, 44128.\n\n_This mission bypasses paid scrapers and extracts high-distress FSBOs directly._");
-        const res = await realEstateAgent.handle("find motivated sellers in Cleveland OH");
-        ctx.reply(safeString(res));
+    bot.command('hscan', async (ctx: any) => {
+        await ctx.reply("🚀 **Hapda Evolution Initiated**: Starting autonomous lead discovery pipeline...\n\n_Hermes is scouting, Athena is scoring, and Atlas is recording the results._");
+        try {
+            const orchestrator = new CouncilOrchestrator();
+            const res = await orchestrator.chat("Perform a full real estate market scan for high-distress opportunities, analyze them for equity, and save the best leads to the Wiki.", ctx.chat.id);
+            await ctx.reply(res, { parse_mode: 'HTML' });
+        } catch (err: any) {
+            log(`[router] /hscan failed: ${err.message}`, "error");
+            await ctx.reply(`❌ Evolution Scan failed: ${err.message}`);
+        }
     });
 
     bot.command('cleveland', async (ctx: any) => {
@@ -166,7 +188,7 @@ export function setupRouter(bot: Telegraf) {
     bot.command('setcriteria', async (ctx: any) => {
         const text = ctx.message.text.replace('/setcriteria', '').trim();
         if (!text) {
-            return ctx.reply("Usage: `/setcriteria <city>, <state>, <zips>, <max_price>`\nExample: `/setcriteria Cleveland, OH, 44105|44110, 200000`", { parse_mode: 'Markdown' });
+            return ctx.reply("Usage: <code>/setcriteria &lt;city&gt;, &lt;state&gt;, &lt;zips&gt;, &lt;max_price&gt;</code>\nExample: <code>/setcriteria Cleveland, OH, 44105|44110, 200000</code>", { parse_mode: 'HTML' });
         }
 
         const parts = text.split(',').map((p: string) => p.trim());
@@ -208,7 +230,7 @@ export function setupRouter(bot: Telegraf) {
                         `ðŸ—ï¸ **Supabase Sync:** ðŸŸ¢ Active\n\n` +
                         `_Use /criteria to see market details._`;
             
-            await ctx.reply(msg, { parse_mode: 'Markdown' });
+            await ctx.reply(msg, { parse_mode: 'HTML' });
         } catch (err: any) {
             await ctx.reply(`âŒ Stats failed: ${err.message}`);
         }
@@ -219,80 +241,60 @@ export function setupRouter(bot: Telegraf) {
         const symbol = ctx.message.text.replace('/trade', '').trim().toUpperCase();
         
         if (symbol) {
-            await ctx.reply(`ðŸ“ˆ **Fetching Strategic Finance status for ${symbol}...**\nAnalyzing fundamentals, technicals, and sentiment. This may take a minute.`, { parse_mode: 'Markdown' });
+            await ctx.reply(`📈 <b>Fetching Strategic Finance status for ${symbol}...</b>\nAnalyzing fundamentals, technicals, and sentiment. This may take a minute.`, { parse_mode: 'HTML' });
             try {
                 const result = await TradingSwarmAgent.analyze(symbol);
                 const report = TradingSwarmAgent.formatReport(result);
                 
                 if (report.length <= 4096) {
-                    await ctx.reply(report, { parse_mode: 'Markdown' });
+                    await ctx.reply(report, { parse_mode: 'HTML' });
                 } else {
                     const chunks = report.match(/[\s\S]{1,4000}/g) ?? [report];
-                    for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => {});
+                    for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'HTML' }).catch(() => {});
                 }
             } catch (err: any) {
                 const msg = err?.message || "Unknown swarm error";
-                ctx.reply(`âŒ **Swarm Failed**: \`${msg}\`\n\nThis is usually a model-name or API-key issue.`, { parse_mode: 'Markdown' });
+                ctx.reply(`❌ <b>Swarm Failed</b>: <code>${sanitizeHTML(msg)}</code>\n\nThis is usually a model-name or API-key issue.`, { parse_mode: 'HTML' });
             }
         } else {
-            await ctx.reply("ðŸ“Š **Fetching Strategic Finance summary...**", { parse_mode: 'Markdown' });
+            await ctx.reply("📊 <b>Fetching Strategic Finance summary...</b>", { parse_mode: 'HTML' });
             try {
                 const res = await new MasterTraderAgent().ask("Give me a trading account summary and current session.");
-                await ctx.reply(String(res.content), { parse_mode: 'Markdown' });
+                await ctx.reply(String(res.content), { parse_mode: 'HTML' });
             } catch (err: any) {
                 const msg = err?.message || "Unknown agent error";
-                ctx.reply(`âš ï¸ **Agent Failed**: \`${msg}\``, { parse_mode: 'Markdown' });
+                ctx.reply(`⚠️ <b>Agent Failed</b>: <code>${sanitizeHTML(msg)}</code>`, { parse_mode: 'HTML' });
             }
         }
     });
 
-    // 5. Ads Agent
+    // 5. Global Outreach (Ares Agent)
     bot.command('ads', async (ctx: any) => {
-        const userId = ctx.from?.id ?? 0;
         const text = ctx.message.text.replace('/ads', '').trim();
         if (!text) {
-            return ctx.reply(
-                "Ad Strategy Commands:\n\n" +
-                "/ads strategy - Full 5-agent strategy\n" +
-                "/ads quick - 60-second readiness score\n" +
-                "/ads audience - Buyer personas\n" +
-                "/ads competitors - Competitive intel\n" +
-                "/ads keywords - Google Ads keywords\n" +
-                "/ads copy tiktok - TikTok ad copy\n" +
-                "/ads copy facebook - Facebook ad copy\n" +
-                "/ads hooks - 20 scroll-stopping hooks\n" +
-                "/ads video - Video scripts (15s/30s/60s)\n" +
-                "/ads funnel - Conversion funnel\n" +
-                "/ads budget 5000 - Budget allocation\n" +
-                "/ads testing - A/B testing plan\n" +
-                "/ads landing - Landing page audit\n" +
-                "/ads audit - Performance audit\n" +
-                "/ads report - Full strategy report"
-            );
+            return ctx.reply("📢 <b>Ares Outreach Command Center</b>\n\nUse <code>/ads &lt;strategy/copy/keywords&gt;</code> to trigger global outreach planning.", { parse_mode: 'HTML' });
         }
-        await ctx.reply('Running ad analysis...');
-        const result = await AdsAgent.handle(`ads ${text}`, userId);
-        if (result.length <= 4096) {
-            await ctx.reply(result).catch(() => ctx.reply(result));
-        } else {
-            const chunks = result.match(/[\s\S]{1,4000}/g) ?? [result];
-            for (const chunk of chunks) await ctx.reply(chunk).catch(() => { });
-        }
+        await ctx.reply('🔥 <b>Ares Campaign Forge</b>: Drafting strategy...', { parse_mode: 'HTML' });
+        const ares = new AresAgent();
+        const res = await ares.chat(`Design ad strategy/copy for: ${text}`);
+        ctx.reply(res);
     });
 
     bot.command('hooks', async (ctx: any) => {
         const topic = ctx.message.text.replace('/hooks', '').trim() || 'real estate motivated sellers and TikTok mini-drama';
-        await ctx.reply('Generating 20 hooks...');
-        const result = await AdsAgent.handle(`ads hooks ${topic}`, ctx.from?.id ?? 0);
-        await ctx.reply(result.slice(0, 4096)).catch(() => ctx.reply('Hooks generated'));
+        await ctx.reply('🪝 <b>Ares Hook Forge</b>: Crafting 20 viral hooks...', { parse_mode: 'HTML' });
+        const ares = new AresAgent();
+        const res = await ares.chat(`Generate 20 scroll-stopping hooks for: ${topic}`);
+        ctx.reply(res);
     });
 
     bot.command('copy', async (ctx: any) => {
         const text = ctx.message.text.replace('/copy', '').trim();
-        if (!text) return ctx.reply('Usage: /copy <platform> [product]\nExample: /copy facebook motivated seller leads');
-        await ctx.reply('Writing ad copy...');
-        const result = await AdsAgent.handle(`ads copy ${text}`, ctx.from?.id ?? 0);
-        await ctx.reply(result.slice(0, 4096)).catch(() => ctx.reply('Copy generated'));
+        if (!text) return ctx.reply('ðŸ“  Usage: /copy <platform> [product]');
+        await ctx.reply('📝 <b>Ares Scribe</b>: Drafting persuasive ad copy...', { parse_mode: 'HTML' });
+        const ares = new AresAgent();
+        const res = await ares.chat(`Draft high-converting ad copy for: ${text}`);
+        ctx.reply(res);
     });
 
     // 6. Website Pipeline â€” delegated to websiteCommand.ts
@@ -332,14 +334,6 @@ export function setupRouter(bot: Telegraf) {
     registerHyperFramesCommand(bot);
 
     // 10. System Status & App Management
-    bot.command('stats', (ctx) => {
-        try {
-            const stats = CrmManager.getStats();
-            const apps = listApps();
-            ctx.reply(`ðŸ“Š **System Health**\n\nLeads: ${stats.leads}\nContracts: ${stats.contracts}\nApps: ${apps.length} active`);
-        } catch (err: any) { ctx.reply(`âš ï¸ Stats failed: ${err.message}`); }
-    });
-
     bot.command("apps", (ctx: any) => {
         const apps = listApps();
         const list = apps.map((a: any) => `ðŸŸ¢ ${a.id} (P:${a.port})`).join("\n");
@@ -352,51 +346,41 @@ export function setupRouter(bot: Telegraf) {
         ctx.reply(stopApp(id));
     });
 
-    // 11. Property Analysis
-    bot.command('analyze', (ctx: any) => {
+    // 11. Property Analysis (Athena Agent)
+    bot.command('analyze', async (ctx: any) => {
         const address = ctx.message.text.split(" ").slice(1).join(" ");
-        if (!address) return ctx.reply("ðŸ  Usage: /analyze [address]");
-        // Analysis sessions should ideally move to a session manager, but for now we keep the prompt
-        ctx.reply(`ðŸ“‹ Initiating deep analysis for: ${address}\n\nPlease provide ARV, Repairs, and Price sequentially.`);
+        if (!address) return ctx.reply("ðŸ   Usage: /analyze [address]");
+        await ctx.reply("ðŸ“Š **Athena Strategic Insight**: Analyzing property data...");
+        const athena = new AthenaAgent();
+        const res = await athena.chat(`Deep property analysis for: ${address}. Evaluate ROI and risk.`);
+        ctx.reply(res);
     });
+
 
     // 12. Build & Deploy
     bot.command("build", (ctx: any) => {
         const prompt = ctx.message.text.split(" ").slice(1).join(" ");
-        if (!prompt) return ctx.reply("ðŸ—ï¸ Usage: /build [task]");
-        ctx.reply("ðŸ—ï¸ Build request received. Check the dashboard for status updates.");
+        if (!prompt) return ctx.reply("ðŸ —ï¸  Usage: /build [task]");
+        ctx.reply("ðŸ —ï¸  Build request received. Check the dashboard for status updates.");
         // Note: Full runBuild logic remains in TelegramBot for dashboard state management, 
         // but we trigger the intent here.
     });
 
-    // 13. High-Performance Autonomous Goal (Hapda Engine)
+    // 13. High-Performance Autonomous Goal (Hephaestus Orchestration)
     bot.command('goal', async (ctx: any) => {
-        const text = ctx.message.text.trim();
-        const userId = String(ctx.from?.id || 'default');
+        const text = ctx.message.text.replace('/goal', '').trim();
+        const chatId = ctx.chat.id;
 
-        if (text === '/goal') {
-            return ctx.reply("ðŸš€ **Autonomous Goal Mode**\n\nUsage: `/goal [your objective]`\nExample: `/goal Find motivated sellers with >$50k equity in Houston`", { parse_mode: 'Markdown' });
+        if (!text) {
+            return ctx.reply("🔥 <b>Hephaestus Mission Control</b>\n\nUsage: <code>/goal [objective]</code>\nExample: <code>/goal Scrape Cleveland for FSBOs and email the top 3 deals to me</code>", { parse_mode: "HTML" });
         }
 
-        await ctx.reply("ðŸ§  **Claw Architecture Initialized.**\nRunning autonomous pipeline. This may take a few minutes...");
-
-        try {
-            const result = await handleHapdaCommand(text, userId);
-
-            if (!result) {
-                return ctx.reply("âš ï¸ **Hapda Algorithm**: No actionable result generated.");
-            }
-
-            if (result.length <= 4096) {
-                await ctx.reply(result, { parse_mode: 'Markdown' }).catch(() => ctx.reply(result));
-            } else {
-                const chunks = result.match(/[\s\S]{1,4000}/g) ?? [result];
-                for (const chunk of chunks) await ctx.reply(chunk).catch(() => { });
-            }
-        } catch (err: any) {
-            ctx.reply(`âŒ **Goal Failed**: ${err.message}`, { parse_mode: 'Markdown' });
-        }
+        await ctx.reply("ðŸ —ï¸  **Hephaestus Forge Initialized**: Orchestrating multi-agent mission...");
+        const council = new CouncilOrchestrator();
+        const res = await council.chat(text, chatId);
+        ctx.reply(res);
     });
+
 
     // 14. Executive Commands
     bot.command('brief', async (ctx: any) => {
@@ -409,10 +393,10 @@ export function setupRouter(bot: Telegraf) {
             }
 
             if (report.length <= 4096) {
-                await ctx.reply(report, { parse_mode: 'Markdown' });
+                await ctx.reply(report, { parse_mode: "HTML" });
             } else {
                 const chunks = report.match(/[\s\S]{1,4000}/g) ?? [report];
-                for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => { });
+                for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: "HTML" }).catch(() => { });
             }
         } catch (err: any) {
             ctx.reply(`âŒ **Briefing failed**: ${err.message}`);
@@ -424,7 +408,7 @@ export function setupRouter(bot: Telegraf) {
         const matches = text.match(/"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
 
         if (!matches) {
-            return ctx.reply("ðŸ“‚ **Usage**: `/decision \"title\" \"outcome\" \"logic\"`", { parse_mode: 'Markdown' });
+            return ctx.reply("⚖️ <b>Usage</b>: <code>/decision \"title\" \"outcome\" \"logic\"</code>", { parse_mode: "HTML" });
         }
 
         const [_, title, outcome, logic] = matches;
@@ -433,27 +417,31 @@ export function setupRouter(bot: Telegraf) {
     });
 
     bot.command('triage', async (ctx: any) => {
-        await ctx.reply("ðŸ“© **Running manual email triage...**");
+        await ctx.reply("📧 <b>Running manual email triage...</b>", { parse_mode: "HTML" });
         try {
             const pulse = await ExecutiveManager.runTriagePulse();
-            ctx.reply(pulse || "âœ… **Inbox Clean**: No high-priority items found.");
+            if (pulse) {
+                await ctx.reply(pulse, { parse_mode: 'HTML' });
+            } else {
+                await ctx.reply("✅ <b>Inbox Clean</b>: No high-priority items found.", { parse_mode: 'HTML' });
+            }
         } catch (err: any) {
-            ctx.reply(`âš ï¸ **Triage failed**: ${err.message}`);
+            ctx.reply(`⚠️ <b>Triage failed</b>: ${err.message}`, { parse_mode: 'HTML' });
         }
     });
 
     // 15. Markets & Intelligence
     bot.command('markets', async (ctx: any) => {
-        await ctx.reply("ðŸ“¡ Scanning prediction markets...");
+        await ctx.reply("📡 <b>Scanning prediction markets...</b>", { parse_mode: 'HTML' });
         try {
             const { filtered } = await scanMarkets();
-            ctx.reply(formatMarketsReport(filtered));
-        } catch (err: any) { ctx.reply(`âš ï¸ Market scan failed: ${err.message}`); }
+            await ctx.reply(formatMarketsReport(filtered), { parse_mode: 'HTML' });
+        } catch (err: any) { ctx.reply(`⚠️ <b>Market scan failed</b>: ${err.message}`, { parse_mode: 'HTML' }); }
     });
 
     // 14. Google Workspace
     bot.command('google', async (ctx: any) => {
-        if (!isGoogleEnabled()) return ctx.reply("âš ï¸ Google not configured.");
+        if (!isGoogleEnabled()) return ctx.reply("âš ï¸  Google not configured.");
         const [action, ...args] = ctx.message.text.split(" ").slice(1);
         if (!action) return ctx.reply("ðŸ“‚ Usage: /google [drive|gmail|cal] [args]");
         try {
@@ -469,12 +457,12 @@ export function setupRouter(bot: Telegraf) {
     // 15. n8n Integration
     bot.command('n8n', async (ctx: any) => {
         const text = ctx.message.text.replace('/n8n', '').trim();
-        await ctx.reply("ðŸ¤– **n8n Operation Initialized...**");
+        await ctx.reply("🤖 <b>n8n Operation Initialized...</b>", { parse_mode: 'HTML' });
         try {
             const res = await handleN8nCommand(text);
-            ctx.reply(String(res), { parse_mode: 'Markdown' });
+            ctx.reply(String(res), { parse_mode: 'HTML' });
         } catch (err: any) {
-            ctx.reply(`âŒ n8n Error: ${err.message}`);
+            ctx.reply(`❌ <b>n8n Error</b>: <code>${sanitizeHTML(err.message)}</code>`, { parse_mode: "HTML" });
         }
     });
 
@@ -483,34 +471,34 @@ export function setupRouter(bot: Telegraf) {
     bot.command('agenthub', async (ctx: any) => {
         const text = ctx.message.text.replace('/agenthub', '').trim();
         if (!text) {
-            return ctx.reply("ðŸ” **AgentHub Explorer**\n\nUsage: `/agenthub search <intent>`\nExample: `/agenthub search best agent for mauby audit`", { parse_mode: 'Markdown' });
+            return ctx.reply("🔍 <b>AgentHub Explorer</b>\n\nUsage: <code>/agenthub search &lt;intent&gt;</code>\nExample: <code>/agenthub search best agent for mauby audit</code>", { parse_mode: "HTML" });
         }
-        await ctx.reply("ðŸ§  **Searching AgentHub registry...**");
+        await ctx.reply("🧠 <b>Searching AgentHub registry...</b>", { parse_mode: 'HTML' });
         // This will be handled by the orchestrator via the intent detection, 
         // but we can provide a quicker response or trigger the agent directly.
         const res = await handleHapdaCommand(`Analyze this request using AgentHub: ${text}`, String(ctx.from?.id));
         
         if (!res) {
-            return ctx.reply("âš ï¸ **AgentHub**: Search returned no matching skills or agents.");
+            return ctx.reply("⚠️ <b>AgentHub</b>: Search returned no matching skills or agents.", { parse_mode: "HTML" });
         }
 
-        ctx.reply(res, { parse_mode: 'Markdown' });
+        ctx.reply(res, { parse_mode: 'HTML' });
     });
 
     // 18. AI Prompts Browser
     bot.command('prompts', async (ctx: any) => {
         const args = ctx.message.text.replace('/prompts', '').trim();
-        await ctx.reply("ðŸ” Accessing AI Prompt Library. Please wait...");
+        await ctx.reply("🔍 <b>Accessing AI Prompt Library. Please wait...</b>", { parse_mode: "HTML" });
         try {
             const result = await handlePromptsCommand(args);
             if (result.length <= 4096) {
-                await ctx.reply(result, { parse_mode: 'Markdown' });
+                await ctx.reply(result, { parse_mode: 'HTML' });
             } else {
                 const chunks = result.match(/[\s\S]{1,4000}/g) ?? [result];
                 for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
             }
         } catch (err: any) {
-            ctx.reply(`âŒ Prompts error: ${err.message}`);
+            ctx.reply(`❌ <b>Prompts Error</b>: <code>${sanitizeHTML(err.message)}</code>`, { parse_mode: "HTML" });
         }
     });
     
@@ -518,7 +506,7 @@ export function setupRouter(bot: Telegraf) {
     bot.command('harness', async (ctx: any) => {
         const text = ctx.message.text.replace('/harness', '').trim();
         if (!text) {
-            return ctx.reply("ðŸŒ **Browser Intelligence Harness**\n\nUsage: `/harness [url] [task]`\nExample: `/harness https://news.google.com find top top tech stories`", { parse_mode: 'Markdown' });
+            return ctx.reply("🌐 <b>Browser Intelligence Harness</b>\n\nUsage: <code>/harness [url] [task]</code>\nExample: <code>/harness https://news.google.com find top top tech stories</code>", { parse_mode: "HTML" });
         }
         
         await ctx.reply("ðŸŒ **Harnessing Browser Intelligence...**");
@@ -526,13 +514,13 @@ export function setupRouter(bot: Telegraf) {
             const res = await handleHarnessCommand(text);
             if (res.length <= 4096) {
                 // No parse_mode â€” AI summary of web content contains raw chars that break Markdown parsing
-                await ctx.reply(res).catch(() => ctx.reply("âœ… Harness complete (reply too long to display)."));
+                await ctx.reply(res, { parse_mode: "HTML" }).catch(() => ctx.reply("✅ Harness complete (reply too long to display)."));
             } else {
                 const chunks = res.match(/[\s\S]{1,4000}/g) ?? [res];
                 for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
             }
         } catch (err: any) {
-            ctx.reply(`âŒ Harness Error: ${err.message}`);
+            ctx.reply(`❌ <b>Harness Error</b>: <code>${sanitizeHTML(err.message)}</code>`, { parse_mode: "HTML" });
         }
     });
 
@@ -540,29 +528,29 @@ export function setupRouter(bot: Telegraf) {
     bot.command('status', async (ctx: any) => {
         const jobId = ctx.message.text.replace('/status', '').trim();
         if (!jobId) {
-            return ctx.reply("ðŸ” **Usage**: `/status job_12345`", { parse_mode: 'Markdown' });
+            return ctx.reply("🔍 <b>Usage</b>: <code>/status job_12345</code>", { parse_mode: "HTML" });
         }
 
         try {
             const port = process.env.PORT || 8080;
             const res = await fetch(`http://localhost:${port}/api/agent/status/${jobId}`);
             if (res.status === 404) {
-                return ctx.reply(`âš ï¸ Job **${jobId}** not found.`);
+                return ctx.reply(`⚠️ Job <b>${jobId}</b> not found.`, { parse_mode: "HTML" });
             }
 
             const data = await res.json();
 
             if (data.status === 'queued') {
-                return ctx.reply(`â³ Job **${jobId}** is queued...`);
+                return ctx.reply(`⌛ Job <b>${jobId}</b> is queued...`, { parse_mode: "HTML" });
             } else if (data.status === 'running') {
-                return ctx.reply(`ðŸƒ Job **${jobId}** is currently running...`);
+                return ctx.reply(`🏃 Job <b>${jobId}</b> is currently running...`, { parse_mode: "HTML" });
             } else if (data.status === 'error') {
-                return ctx.reply(`âŒ Job **${jobId}** failed:\n${data.error}`);
+                return ctx.reply(`❌ Job <b>${jobId}</b> failed:\n<code>${sanitizeHTML(data.error)}</code>`, { parse_mode: "HTML" });
             } else if (data.status === 'done') {
                 const resultText = data.result?.data || data.result?.summary || JSON.stringify(data.result);
                 
                 if (resultText.length <= 4096) {
-                    await ctx.reply(`âœ… **Result:**\n\n${resultText}`).catch(() => ctx.reply("âœ… Job complete (reply too long to display)."));
+                    await ctx.reply(`✅ <b>Result:</b>\n\n${resultText}`, { parse_mode: 'HTML' }).catch(() => ctx.reply("✅ Job complete (reply too long to display)."));
                 } else {
                     const chunks = resultText.match(/[\s\S]{1,4000}/g) ?? [resultText];
                     for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
@@ -579,7 +567,7 @@ export function setupRouter(bot: Telegraf) {
     // 19.6 Money Agent
     bot.command('money', async (ctx: any) => {
         const text = ctx.message.text.trim();
-        await ctx.reply("ðŸ’¸ Initializing Money Agent. Analyzing opportunities...");
+        await ctx.reply("💰 Initializing Money Agent. Analyzing opportunities...", { parse_mode: 'HTML' });
         try {
             const res = await handleMoneyCommand(text, ctx.chat.id);
             await ctx.reply(res);
@@ -591,7 +579,7 @@ export function setupRouter(bot: Telegraf) {
     // 19.7 Money Video Agent
     bot.command('money_video', async (ctx: any) => {
         const text = ctx.message.text.trim().replace('/money_video', '/money-video');
-        await ctx.reply("ðŸŽ¥ **Starting FBA YouTube Intelligence...**\nScraping trending videos, extracting transcripts, and scoring products. This may take 5-20 minutes depending on video length...");
+        await ctx.reply("🎥 <b>Starting FBA YouTube Intelligence...</b>\nScraping trending videos, extracting transcripts, and scoring products. This may take 5-20 minutes depending on video length...", { parse_mode: 'HTML' });
         try {
             const res = await handleMoneyVideoCommand(text, ctx.chat.id);
             await ctx.reply(res);
@@ -606,10 +594,10 @@ export function setupRouter(bot: Telegraf) {
         const userId = String(ctx.from?.id || 'default');
 
         if (text === '/ruflo') {
-            return ctx.reply("ðŸŒŠ **Ruflo Swarm Engine**\n\nUsage: `/ruflo [memory|swarm|youtube] [task]`\nExample: `/ruflo youtube \"AI Real Estate Investing\"`", { parse_mode: 'Markdown' });
+            return ctx.reply("🌊 <b>Ruflo Swarm Engine</b>\n\nUsage: <code>/ruflo [memory|swarm|youtube] [task]</code>\nExample: <code>/ruflo youtube \"AI Real Estate Investing\"</code>", { parse_mode: 'HTML' });
         }
 
-        await ctx.reply("ðŸŒŠ **Ruflo Engine Initializing...**\nDeploying agent swarm. This may take a few moments...");
+        await ctx.reply("🌊 <b>Ruflo Engine Initializing...</b>\nDeploying agent swarm. This may take a few moments...", { parse_mode: 'HTML' });
 
         try {
             const result = await handleHapdaCommand(text, userId);
@@ -619,13 +607,13 @@ export function setupRouter(bot: Telegraf) {
             }
 
             if (result.length <= 4096) {
-                await ctx.reply(result, { parse_mode: 'Markdown' }).catch(() => ctx.reply(result));
+                await ctx.reply(result, { parse_mode: 'HTML' }).catch(() => ctx.reply(result));
             } else {
                 const chunks = result.match(/[\s\S]{1,4000}/g) ?? [result];
                 for (const chunk of chunks) await ctx.reply(chunk).catch(() => { });
             }
         } catch (err: any) {
-            ctx.reply(`âŒ **Ruflo Swarm Failed**: ${err.message}`, { parse_mode: 'Markdown' });
+            ctx.reply(`❌ <b>Ruflo Swarm Failed</b>: <code>${sanitizeHTML(err.message)}</code>`, { parse_mode: "HTML" });
         }
     });
 
@@ -633,17 +621,17 @@ export function setupRouter(bot: Telegraf) {
     bot.command('buildfunnel', async (ctx: any) => {
         const text = ctx.message.text.replace('/buildfunnel', '').trim();
         if (!text) {
-            return ctx.reply("ðŸ”¥ **HADES System Builder**\n\nUsage: `/buildfunnel [business description]`\nExample: `/buildfunnel A MedSpa in Miami with 3 locations`", { parse_mode: 'Markdown' });
+            return ctx.reply("🔥 <b>HADES System Builder</b>\n\nUsage: <code>/buildfunnel [business description]</code>\nExample: <code>/buildfunnel A MedSpa in Miami with 3 locations</code>", { parse_mode: 'HTML' });
         }
         
         await ctx.reply("ðŸ—ï¸ **Architecting HADES Funnel...**\nProvisionsing bots, mapping workflows, and generating your agency proposal. Please wait...");
         try {
             const res = await systemBuilderAgent.handle(text, ctx.from?.id, ctx.chat?.id);
             if (res.length <= 4096) {
-                await ctx.reply(res, { parse_mode: 'Markdown' });
+                await ctx.reply(res, { parse_mode: "HTML" });
             } else {
                 const chunks = res.match(/[\s\S]{1,4000}/g) ?? [res];
-                for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => {});
+                for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: "HTML" }).catch(() => {});
             }
         } catch (err: any) {
             ctx.reply(`âŒ **Builder Failed**: ${err.message}`);
@@ -654,17 +642,17 @@ export function setupRouter(bot: Telegraf) {
     bot.command('buildsystem', async (ctx: any) => {
         const text = ctx.message.text.replace('/buildsystem', '').trim();
         if (!text) {
-            return ctx.reply("ðŸ—ï¸ **Open-Stack System Builder**\n\nUsage: `/buildsystem [business, location]`\nExample: `/buildsystem Roofing Pros, Dallas TX`", { parse_mode: 'Markdown' });
+            return ctx.reply("🏗️ <b>Open-Stack System Builder</b>\n\nUsage: <code>/buildsystem [business, location]</code>\nExample: <code>/buildsystem Roofing Pros, Dallas TX</code>", { parse_mode: "HTML" });
         }
         
         await ctx.reply("ðŸŒ **Architecting Open-Stack Ecosystem...**\nMapping Vapi + Cal.com + Chatwoot workflows. Saving to Supabase vault.");
         try {
             const res = await systemBuilderAgent.handle(text, ctx.from?.id, ctx.chat?.id);
             if (res.length <= 4096) {
-                await ctx.reply(res, { parse_mode: 'Markdown' });
+                await ctx.reply(res, { parse_mode: "HTML" });
             } else {
                 const chunks = res.match(/[\s\S]{1,4000}/g) ?? [res];
-                for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: 'Markdown' }).catch(() => {});
+                for (const chunk of chunks) await ctx.reply(chunk, { parse_mode: "HTML" }).catch(() => {});
             }
         } catch (err: any) {
             ctx.reply(`âŒ **System Build Failed**: ${err.message}`);
@@ -675,10 +663,10 @@ export function setupRouter(bot: Telegraf) {
     bot.command('proposal', async (ctx: any) => {
         const clientId = ctx.message.text.replace('/proposal', '').trim();
         if (!clientId) {
-            return ctx.reply("ðŸ“„ **Proposal Generator**\n\nUsage: `/proposal [clientId]`\n_You can get the clientId from the /buildsystem output._", { parse_mode: 'Markdown' });
+            return ctx.reply("📄 <b>Proposal Generator</b>\n\nUsage: <code>/proposal [clientId]</code>\n<i>You can get the clientId from the /buildsystem output.</i>", { parse_mode: 'HTML' });
         }
 
-        await ctx.reply(`ðŸ“„ **Generating Professional PDF Proposal...**\nFetching Client ID: \`${clientId}\``, { parse_mode: 'Markdown' });
+        await ctx.reply(`📄 <b>Generating Professional PDF Proposal...</b>\nFetching Client ID: <code>${clientId}</code>`, { parse_mode: 'HTML' });
         
         try {
             const pdfBuffer = await systemBuilderService.generateProposalPDF(clientId);
@@ -686,7 +674,7 @@ export function setupRouter(bot: Telegraf) {
                 source: pdfBuffer,
                 filename: `HADES_Proposal_${clientId.substring(0,8)}.pdf`
             }, {
-                caption: `âœ… **Proposal Ready**\n\nHere is your professional HADES System Architecture proposal. Ready to send to the client.`
+                caption: `✅ <b>Proposal Ready</b>\n\nHere is your professional HADES System Architecture proposal. Ready to send to the client.`
             });
         } catch (err: any) {
             ctx.reply(`âŒ **Proposal Failed**: ${err.message}`);
@@ -695,7 +683,7 @@ export function setupRouter(bot: Telegraf) {
 
     // 24. System Management: List
     bot.command('listsystems', async (ctx: any) => {
-        await ctx.reply("ðŸ“‚ **Fetching Client Systems...**", { parse_mode: 'Markdown' });
+        await ctx.reply("📂 <b>Fetching Client Systems...</b>", { parse_mode: 'HTML' });
         try {
             const { getSupabase } = await import('../core/supabase.js');
             const supabase = getSupabase();
@@ -709,14 +697,14 @@ export function setupRouter(bot: Telegraf) {
                 .limit(10);
 
             if (error || !data?.length) {
-                return ctx.reply("âš ï¸ No systems built yet. Try `/buildsystem Dallas Roofing`", { parse_mode: 'Markdown' });
+                return ctx.reply("📭 No systems built yet. Try <code>/buildsystem Dallas Roofing</code>", { parse_mode: "HTML" });
             }
 
             const lines = data.map((s: any, i: number) =>
                 `${i + 1}. *${s.business_name}* â€” ${s.tier} â€” $${s.monthly_price}/mo â€” ${s.status}`
             ).join("\n");
 
-            await ctx.reply(`âš¡ **YOUR CLIENT SYSTEMS**\n\n${lines}\n\nUse \`/viewsystem [id]\` to see details.`, { parse_mode: 'Markdown' });
+            await ctx.reply(`⚡ <b>YOUR CLIENT SYSTEMS</b>\n\n${lines}\n\nUse <code>/viewsystem [id]</code> to see details.`, { parse_mode: 'HTML' });
         } catch (err: any) {
             ctx.reply(`âŒ **List Failed**: ${err.message}`);
         }
@@ -726,7 +714,7 @@ export function setupRouter(bot: Telegraf) {
     bot.command('viewsystem', async (ctx: any) => {
         const clientId = ctx.message.text.replace('/viewsystem', '').trim();
         if (!clientId) {
-            return ctx.reply("ðŸ” Usage: `/viewsystem [clientId]`", { parse_mode: 'Markdown' });
+            return ctx.reply("🔍 Usage: <code>/viewsystem [clientId]</code>", { parse_mode: "HTML" });
         }
 
         try {
@@ -744,135 +732,61 @@ export function setupRouter(bot: Telegraf) {
             if (error || !data) {
                 return ctx.reply("âŒ **System not found.** Check the ID and try again.");
             }
-
             const msg_text = `ðŸ—‚ **${data.business_name.toUpperCase()}** â€” ${data.tier}\n` +
                 `-----------------------------------\n` +
-                `ðŸ“ **Industry**: ${data.industry}\n` +
-                `ðŸ¢ **Status**: ${data.status}\n` +
+                `ðŸ“  **Industry**: ${data.industry}\n` +
+                `ðŸ ¢ **Status**: ${data.status}\n` +
                 `ðŸ’µ **Monthly**: $${data.monthly_price}/mo\n` +
                 `ðŸ¤– **Agents**: ${Array.isArray(data.agents) ? data.agents.join(", ") : 'CSR, ASSISTANT'}\n` +
                 `ðŸ“… **Created**: ${new Date(data.created_at).toLocaleDateString()}\n` +
                 `-----------------------------------\n` +
                 `Use \`/proposal ${clientId}\` to generate the PDF contract.`;
 
-            await ctx.reply(msg_text, { parse_mode: 'Markdown' });
+            await ctx.reply(msg_text, { parse_mode: 'HTML' });
         } catch (err: any) {
-            ctx.reply(`âŒ **View Failed**: ${err.message}`);
+            ctx.reply(`â Œ **View Failed**: ${err.message}`);
         }
     });
 
     // 26. ComfyUI â€” Local AI Media Generation
     registerComfyCommands(bot);
 
-    bot.command("drama_episode", async (ctx) => {
-        const args = ctx.message.text.split(" ").slice(1);
-        const agent = new dramaAgent.DramaAgent();
-        const reply = await agent.handleTelegramCommand("/drama_episode", args);
-        if (reply.length <= 4096) {
-            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
-        } else {
-            const chunks = reply.match(/[\s\S]{1,4000}/g) ?? [reply];
-            for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
-            return;
-        }
-    });
-
-    bot.command("drama_batch", async (ctx) => {
-        const args = ctx.message.text.split(" ").slice(1);
-        const agent = new dramaAgent.DramaAgent();
-        await ctx.reply("â³ Generating episode batch...");
-        const reply = await agent.handleTelegramCommand("/drama_batch", args);
-        if (reply.length <= 4096) {
-            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
-        } else {
-            const chunks = reply.match(/[\s\S]{1,4000}/g) ?? [reply];
-            for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
-            return;
-        }
-    });
-
-    bot.command("drama_hook", async (ctx) => {
-        const args = ctx.message.text.split(" ").slice(1);
-        const agent = new dramaAgent.DramaAgent();
-        const reply = await agent.handleTelegramCommand("/drama_hook", args);
-        if (reply.length <= 4096) {
-            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
-        } else {
-            const chunks = reply.match(/[\s\S]{1,4000}/g) ?? [reply];
-            for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
-            return;
-        }
-    });
-
-    bot.command("drama_prompts", async (ctx) => {
-        const args = ctx.message.text.split(" ").slice(1);
-        const agent = new dramaAgent.DramaAgent();
-        const reply = await agent.handleTelegramCommand("/drama_prompts", args);
-        if (reply.length <= 4096) {
-            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
-        } else {
-            const chunks = reply.match(/[\s\S]{1,4000}/g) ?? [reply];
-            for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
-            return;
-        }
-    });
-
-    bot.command("drama_season", async (ctx) => {
-        const args = ctx.message.text.split(" ").slice(1);
-        const agent = new dramaAgent.DramaAgent();
-        await ctx.reply("â³ Generating season outline...");
-        const reply = await agent.handleTelegramCommand("/drama_season", args);
-        // Split if too long
-        if (reply.length <= 4096) {
-            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
-        } else {
-            const chunks = reply.match(/[\s\S]{1,4000}/g) ?? [reply];
-            for (const chunk of chunks) await ctx.reply(chunk).catch(() => {});
-            return;
-        }
-    });
-
+    // 27. Drama / Cinema Commands
     bot.command("drama_status", async (ctx) => {
         try {
-            log("[router] Executing /drama_status");
             const agent = new dramaAgent.DramaAgent();
             const reply = await agent.handleTelegramCommand("/drama_status", []);
-            log(`[router] /drama_status reply length: ${reply.length}`);
-            return ctx.reply(reply, { parse_mode: "Markdown" }).catch(() => ctx.reply(reply));
+            return ctx.reply(reply, { parse_mode: "HTML" }).catch(() => ctx.reply(reply));
         } catch (err: any) {
             log(`[router] /drama_status error: ${err.message}`, "error");
-            ctx.reply(`âŒ Drama Status Error: ${err.message}`);
+            ctx.reply(`❌ Drama Status Error: ${err.message}`);
         }
     });
 
     bot.command("drama_produce", async (ctx) => {
-        const args = ctx.message.text.split(" ").slice(1);
+        const args = (ctx.message as any).text.split(" ").slice(1);
         try {
             const agent = new dramaAgent.DramaAgent();
             const reply = await agent.handleTelegramCommand("/drama_produce", args, ctx);
-            return ctx.reply(reply, { parse_mode: "Markdown" });
+            return ctx.reply(sanitizeHTML(reply), { parse_mode: "HTML" }).catch(() => ctx.reply(reply));
         } catch (err: any) {
-            ctx.reply(`âŒ Production Failed: ${err.message}`);
+            log(`[router] /drama_produce error: ${err.message}`, "error");
+            ctx.reply(`❌ Drama Produce Error: ${err.message}`);
         }
     });
 
-    bot.command("drama_batch", async (ctx) => {
-        const args = ctx.message.text.split(" ").slice(1);
-        await ctx.reply("ðŸ“¦ *Starting batch script generation...*", { parse_mode: "Markdown" });
-        const agent = new dramaAgent.DramaAgent();
-        const reply = await agent.handleTelegramCommand("/drama_batch", args, ctx);
-        return ctx.reply(reply, { parse_mode: "Markdown" });
-    });
-
     bot.command("drama_hook", async (ctx) => {
-        const args = ctx.message.text.split(" ").slice(1);
-        const agent = new dramaAgent.DramaAgent();
-        const reply = await agent.handleTelegramCommand("/drama_hook", args, ctx);
-        return ctx.reply(reply, { parse_mode: "Markdown" });
+        const args = (ctx.message as any).text.split(" ").slice(1);
+        try {
+            const agent = new dramaAgent.DramaAgent();
+            const reply = await agent.handleTelegramCommand("/drama_hook", args, ctx);
+            return ctx.reply(sanitizeHTML(reply), { parse_mode: "HTML" }).catch(() => ctx.reply(reply));
+        } catch (err: any) {
+            log(`[router] /drama_hook error: ${err.message}`, "error");
+            ctx.reply(`❌ Drama Hook Error: ${err.message}`);
+        }
     });
-
 
     log("[router] Routes configured.");
-
 }
 

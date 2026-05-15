@@ -14,6 +14,13 @@ import { RequestQueue } from "../queue.js";
 import { WikiService } from "../../services/wikiService.js";
 import { askAI } from "../ai.js";
 import { isDramaCommand, routeToDramaAgent } from "../../agents/drama/DramaAgent.js";
+import { HermesAgent } from "../../agents/hermesAgent.js";
+import { AthenaAgent } from "../../agents/athenaAgent.js";
+import { AresAgent } from "../../agents/aresAgent.js";
+import { AtlasAgent } from "../../agents/atlasAgent.js";
+import { HephaestusAgent } from "../../agents/hephaestusAgent.js";
+import { TaskPlan, TaskNode } from "../planner.js";
+import { updateTaskInDB, updatePlanStatus } from "../taskMemory.js";
 
 import { unpackContent } from "../unpack.js";
 
@@ -96,11 +103,63 @@ export class CouncilOrchestrator {
             }
         }
 
+        // --- SKILLS DISCOVERY ---
+        if (userInput.startsWith("/skills") || userInput.startsWith("/capabilities")) {
+            log(`[council] Skills discovery requested.`);
+            const { SKILLS } = await import("../skills.js");
+            const list = SKILLS
+                .filter(s => !s.id.startsWith("claude-") && !s.id.startsWith("superpower-"))
+                .map(s => `âœ¨ **${s.name}** (\`${s.id}\`)\n   _${s.description}_`)
+                .join("\n\n");
+            
+            return `ðŸ”’ **Spirit Capabilities Registry**\n\n${list}\n\n_Tip: I automatically activate these based on your intent. You can also force one using its ID._`;
+        }
+
+        // --- RESUME COMMAND ---
+        if (userInput.startsWith("/resume")) {
+            const planId = userInput.replace("/resume", "").trim();
+            if (!planId) return "âš ï¸  Please specify a Plan ID to resume. (e.g., /resume plan_123)";
+            
+            log(`[council] Resume intent detected for plan: ${planId}`);
+            const { getPlan, getTasksForPlan } = await import("../taskMemory.js");
+            const { getRecentMessages } = await import("../memory.js");
+            const plan: any = getPlan(planId);
+            if (!plan) return `❌ Plan ${planId} not found in Spirit Memory.`;
+            
+            const tasks = getTasksForPlan(planId);
+            const taskPlan: TaskPlan = {
+                id: plan.id,
+                goal: plan.goal,
+                nodes: tasks.map((t: any) => ({
+                    id: t.id,
+                    agent: t.agent,
+                    task: t.task,
+                    status: t.status,
+                    result: t.result,
+                    dependsOn: t.dependsOn
+                })),
+                createdAt: plan.created_at
+            };
+
+            const history = getRecentMessages(chatId, 6);
+            const hotCache = WikiService.getHotCache();
+            const masterContext = `
+${COUNCIL_MASTER_PERSONA}
+
+--- RECENT SPIRIT MEMORY (HOT CACHE) ---
+${hotCache}
+---------------------------------------
+[RESUMING PLAN: ${planId}]
+`;
+
+            return await this.executePlan(taskPlan, history, masterContext);
+        }
+
         // 1. Route the intent
         const routeResult = await this.router.route(userInput);
         const { tasks, goal, skillId } = routeResult;
 
-        log(`[council] Goal identified: ${goal}. Triggering ${tasks.length} tasks.`);
+        log(`[council] Goal identified: ${goal}.`);
 
         // 2. Load context (Memory & Skills)
         const { SKILLS } = await import("../skills.js");
@@ -121,44 +180,36 @@ ${hotCache}
 ${skillContext}
 `;
 
-        // 3. Execute tasks sequentially
-        const responses: string[] = [];
-        for (const task of tasks) {
-            let success = false;
-            let retries = 2;
-            let lastError = "";
+        // 3. Execute plan (DAG or Sequential)
+        let finalOutput = "";
 
-            while (!success && retries >= 0) {
+        if (routeResult.plan) {
+            finalOutput = await this.executePlan(routeResult.plan, history, masterContext);
+        } else {
+            // Fallback for linear tasks if no plan generated
+            const responses: string[] = [];
+            let executionContext = ""; 
+            for (const task of tasks) {
                 try {
                     const agent = this.instantiateAgent(task.agent);
-                    log(`[council] Executing ${task.agent} (Retries left: ${retries})...`);
-                    
-                    // Inject Skill and Memory
-                    const result = await agent.ask(task.task, history, masterContext);
-                    
-                    const agentName = agent.getName ? agent.getName() : task.agent;
+                    const enrichedTask = executionContext 
+                        ? `[CONTEXT FROM PREVIOUS AGENTS]\n${executionContext}\n\n[YOUR TASK]\n${task.task}`
+                        : task.task;
+                    const result = await agent.ask(enrichedTask, history, masterContext);
                     const content = unpackContent(result);
+                    const agentName = agent.getName ? agent.getName() : task.agent;
                     responses.push(`**[${agentName}]**: ${content}`);
-                    success = true;
-                    
-                    await new Promise(r => setTimeout(r, 500));
-                } catch (err: any) {
-                    lastError = err.message;
-                    retries--;
-                    if (retries >= 0) {
-                        const delay = (2 - retries) * 5000;
-                        log(`[council] Task ${task.agent} failed: ${err.message}. Retrying in ${delay}ms...`, "warn");
-                        await new Promise(r => setTimeout(r, delay));
-                    }
+                    executionContext += `\n--- Output from ${agentName} ---\n${content}\n`;
+                } catch (e: any) {
+                    responses.push(`**[${task.agent}]** Error: ${e.message}`);
                 }
             }
-
-            if (!success) {
-                responses.push(`**[${task.agent}]** Error: ${lastError}`);
-            }
+            finalOutput = responses.join("\n\n");
         }
 
-        const finalOutput = responses.join("\n\n") || "I processed your request but didn't generate a specific response. How else can I help?";
+        if (!finalOutput) {
+            finalOutput = "I processed your request but didn't generate a specific response. How else can I help?";
+        }
 
         // 4. Autonomous Background Wash
         this.washer.wash(chatId).catch(e => 
@@ -193,24 +244,159 @@ ${skillContext}
     private instantiateAgent(type: string): any {
         const normalized = type.toLowerCase().trim();
         switch (normalized) {
-            case "researcher": return new ResearcherAgent();
-            case "marketer": return new MarketerAgent();
+            case "hermes": return new HermesAgent();
+            case "athena": return new AthenaAgent();
+            case "ares": return new AresAgent();
+            case "atlas": return new AtlasAgent();
+            case "hephaestus": return new HephaestusAgent();
+            case "researcher": return new HermesAgent();
+            case "marketer": return new AresAgent();
             case "developer":
-            case "automation_script": return new DeveloperAgent();
-            case "architect": return new ArchitectAgent();
+            case "automation_script": return new HephaestusAgent();
+            case "architect": return new AthenaAgent();
             case "github": return new GitHubAgent();
-            case "finance": return new MasterTraderAgent();
+            case "finance": return new AthenaAgent();
             case "content":
-            case "media": return new ContentAgent();
+            case "media": return new AresAgent();
             case "gamestudio":
             case "game_studio":
             case "game": return new GameStudioAgent();
-            default: return new ResearcherAgent();
+            default: return new HermesAgent();
         }
     }
 
+    private async executePlan(plan: TaskPlan, history: any[], masterContext: string): Promise<string> {
+        log(`[orchestrator] Executing plan: ${plan.goal} with ${plan.nodes.length} nodes.`);
+        
+        const responses: string[] = [];
+        const completedNodes = new Map<string, string>(); // id -> result
+        const retryCounts = new Map<string, number>(); // id -> count
+        const MAX_RETRIES = 2;
+
+        // Initialize completedNodes from existing plan if resuming
+        for (const node of plan.nodes) {
+            if (node.status === 'completed' && node.result) {
+                completedNodes.set(node.id, node.result);
+                const agentName = node.agent; // Best guess if we don't have name
+                responses.push(`**[${agentName}] (Restored)**: ${node.result.substring(0, 100)}...`);
+            }
+        }
+
+        while (plan.nodes.some(n => n.status === 'pending' || n.status === 'running' || n.status === 'failed')) {
+            const readyNodes = plan.nodes.filter(n => {
+                const isReady = (n.status === 'pending' || n.status === 'failed') && 
+                                (n.dependsOn || []).every(depId => completedNodes.has(depId));
+                
+                // If it's failed, only retry if we haven't exceeded MAX_RETRIES
+                if (n.status === 'failed') {
+                    const count = retryCounts.get(n.id) || 0;
+                    return isReady && count < MAX_RETRIES;
+                }
+                return isReady;
+            });
+
+            if (readyNodes.length === 0) {
+                if (plan.nodes.some(n => n.status === 'running')) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    continue;
+                } else {
+                    // No nodes are ready and none are running. Check if all are completed or some are permanently failed.
+                    const allDone = plan.nodes.every(n => n.status === 'completed');
+                    if (allDone) break;
+                    
+                    log(`[orchestrator] Plan stalled or permanently failed.`, "error");
+                    break;
+                }
+            }
+
+            // Execute ready nodes in parallel
+            await Promise.all(readyNodes.map(async (node) => {
+                const currentStatus = node.status;
+                node.status = 'running';
+                updateTaskInDB(node.id, 'running');
+
+                try {
+                    const agent = this.instantiateAgent(node.agent);
+                    const attempt = (retryCounts.get(node.id) || 0) + 1;
+                    log(`[orchestrator] Executing node ${node.id} with ${node.agent} (Attempt ${attempt})...`);
+                    
+                    let dependencyContext = "";
+                    if (node.dependsOn && node.dependsOn.length > 0) {
+                        dependencyContext = "\n--- CONTEXT FROM PREVIOUS STEPS ---\n";
+                        for (const depId of node.dependsOn) {
+                            const result = completedNodes.get(depId);
+                            if (result) {
+                                dependencyContext += `[Output from ${depId}]:\n${result}\n`;
+                            }
+                        }
+                        dependencyContext += "-----------------------------------\n";
+                    }
+
+                    const enrichedTask = dependencyContext 
+                        ? `${dependencyContext}\n[YOUR TASK]\n${node.task}`
+                        : node.task;
+
+                    const result = await agent.ask(enrichedTask, history, masterContext);
+                    const content = unpackContent(result);
+                    
+                    node.status = 'completed';
+                    node.result = content;
+                    completedNodes.set(node.id, content);
+                    
+                    // PERSIST: Update task result
+                    updateTaskInDB(node.id, 'completed', content);
+                    
+                    const agentName = agent.getName ? agent.getName() : node.agent;
+                    responses.push(`**[${agentName}]**: ${content}`);
+                } catch (err: any) {
+                    const count = (retryCounts.get(node.id) || 0) + 1;
+                    retryCounts.set(node.id, count);
+                    
+                    log(`[orchestrator] Node ${node.id} failed (Attempt ${count}): ${err.message}`, "error");
+                    
+                    if (count < MAX_RETRIES) {
+                        node.status = 'failed'; // Mark as failed to allow retry in next loop iteration
+                        updateTaskInDB(node.id, 'failed', undefined, `Attempt ${count} failed: ${err.message}`);
+                    } else {
+                        node.status = 'failed'; // Permanent fail
+                        updateTaskInDB(node.id, 'failed', undefined, `Final attempt ${count} failed: ${err.message}`);
+                        responses.push(`**[${node.agent}]** Permanent Failure: ${err.message}`);
+                    }
+                }
+            }));
+        }
+
+        // Final Plan Status Update
+        const failed = plan.nodes.some(n => n.status === 'failed' && !completedNodes.has(n.id));
+        updatePlanStatus(plan.id, failed ? 'failed' : 'completed');
+
+        return responses.join("\n\n") || "Plan execution yielded no output.";
+    }
+
+    public async resumePlan(planId: string, history: any[], masterContext: string): Promise<string> {
+        const { getPlan, getTasksForPlan } = await import("../taskMemory.js");
+        const plan: any = getPlan(planId);
+        if (!plan) throw new Error("Plan not found");
+        
+        const tasks = getTasksForPlan(planId);
+        const taskPlan: TaskPlan = {
+            id: plan.id,
+            goal: plan.goal,
+            nodes: tasks.map((t: any) => ({
+                id: t.id,
+                agent: t.agent,
+                task: t.task,
+                status: t.status,
+                result: t.result,
+                dependsOn: t.dependsOn
+            })),
+            createdAt: plan.created_at
+        };
+
+        return this.executePlan(taskPlan, history, masterContext);
+    }
+
     private async updateWikiAsync(input: string, output: string, chatId: number) {
-        // 1. Synthesize a brief summary for the Hot Cache
         const summaryPrompt = `Summarize this interaction for a "Hot Cache" (recent memory). Focus on key outcomes and data.
 User: ${input}
 Council: ${output.substring(0, 500)}...`;
@@ -218,10 +404,8 @@ Council: ${output.substring(0, 500)}...`;
         const summaryRes = await askAI(summaryPrompt, "You are a concise memory summary agent.", { model: "google/gemini-2.0-flash-001" });
         const summary = summaryRes.content || "Interaction processed.";
 
-        // 2. Update Hot Cache
         await WikiService.updateHotCache(summary);
 
-        // 3. Save as a full source note if it's significant
         if (output.length > 500) {
             const title = `Chat_${new Date().getTime()}`;
             await WikiService.saveNote(title, `## Interaction\n\n**User**: ${input}\n\n**Council**:\n${output}`, 'sources');

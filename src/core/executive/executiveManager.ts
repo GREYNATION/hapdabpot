@@ -1,4 +1,4 @@
-﻿import fs from 'fs';
+import fs from 'fs';
 import path from 'path';
 import { log, config } from '../config.js';
 import { CrmManager } from '../crm.js';
@@ -8,6 +8,7 @@ import {
     listEvents, 
     driveListFiles 
 } from '../../agents/googleWorkspaceAgent.js';
+import { sanitizeHTML } from '../telegramUtils.js';
 
 export interface Decision {
     title: string;
@@ -28,55 +29,55 @@ export class ExecutiveManager {
         const today = new Date();
         const dateStr = today.toISOString().split('T')[0];
         
-        let report = `# ðŸŒ… Morning Command Center â€” ${dateStr}\n\n`;
+        let report = `☀️ <b>Morning Command Center — ${dateStr}</b>\n\n`;
 
         // 1. Calendar Prep (Workflow #2)
         if (isGoogleEnabled()) {
-            report += `## ðŸ“… Today's Schedule\n`;
+            report += `📅 <b>Today's Schedule</b>\n`;
             try {
                 const events = await listEvents(1);
                 report += events + "\n\n";
             } catch (e: any) {
-                report += `âš ï¸ Calendar error: ${e.message}\n\n`;
+                report += `⚠️ <b>Calendar error</b>: ${e.message}\n\n`;
             }
 
             // 2. Email Triage (Workflow #3)
-            report += `## ðŸ“© Email Triage\n`;
+            report += `📩 <b>Email Triage</b>\n`;
             try {
                 const emails = await listEmails("is:unread", 5);
                 report += emails + "\n\n";
             } catch (e: any) {
-                report += `âš ï¸ Gmail error: ${e.message}\n\n`;
+                report += `⚠️ <b>Gmail error</b>: ${e.message}\n\n`;
             }
         } else {
-            report += `âš ï¸ Google Workspace not connected. Skipping Calendar/Gmail triage.\n\n`;
+            report += `⚠️ Google Workspace not connected. Skipping Calendar/Gmail triage.\n\n`;
         }
 
         // 3. CRM Snapshot
         const stats = CrmManager.getStats();
         const followUps = CrmManager.getFollowUpsDueToday();
         
-        report += `## ðŸ—ï¸ Pipeline Snapshot\n`;
-        report += `- **Leads**: ${stats.leads}\n`;
-        report += `- **Contacted**: ${stats.contacted}\n`;
-        report += `- **Contracts**: ${stats.contracts || 0}\n\n`;
+        report += `📊 <b>Pipeline Snapshot</b>\n`;
+        report += `• <b>Leads</b>: ${stats.leads}\n`;
+        report += `• <b>Contacted</b>: ${stats.contacted}\n`;
+        report += `• <b>Contracts</b>: ${stats.contracts || 0}\n\n`;
 
         if (followUps.length > 0) {
-            report += `### ðŸŽ¯ High-Priority Follow-ups\n`;
+            report += `🎯 <b>High-Priority Follow-ups</b>\n`;
             followUps.slice(0, 3).forEach(f => {
-                report += `- ${f.address} (${f.seller_name || 'Prospect'})\n`;
+                report += `• ${sanitizeHTML(f.address)} (${sanitizeHTML(f.seller_name || 'Prospect')})\n`;
             });
             report += `\n`;
         }
 
         // 4. Drive Highlights
         if (isGoogleEnabled()) {
-            report += `## ðŸ“‚ Recent Docs & Activity\n`;
+            report += `📂 <b>Recent Docs & Activity</b>\n`;
             try {
                 const files = await driveListFiles(undefined, 3);
                 report += files + "\n";
             } catch (e: any) {
-                report += `âš ï¸ Drive error: ${e.message}\n`;
+                report += `⚠️ <b>Drive error</b>: ${e.message}\n`;
             }
         }
 
@@ -100,15 +101,15 @@ export class ExecutiveManager {
         const dateStr = new Date().toISOString().split('T')[0];
         const filename = `${dateStr}-${title.toLowerCase().replace(/\s+/g, '-')}.md`;
         
-        const content = `# Decision: ${title}\n\n` +
-            `**Date**: ${decision.timestamp}\n\n` +
-            `## Logic & Context\n${logic}\n\n` +
-            `## Outcome\n${outcome}\n`;
+        const content = `<b>Decision: ${sanitizeHTML(title)}</b>\n\n` +
+            `<b>Date</b>: ${decision.timestamp}\n\n` +
+            `<b>Logic & Context</b>\n${sanitizeHTML(logic)}\n\n` +
+            `<b>Outcome</b>\n${sanitizeHTML(outcome)}\n`;
 
         this.saveMemory('decisions', filename, content);
         log(`[executive] Decision logged: ${title}`);
         
-        return `âœ… Decision logged to memory: ${title}`;
+        return `✅ Decision logged to memory: ${title}`;
     }
 
     /**
@@ -119,18 +120,20 @@ export class ExecutiveManager {
         log("[executive] Running Heartbeat Triage Pulse...");
         
         try {
-            const unreadCount = await listEmails("is:unread", 1);
+            const unreadEmails = await listEmails("is:unread", 1);
             
-            if (unreadCount?.includes("No emails found")) {
+            if (!unreadEmails || unreadEmails.includes("No emails found")) {
                 return null;
             }
 
-            return `ðŸ”” **Urgent Pulse**: Unread high-priority communications detected.\n\n${unreadCount}`;
+            // Sanitization happens inside googleWorkspaceAgent's listEmails or we do it here if we want HTML
+            return `🔔 <b>Urgent Pulse</b>: Unread high-priority communications detected.\n\n${unreadEmails}`;
         } catch (err: any) {
-            if (err.message?.includes("re-authentication")) {
-                return `âš ï¸ **SYSTEM ALERT**: Google Workspace disconnected (invalid_grant).\n\n**Action Required**: Please regenerate your \`GOOGLE_REFRESH_TOKEN\` in Railway to restore Gmail/Calendar triage.`;
+            if (err.message?.includes("re-authentication") || err.message?.includes("invalid_grant")) {
+                return `⚠️ <b>SYSTEM ALERT</b>: Google Workspace disconnected (invalid_grant).\n\n<b>Action Required</b>: Please regenerate your <code>GOOGLE_REFRESH_TOKEN</code> in Railway to restore Gmail/Calendar triage.`;
             }
-            throw err;
+            log(`[executive] Triage pulse error: ${err.message}`, "error");
+            return null;
         }
     }
 

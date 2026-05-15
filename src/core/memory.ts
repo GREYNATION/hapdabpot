@@ -81,8 +81,7 @@ export function initDb() {
   // 6. Stuyza Agency Leads table (Modular)
   initLeadsTable(db);
 
-  // 7. Wholesale Deals table
-  db.exec(`
+        db.exec(`
         CREATE TABLE IF NOT EXISTS deals (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             address TEXT NOT NULL,
@@ -94,6 +93,7 @@ export function initDb() {
             status TEXT DEFAULT 'lead',
             assigned_buyer TEXT,
             city TEXT,
+            zip_code TEXT,
             profit REAL DEFAULT 0,
             surplus REAL DEFAULT 0,
             price REAL DEFAULT 0,
@@ -104,6 +104,14 @@ export function initDb() {
             notes TEXT,
             last_call_status TEXT,
             invoice_prompted INTEGER DEFAULT 0,
+            acquisition_score INTEGER DEFAULT 0,
+            summary_why_it_matters TEXT,
+            summary_risk_level TEXT,
+            summary_opportunity TEXT,
+            summary_market_signals TEXT,
+            summary_strategy TEXT,
+            intelligence_status TEXT DEFAULT 'pending',
+            intelligence_retries INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -422,4 +430,28 @@ export async function logSession(agent: string, summary: string, raw_output: any
     meta,
     created_at: new Date().toISOString(),
   });
+}
+
+/**
+ * Persists a structured markdown note to the wiki directory.
+ */
+export async function wikiSave(filename: string, content: string) {
+  const wikiDir = path.resolve('./vault/wiki');
+  if (!fs.existsSync(wikiDir)) {
+    fs.mkdirSync(wikiDir, { recursive: true });
+  }
+
+  // Sanitize filename and ensure .md extension
+  const cleanFilename = filename.replace(/[^a-z0-9_\-\.]/gi, '_').toLowerCase();
+  const safeFilename = cleanFilename.endsWith('.md') ? cleanFilename : `${cleanFilename}.md`;
+  const filePath = path.join(wikiDir, safeFilename);
+
+  fs.writeFileSync(filePath, content);
+  
+  log(`[wiki] Saved note to: ${filePath}`);
+  
+  // Log the action to session logs
+  await logSession("knowledge-librarian", `Saved wiki note: ${safeFilename}`, { path: filePath });
+
+  return { success: true, path: filePath };
 }

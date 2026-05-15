@@ -6,6 +6,7 @@
 import cron from "node-cron";
 import { Telegraf } from "telegraf";
 import { ContentAgent } from "../agents/ContentAgent.js";
+import { sanitizeHTML } from "../core/telegramUtils.js";
 
 const contentCreator = new ContentAgent();
 
@@ -16,7 +17,7 @@ export function startContentCron(bot: Telegraf) {
         console.log("[cron] Starting daily content generation...");
         try {
             const result = await contentCreator.createVideo("daily real estate wholesaling tip", true);
-            if (ownerId) bot.telegram.sendMessage(ownerId, result, { parse_mode: "Markdown" });
+            if (ownerId) bot.telegram.sendMessage(ownerId, sanitizeHTML(result), { parse_mode: "HTML" });
         } catch (err) {
             console.error("[contentCron] Failed:", err);
             if (ownerId) bot.telegram.sendMessage(ownerId, `Daily content failed: ${err}`);

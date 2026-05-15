@@ -1,9 +1,10 @@
-﻿import { Context } from 'telegraf';
+import { Context } from 'telegraf';
 import Anthropic from '@anthropic-ai/sdk';
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { log } from '../core/config.js';
+import { sanitizeHTML } from '../core/telegramUtils.js';
 
 const client = new Anthropic();
 
@@ -73,7 +74,7 @@ related: []
 - Point 1 (max 7)
 
 ## Concepts
-**Name** â€” definition
+**Name** — definition
 
 ## Quotes / Highlights
 > "key quote"
@@ -90,11 +91,11 @@ export async function handleKBCommand(ctx: Context) {
     : '';
 
   if (!input) {
-    await ctx.reply('Usage: /kb [url or pasted content]');
+    await ctx.reply('Usage: <code>/kb [url or pasted content]</code>', { parse_mode: 'HTML' });
     return;
   }
 
-  await ctx.reply('ðŸ“š **Processing for knowledge base...**');
+  await ctx.reply('📚 <b>Processing for knowledge base...</b>', { parse_mode: 'HTML' });
 
   try {
     // Ensure repo is cloned and configured (if git is configured)
@@ -123,26 +124,25 @@ export async function handleKBCommand(ctx: Context) {
     if (!fs.existsSync(VAULT_PATH)) fs.mkdirSync(VAULT_PATH, { recursive: true });
     fs.writeFileSync(filepath, mdContent, 'utf-8');
 
-    let responseMsg = `âœ… **Saved to local vault**:\nðŸ“„ \`${filename}\``;
+    let responseMsg = `✅ <b>Saved to local vault</b>:\n📄 <code>${sanitizeHTML(filename)}</code>`;
 
     // Commit and push to GitHub if configured
     if (GITHUB_PAT && GITHUB_REPO_URL) {
         try {
             gitCommitAndPush(filename);
-            responseMsg = `âœ… **Saved + Pushed to GitHub**:\nðŸ“„ \`${filename}\`\n\nPull in Obsidian to sync.`;
+            responseMsg = `✅ <b>Saved + Pushed to GitHub</b>:\n📄 <code>${sanitizeHTML(filename)}</code>\n\nPull in Obsidian to sync.`;
         } catch (gitErr) {
-            responseMsg += `\n\nâš ï¸ **Git Push Failed**: Check logs. Content saved locally.`;
+            responseMsg += `\n\n⚠️ <b>Git Push Failed</b>: Check logs. Content saved locally.`;
         }
     }
 
     await ctx.reply(
       `${responseMsg}\n\n` +
-      `Preview:\n\`\`\`markdown\n${mdContent.slice(0, 300)}...\n\`\`\``,
-      { parse_mode: 'Markdown' }
+      `Preview:\n<pre><code class="language-markdown">${sanitizeHTML(mdContent.slice(0, 300))}...</code></pre>`,
+      { parse_mode: 'HTML' }
     );
   } catch (err: any) {
     log(`[KB] Error: ${err.message}`, "error");
-    await ctx.reply(`âŒ **KB Error**: ${err instanceof Error ? err.message : String(err)}`);
+    await ctx.reply(`❌ <b>KB Error</b>: <code>${sanitizeHTML(err instanceof Error ? err.message : String(err))}</code>`, { parse_mode: 'HTML' });
   }
 }
-

@@ -38,15 +38,15 @@ async function sendExecutiveBriefing(bot: Telegraf) {
     const report = await ExecutiveManager.generateMorningBriefing();
 
     // 2. Wrap and send to Telegram
-    let message = `☀️ **Executive Briefing Initialized**\n\n`;
+    let message = `☀️ <b>Executive Briefing Initialized</b>\n\n`;
     message += report;
 
     if (message.length <= 4096) {
-        await bot.telegram.sendMessage(ownerId, message, { parse_mode: "Markdown" });
+        await bot.telegram.sendMessage(ownerId, message, { parse_mode: "HTML" });
     } else {
         const chunks = message.match(/[\s\S]{1,4000}/g) ?? [message];
         for (const chunk of chunks) {
-            await bot.telegram.sendMessage(ownerId, chunk, { parse_mode: "Markdown" }).catch(() => {});
+            await bot.telegram.sendMessage(ownerId, chunk, { parse_mode: "HTML" }).catch(() => {});
         }
     }
 }

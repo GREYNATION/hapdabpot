@@ -1,4 +1,4 @@
-﻿import fs from "fs";
+import fs from "fs";
 import path from "path";
 import { log } from "./config.js";
 import { writeKnowledge } from "./memory.js";
@@ -65,6 +65,16 @@ export class HiveMind {
 
     public pinAgent(id: string | null) {
         this.state.pinned_agent_id = id;
+        this.saveState();
+    }
+
+    public setActiveMission(mission: string) {
+        this.state.active_mission = mission;
+        this.saveState();
+    }
+
+    public setObjectives(objectives: string[]) {
+        this.state.objectives = objectives;
         this.saveState();
     }
 

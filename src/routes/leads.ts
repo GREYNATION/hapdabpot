@@ -1,9 +1,10 @@
-﻿import { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import Database from 'better-sqlite3';
 import { insertStuyzaLead } from '../db/leads.js';
 import { Telegraf } from 'telegraf';
 import { log } from '../core/config.js';
+import { sanitizeHTML } from '../core/telegramUtils.js';
 
 export function createLeadsRouter(db: Database.Database, bot: Telegraf) {
   const router = Router();
@@ -15,7 +16,7 @@ export function createLeadsRouter(db: Database.Database, bot: Telegraf) {
     message: { error: 'Too many submissions. Try again later.' }
   });
 
-  // CORS â€” allow stuyza.com and localhost dev
+  // CORS — allow stuyza.com and localhost dev
   router.use((req, res, next) => {
     const allowed = [
       'https://www.stuyza.com',
@@ -51,27 +52,27 @@ export function createLeadsRouter(db: Database.Database, bot: Telegraf) {
         source: 'stuyza_landing'
       });
 
-      // Fire Telegram alert â€” non-blocking, won't crash if it fails
+      // Fire Telegram alert — non-blocking, won't crash if it fails
       const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID;
       if (OWNER_CHAT_ID) {
         try {
           const msg = [
-            `ðŸ”¥ *NEW STUYZA LEAD* â€” #${result.lastInsertRowid}`,
+            `🔥 <b>NEW STUYZA LEAD</b> — #${result.lastInsertRowid}`,
             ``,
-            `ðŸ‘¤ *${fname} ${lname || ''}*`,
-            `ðŸ“§ ${email}`,
-            `ðŸ“± ${phone || 'not provided'}`,
-            `ðŸ¢ ${biz_type || 'not specified'}`,
-            `ðŸ¤– Interested in: ${service || 'not specified'}`,
-            notes ? `ðŸ“ Notes: ${notes}` : '',
+            `👤 <b>${sanitizeHTML(fname)} ${sanitizeHTML(lname || '')}</b>`,
+            `📧 ${sanitizeHTML(email)}`,
+            `📱 ${sanitizeHTML(phone || 'not provided')}`,
+            `🏢 ${sanitizeHTML(biz_type || 'not specified')}`,
+            `🤖 Interested in: ${sanitizeHTML(service || 'not specified')}`,
+            notes ? `📝 Notes: ${sanitizeHTML(notes)}` : '',
             ``,
-            `â° ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`,
+            `🕒 ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`,
             ``,
-            `Reply /lead_${result.lastInsertRowid} to manage this lead`
+            `Reply <code>/lead_${result.lastInsertRowid}</code> to manage this lead`
           ].filter(Boolean).join('\n');
 
           await bot.telegram.sendMessage(OWNER_CHAT_ID, msg, {
-            parse_mode: 'Markdown'
+            parse_mode: 'HTML'
           });
         } catch (telegramErr) {
           console.error('[TELEGRAM ALERT FAILED]', telegramErr);
@@ -92,6 +93,3 @@ export function createLeadsRouter(db: Database.Database, bot: Telegraf) {
 
   return router;
 }
-
-
-

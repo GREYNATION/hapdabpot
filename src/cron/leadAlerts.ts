@@ -1,4 +1,4 @@
-﻿import cron from "node-cron";
+import cron from "node-cron";
 import { Telegraf } from "telegraf";
 import { CrmManager } from "../core/crm.js";
 import { getDb } from "../core/memory.js";
@@ -9,8 +9,9 @@ import { formatTopDeal, tagDeal } from "../services/leadFilter.js";
 import { log } from "../core/config.js";
 import { SupabaseCrm } from "../core/supabaseCrm.js";
 import { saveLeadToObsidian } from "../services/vaultService.js";
+import { sanitizeHTML } from "../core/telegramUtils.js";
 
-// â€”â€”â€” Types â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
+// ——— Types ——————————————————————————————————————————————————————————————————————
 
 interface LeadSearchCriteria {
     id: number;
@@ -21,26 +22,26 @@ interface LeadSearchCriteria {
     active: number;
 }
 
-// â€”â€”â€” Core Logic â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
+// ——— Core Logic —————————————————————————————————————————————————————————————————————
 
 export function startLeadAlerts(bot: Telegraf) {
     const SCAN_HOUR = Number(process.env.LEAD_SCAN_HOUR || 6); // 6 AM default
 
     log(`[cron] Initializing lead scanners. Scan set for ${SCAN_HOUR}:00 daily.`);
 
-    // ðŸ›¡ï¸ SHIELD: Pre-emptively run a scan if requested via CLI flag (for testing)
+    // 🛡️ SHIELD: Pre-emptively run a scan if requested via CLI flag (for testing)
     if (process.argv?.includes("--scan-now")) {
-        log("[cron] âš¡ CLI trigger detected: Running manual scan now...");
+        log("[cron] ⚡ CLI trigger detected: Running manual scan now...");
         processDailyLeadScan(bot);
     }
 
     // Daily at SCAN_HOUR AM
     cron.schedule(`0 ${SCAN_HOUR} * * *`, async () => {
-        log(`ðŸ¤– [cron] Starting scheduled ${SCAN_HOUR}:00 AM scan...`);
+        log(`🤖 [cron] Starting scheduled ${SCAN_HOUR}:00 AM scan...`);
         await processDailyLeadScan(bot);
     });
 
-    log("[cron] âœ… Daily lead alerts scheduled.");
+    log("[cron] ✅ Daily lead alerts scheduled.");
 }
 
 async function processDailyLeadScan(bot: Telegraf) {
@@ -65,15 +66,15 @@ async function processDailyLeadScan(bot: Telegraf) {
             const zips = criterion.zip_codes ? criterion.zip_codes.split(',').map((z: string) => z.trim()) : [];
             const leads = await findMotivatedSellers(criterion.state, criterion.city, zips, false);
             
-            // ðŸ›¡ï¸ SHIELD: Flatten results and remove any nulls/undefineds immediately
+            // 🛡️ SHIELD: Flatten results and remove any nulls/undefineds immediately
             const safeLeads = (leads || [])
                 .filter((lead: Lead) => lead !== null && lead !== undefined && lead.address);
 
             if (safeLeads.length === 0) {
-                log(`[leads] âš ï¸ Empty scan result for ${criterion.label} (${criterion.city}, ${criterion.state}). Possible anti-scraping block or no new inventory.`, "warn");
+                log(`[leads] ⚠️ Empty scan result for ${criterion.label} (${criterion.city}, ${criterion.state}). Possible anti-scraping block or no new inventory.`, "warn");
             }
 
-            // ðŸ›¡ï¸ SHIELD: Safely filter for this specific market
+            // 🛡️ SHIELD: Safely filter for this specific market
             const qualifyingDeals = safeLeads.filter(lead => {
                 try {
                     const addr = String(lead.address || "").toLowerCase();
@@ -82,11 +83,11 @@ async function processDailyLeadScan(bot: Telegraf) {
                     const targetCity = (criterion.city || "").toLowerCase();
                     const targetState = (criterion.state || "").toLowerCase();
 
-                    const matchesCity = targetCity ? (addr ?? "")?.includes(targetCity) : false;
-                    const matchesState = targetState ? (addr ?? "")?.includes(targetState) : false;
+                    const matchesCity = targetCity ? (addr.includes(targetCity) || (lead.city || "").toLowerCase().includes(targetCity)) : false;
+                    const matchesState = targetState ? (addr.includes(targetState) || (lead.state || "").toLowerCase().includes(targetState)) : false;
                     
                     const matchesZip = zips.length > 0 
-                        ? zips.some((zip: string) => (addr ?? "")?.includes(String(zip).toLowerCase())) 
+                        ? zips.some((zip: string) => addr.includes(zip.toLowerCase()) || (lead.zip || "").toString().includes(zip)) 
                         : true;
                     
                     return (matchesCity || matchesState) && matchesZip;
@@ -108,8 +109,8 @@ async function processDailyLeadScan(bot: Telegraf) {
     if (qualifyingDeals.length === 0) {
         await bot.telegram.sendMessage(
             OWNER_CHAT_ID,
-            "ðŸ” *Lead Scan Complete*\n\nNo new qualifying deals found in the target markets.",
-            { parse_mode: "Markdown" }
+            "🔍 <b>Lead Scan Complete</b>\n\nNo new qualifying deals found in the target markets.",
+            { parse_mode: "HTML" }
         );
         return;
     }
@@ -122,8 +123,8 @@ async function processDailyLeadScan(bot: Telegraf) {
     if (validDeals.length === 0) {
         await bot.telegram.sendMessage(
             OWNER_CHAT_ID,
-            "ðŸ” *Lead Scan Complete*\n\nNo new qualifying deals found today.",
-            { parse_mode: "Markdown" }
+            "🔍 <b>Lead Scan Complete</b>\n\nNo new qualifying deals found today.",
+            { parse_mode: "HTML" }
         );
         return;
     }
@@ -175,12 +176,12 @@ async function sendLeadAlertSummary(bot: Telegraf, chatId: number, leads: Lead[]
     }
 
     if (watchlist.length > 0) {
-        let watchMsg = `ðŸ“‹ **WATCHLIST SUMMARY (${watchlist.length} properties)**\n\n`;
+        let watchMsg = `📋 <b>WATCHLIST SUMMARY (${watchlist.length} properties)</b>\n\n`;
         watchlist.slice(0, 10).forEach((l, i) => {
-            watchMsg += `${i+1}. ${l.address} | Score: ${l.dealScore} | $${(l.price || 0).toLocaleString()}\n`;
+            watchMsg += `${i+1}. ${sanitizeHTML(l.address)} | Score: ${l.dealScore} | $${(l.price || 0).toLocaleString()}\n`;
         });
-        watchMsg += `\n_Type /scan to refresh or /addlead <number>_`;
-        await bot.telegram.sendMessage(chatId, watchMsg, { parse_mode: "Markdown" });
+        watchMsg += `\n<i>Type /scan to refresh or /addlead &lt;number&gt;</i>`;
+        await bot.telegram.sendMessage(chatId, watchMsg, { parse_mode: "HTML" });
     }
 }
 
@@ -189,7 +190,7 @@ export function registerLeadAlertHandlers(bot: Telegraf) {
 
     bot.command("scan", async (ctx) => {
         if (ctx.chat.id !== OWNER_CHAT_ID) return;
-        await ctx.reply("ðŸ” Running unified lead scan now... I'll alert you when I find real deals.");
+        await ctx.reply("🔍 Running unified lead scan now... I'll alert you when I find real deals.");
         await processDailyLeadScan(bot);
     });
 
@@ -197,14 +198,14 @@ export function registerLeadAlertHandlers(bot: Telegraf) {
         if (ctx.chat.id !== OWNER_CHAT_ID) return;
         const criteria = getDb().prepare("SELECT * FROM lead_search_criteria WHERE active = 1").all() as any[];
 
-        let msg = `ðŸ” *Active Search Criteria*\n\n`;
+        let msg = `🔍 <b>Active Search Criteria</b>\n\n`;
         criteria.forEach((c, i) => {
-            msg += `*${i + 1}. ${c.label}*\n`;
-            msg += `ðŸ“ ${c.city}, ${c.state}\n`;
-            msg += `ðŸ’° Max Price: $${c.max_price.toLocaleString()}\n`;
-            msg += `ðŸ“ˆ Min Profit: $${c.min_profit.toLocaleString()}\n\n`;
+            msg += `<b>${i + 1}. ${sanitizeHTML(c.label)}</b>\n`;
+            msg += `📍 ${sanitizeHTML(c.city)}, ${sanitizeHTML(c.state)}\n`;
+            msg += `💰 Max Price: $${c.max_price.toLocaleString()}\n`;
+            msg += `📈 Min Profit: $${c.min_profit.toLocaleString()}\n\n`;
         });
-        await ctx.reply(msg, { parse_mode: "Markdown" });
+        await ctx.reply(msg, { parse_mode: "HTML" });
     });
 
     bot.command("addlead", async (ctx) => {
@@ -229,10 +230,9 @@ export function registerLeadAlertHandlers(bot: Telegraf) {
             status: "lead",
         });
 
-        await ctx.reply(`âœ… *Added to CRM as Deal #${dealId}*\nðŸ“ ${lead.address}`, { parse_mode: "Markdown" });
+        await ctx.reply(`✅ <b>Added to CRM as Deal #${dealId}</b>\n📍 ${sanitizeHTML(lead.address)}`, { parse_mode: "HTML" });
         await promptOutreachApproval(bot, dealId);
     });
 
     log("[leads] Lead alert handlers registered.");
 }
-

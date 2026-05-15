@@ -4,6 +4,7 @@ import { PropertyScraper } from "./scraper.js";
 import { sendSms } from "../services/outreachService.js";
 import type { Lead } from "../types/lead.js";
 import { Telegraf } from "telegraf";
+import { sanitizeHTML } from "./telegramUtils.js";
 
 export interface SupabaseDeal {
     address: string;
@@ -19,6 +20,13 @@ export interface SupabaseDeal {
     stage?: string;
     source?: string;
     investor_id?: string;
+    summary_why_it_matters?: string;
+    summary_risk_level?: string;
+    summary_opportunity?: string;
+    summary_market_signals?: string;
+    summary_strategy?: string;
+    acquisition_score?: number;
+    intelligence_status?: string;
 }
 
 export class SupabaseCrm {
@@ -53,7 +61,14 @@ export class SupabaseCrm {
                 est_profit: data.est_profit,
                 status: data.status || "new",
                 source: data.source || "manual",
-                investor_id: data.investor_id
+                investor_id: data.investor_id,
+                summary_why_it_matters: data.summary_why_it_matters,
+                summary_risk_level: data.summary_risk_level,
+                summary_opportunity: data.summary_opportunity,
+                summary_market_signals: data.summary_market_signals,
+                summary_strategy: data.summary_strategy,
+                acquisition_score: data.acquisition_score,
+                intelligence_status: data.intelligence_status || 'pending'
             });
 
             if (error) throw error;
@@ -141,9 +156,9 @@ export class SupabaseCrm {
             if (!deals) return { leads: 0, underContract: 0, revenue: 0 };
 
             const leadsCount = deals.length;
-            const underContract = deals.filter((d: any) => d.stage === "under_contract").length;
+            const underContract = deals.filter((d: any) => d.status === "under_contract").length;
             const revenue = deals
-                .filter((d: any) => d.stage === "closed")
+                .filter((d: any) => d.status === "closed")
                 .reduce((sum: number, d: any) => sum + (d.profit || 0), 0);
 
             return { leads: leadsCount, underContract, revenue };
@@ -219,20 +234,15 @@ export class SupabaseCrm {
             if (error) throw error;
 
             const OWNER_CHAT_ID = Number(config.ownerId);
-            const message = `
-🏠 **DEAL READY**
+            const message = `🏠 <b>DEAL READY</b>\n\n` +
+                          `📍 ${sanitizeHTML(deal.address)}\n` +
+                          `💰 Profit: $${profit.toLocaleString()}\n` +
+                          `📊 ROI: ${roi.toFixed(1)}%\n\n` +
+                          `Approve contacting seller?\n\n` +
+                          `/approve ${record.id}\n` +
+                          `/reject ${record.id}`;
 
-📍 ${deal.address}
-💰 Profit: $${profit.toLocaleString()}
-📊 ROI: ${roi.toFixed(1)}%
-
-Approve contacting seller?
-
-/approve ${record.id}
-/reject ${record.id}
-            `;
-
-            await bot.telegram.sendMessage(OWNER_CHAT_ID, message, { parse_mode: "Markdown" });
+            await bot.telegram.sendMessage(OWNER_CHAT_ID, message, { parse_mode: "HTML" });
             log(`[supabaseCrm] 📩 Approval requested for deal: ${deal.address}`);
         } catch (err: any) {
             log(`[supabaseCrm] ❌ requestApproval failed: ${err.message}`, "error");
@@ -308,6 +318,28 @@ Approve contacting seller?
             log(`[supabaseCrm] ✅ Status updated in Supabase for ${phone}: ${status}`);
         } catch (err: any) {
             log(`[supabaseCrm] ⚠️ Failed to update Supabase status by phone: ${err.message}`, "error");
+        }
+    }
+
+    /**
+     * Updates an existing deal in Supabase with arbitrary fields.
+     */
+    static async updateDeal(address: string, updates: Partial<SupabaseDeal>): Promise<boolean> {
+        try {
+            const supabase = getSupabase();
+            if (!supabase) return false;
+
+            const { error } = await supabase
+                .from("deals")
+                .update({ ...updates, updated_at: new Date().toISOString() })
+                .eq("address", address);
+
+            if (error) throw error;
+            log(`[supabaseCrm] ✅ Supabase deal updated for ${address}`);
+            return true;
+        } catch (err: any) {
+            log(`[supabaseCrm] ⚠️ Failed to update Supabase deal: ${err.message}`, "error");
+            return false;
         }
     }
 }

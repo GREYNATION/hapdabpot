@@ -10,6 +10,7 @@ import { logScraperError, saveLeadToObsidian } from "./vaultService.js";
 import { healthManager } from "./sourceHealth.js";
 import { BraveSearch } from "./braveSearch.js";
 import { FirecrawlService } from "./firecrawlService.js";
+import { XMLParser } from "fast-xml-parser";
 
 const stealthAxios = axios.create({
   headers: {
@@ -24,7 +25,7 @@ const stealthAxios = axios.create({
 // Rate-limit helper: 7.5s between AI calls = max 8 req/min
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-// 🛡️ SAFE GUARD: Wraps any promise with a hard timeout to prevent hanging scraper tasks
+// ðŸ›¡ï¸ SAFE GUARD: Wraps any promise with a hard timeout to prevent hanging scraper tasks
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   const timeout = new Promise<never>((_, reject) =>
     setTimeout(() => reject(new Error(`[timeout] ${label} exceeded ${ms}ms`)), ms)
@@ -94,17 +95,27 @@ function estimateRepairs(price: number): number {
 async function scrapeCraigslist(market: typeof TARGET_MARKETS.texas[0]): Promise<Lead[]> {
   const leads: Lead[] = [];
   const queries = ["motivated+seller", "as+is+cash", "fixer+upper+investor", "foreclosure+cash"];
+  const parser = new XMLParser();
 
   for (const query of queries) { 
     try {
       const url = `https://${market.craigslist}.craigslist.org/search/rea?format=rss&srchType=T&query=${query}`;
-      const res = await stealthAxios.get(url);
-      const items = (typeof res.data === 'string' ? res.data : String(res.data || "")).match(/<item>([\s\S]*?)<\/item>/g) || [];
-      for (const item of items.slice(0, 8)) {
-        const title = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1] || "";
-        const link = item.match(/<link>(.*?)<\/link>/)?.[1] || "";
-        const desc = item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/)?.[1] || "";
-        const date = item.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || "";
+      log(`[scraper] Fetching Craigslist RSS: ${url}`);
+      const res = await withTimeout(stealthAxios.get(url), 10000, `Craigslist RSS ${query}`);
+      
+      const jsonObj = parser.parse(res.data);
+      const items = jsonObj.rss?.channel?.item;
+      
+      if (!items) continue;
+      
+      const itemArray = Array.isArray(items) ? items : [items];
+      
+      for (const item of itemArray.slice(0, 10)) {
+        const title = item.title || "";
+        const link = item.link || "";
+        const desc = item.description || "";
+        const date = item.pubDate || "";
+        
         const priceMatch = (title + desc).match(/\$[\d,]+/);
         const price = priceMatch ? parseInt(priceMatch[0].replace(/[$,]/g, "")) : undefined;
 
@@ -116,7 +127,7 @@ async function scrapeCraigslist(market: typeof TARGET_MARKETS.texas[0]): Promise
           source: "Craigslist FSBO",
           type: "FSBO",
           url: link,
-          description: desc.replace(/<[^>]+>/g, "").slice(0, 200),
+          description: desc.replace(/<[^>]+>/g, "").slice(0, 300),
           postedDate: date,
           distressSignals: scoreDistress(title + " " + desc)
         });
@@ -156,7 +167,7 @@ export async function searchAuctions(marketInput: any, activeOnly: boolean = fal
     `site:auction.com ${market.city} ${market.state} foreclosure`,
     `site:hubzu.com ${market.city} ${market.state}`,
     `site:bid4assets.com ${market.city} ${market.state}`,
-    `motivated seller ${market.city} ${market.state} "cash only" OR "as-is" OR "must sell"`
+    `motivated seller ${market.city} ${market.state} distressed`
   ];
 
   for (const query of queries) { 
@@ -217,7 +228,7 @@ export async function scrapeCuyahogaSheriff(): Promise<Lead[]> {
   return leads;
 }
 
-// 🛡️ Rotating User-Agents to avoid Zillow fingerprint detection
+// ðŸ›¡ï¸ Rotating User-Agents to avoid Zillow fingerprint detection
 const ZILLOW_USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
@@ -247,7 +258,7 @@ export async function quickZillowSearch(zip: string): Promise<Lead[]> {
       timezoneId: 'America/New_York',
     });
 
-    // 🛡️ Mask navigator.webdriver — this is the primary Zillow bot detector
+    // ðŸ›¡ï¸ Mask navigator.webdriver â€” this is the primary Zillow bot detector
     await context.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
       // Also mask common automation tells
@@ -271,7 +282,7 @@ export async function quickZillowSearch(zip: string): Promise<Lead[]> {
             page.waitForSelector('article[data-test="property-card"]', { timeout: 5000 })
           ]);
         } catch (e) {
-          log(`🛡️ Zillow blocked the view or no houses found for ${zip}.`, "warn");
+          log(`ðŸ›¡ï¸ Zillow blocked the view or no houses found for ${zip}.`, "warn");
         }
 
         const leads = await page.evaluate(() => {
@@ -372,7 +383,7 @@ export async function findMotivatedSellers(
 
     const zips = targetZips || [];
     if (zips.length > 0) {
-      log(`[scraper] 🕵️‍♂️ Hermes is performing stealth mission for ${zips.length} ZIPs...`);
+      log(`[scraper] ðŸ•µï¸â€â™‚ï¸ Hermes is performing stealth mission for ${zips.length} ZIPs...`);
       for (const zip of zips) {
         // Try Zillow Stealth first
         try {
@@ -393,7 +404,7 @@ export async function findMotivatedSellers(
         // Backup: Firecrawl Search
         try {
           if (healthManager.isHealthy('Firecrawl')) {
-            log(`[scraper] 🔄 Rotating to Firecrawl backup for ZIP ${zip}...`);
+            log(`[scraper] ðŸ”„ Rotating to Firecrawl backup for ZIP ${zip}...`);
             const fcResults = await withTimeout(
               FirecrawlService.search(`site:zillow.com ${zip} for sale by owner`, 5),
               30000,
@@ -401,17 +412,24 @@ export async function findMotivatedSellers(
             ) as any;
             
             if (fcResults && fcResults.data) {
-              const fcLeads = fcResults.data.map((r: any) => ({
-                address: r.title || "Unknown",
-                city: targetCity || "",
-                state: targetState || "",
-                price: 0, 
-                source: "Zillow (Firecrawl)",
-                type: "For Sale",
-                url: r.url,
-                description: r.description || r.markdown?.slice(0, 200),
-                distressSignals: scoreDistress(((r.description || "") + " " + (r.title || "")).toLowerCase())
-              }));
+              const fcLeads = fcResults.data.map((r: any) => {
+                const title = r.title || "Unknown";
+                const desc = r.description || r.markdown || "";
+                const priceMatch = (title + " " + desc).match(/\$[\d,]+/);
+                const price = priceMatch ? parseInt(priceMatch[0].replace(/[$,]/g, "")) : 0;
+
+                return {
+                  address: title,
+                  city: targetCity || "",
+                  state: targetState || "",
+                  price: price, 
+                  source: "Zillow (Firecrawl)",
+                  type: "For Sale",
+                  url: r.url,
+                  description: desc.slice(0, 500),
+                  distressSignals: scoreDistress((desc + " " + title).toLowerCase())
+                };
+              });
               allDeals.push(...fcLeads);
               log(`[scraper] Firecrawl added ${fcLeads.length} leads for ZIP ${zip}`);
             }
@@ -454,7 +472,7 @@ export async function findMotivatedSellers(
 
     await Promise.allSettled(marketPromises);
 
-    log(`[scraper] Raw leads: ${allDeals.length} — enriching with heuristics...`);
+    log(`[scraper] Raw leads: ${allDeals.length} â€” enriching with heuristics...`);
 
     const baseEnriched = allDeals
       .filter(lead => {
@@ -494,7 +512,7 @@ export async function findMotivatedSellers(
       .slice(0, 2);
 
     if (topCandidates.length > 0) {
-      log(`[scraper] 🕵️ Running deep research on top candidates...`);
+      log(`[scraper] ðŸ•µï¸ Running deep research on top candidates...`);
       for (const candidate of topCandidates) {
         const leadIndex = baseEnriched.findIndex(d => d.address === candidate.address);
         if (leadIndex !== -1) {
@@ -515,15 +533,16 @@ export async function findMotivatedSellers(
 export function formatLeads(leads: Lead[], limit = 5): string {
   if (leads.length === 0) return "No leads found. Try a different market.";
   const top = leads.slice(0, limit);
-  let out = `🏡 **${leads.length} leads found**\n\n`;
+  let out = `ðŸ¡ **${leads.length} leads found**\n\n`;
   top.forEach((l, i) => {
     out += `${i + 1}. **${l.address}**\n`;
-    out += `   📍 ${l.city}, ${l.state}\n`;
-    out += `   💰 ${l.price ? "$" + l.price.toLocaleString() : "Price N/A"}\n`;
-    out += `   🏷️ ${l.source} | ${l.type}\n`;
-    if (l.distressSignals?.length) out += `   🚨 ${l.distressSignals.join(", ")}\n`;
-    if (l.url) out += `   🔗 ${l.url}\n`;
+    out += `   ðŸ“ ${l.city}, ${l.state}\n`;
+    out += `   ðŸ’° ${l.price ? "$" + l.price.toLocaleString() : "Price N/A"}\n`;
+    out += `   ðŸ·ï¸ ${l.source} | ${l.type}\n`;
+    if (l.distressSignals?.length) out += `   ðŸš¨ ${l.distressSignals.join(", ")}\n`;
+    if (l.url) out += `   ðŸ”— ${l.url}\n`;
     out += "\n";
   });
   return out;
 }
+

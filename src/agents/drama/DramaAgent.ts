@@ -1,10 +1,11 @@
-﻿// src/agents/drama/DramaAgent.ts
+// src/agents/drama/DramaAgent.ts
 // GILDED CLAWS â€” DramaAgent for hapdabot / gravity-claw
 // GREYNATION / Hapdabot Productions
 
 import { askAI } from "../../core/ai.js";
 import { log } from "../../core/config.js";
 import { produceDynamicEpisode } from "../cinema/CinemaAgent.js";
+import { sanitizeHTML } from "../../core/telegramUtils.js";
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // TYPES
@@ -233,10 +234,10 @@ Focus on the rivalry between Luna and Victor, and the mystery of Eli's true pare
         case "/drama_batch": {
           const start = parseInt(args[0]) || 1;
           const end = parseInt(args[1]) || start + 2;
-          let report = `ðŸŽ¬ *Batch Production Started (Episodes ${start}-${end})*\n\n`;
+          let report = `🎬 <b>Batch Production Started (Episodes ${start}-${end})</b>\n\n`;
           for (let i = start; i <= end; i++) {
             const script = await this.generateEpisode(i);
-            report += `âœ… S${script.season}E${script.episode}: ${script.title}\n`;
+            report += `✅ S${script.season}E${script.episode}: ${sanitizeHTML(script.title)}\n`;
           }
           return report + `\nDone. Scripts are ready for visual prompting.`;
         }
@@ -244,7 +245,7 @@ Focus on the rivalry between Luna and Victor, and the mystery of Eli's true pare
         case "/drama_hook": {
           const summary = args.join(" ");
           const hook = await this.generateTikTokHook(summary);
-          return `ðŸŽ£ *TikTok Hook:* "${hook}"`;
+          return `🎣 <b>TikTok Hook:</b> "${sanitizeHTML(hook)}"`;
         }
 
         case "/drama_prompts": {
@@ -257,7 +258,7 @@ Focus on the rivalry between Luna and Victor, and the mystery of Eli's true pare
         case "/drama_season": {
           const num = parseInt(args[0]) || 3;
           const outline = await this.generateSeasonOutline(num);
-          return `ðŸ“… *S${num} Season Outline*\n\n${outline}`;
+          return `📅 <b>S${num} Season Outline</b>\n\n${sanitizeHTML(outline)}`;
         }
 
         case "/drama_status":
@@ -267,7 +268,7 @@ Focus on the rivalry between Luna and Victor, and the mystery of Eli's true pare
           const num = parseInt(args[0]) || 1;
           const script = await this.generateEpisode(num);
           
-          if (ctx) await ctx.reply(`ðŸŽ¬ *Script Ready:* S${script.season}E${script.episode} - "${script.title}"\nStarting visual production...`, { parse_mode: 'Markdown' });
+          if (ctx) await ctx.reply(`🎬 <b>Script Ready:</b> S${script.season}E${script.episode} - "<b>${sanitizeHTML(script.title)}</b>"\nStarting visual production...`, { parse_mode: 'HTML' });
 
           // Trigger visual production
           const clips = await produceDynamicEpisode(
@@ -284,7 +285,7 @@ Focus on the rivalry between Luna and Victor, and the mystery of Eli's true pare
             }
           }
           
-          return `âœ… *Visual Production Complete for S${script.season}E${script.episode}*\n\nGenerated ${clips.length} scenes.`;
+          return `✅ <b>Visual Production Complete for S${script.season}E${script.episode}</b>\n\nGenerated ${clips.length} scenes.`;
         }
 
         default:
@@ -365,28 +366,28 @@ CHARACTER: Dialogue line (emotion)
     return prompts;
   }
 
-  private formatEpisodeForTelegram(episode: EpisodeScript): string {
-    const header = `ðŸŽ¬ *GILDED CLAWS* â€” S${episode.season}E${episode.episode}\nðŸ“º *${episode.title}*\n\n`;
+    private formatEpisodeForTelegram(episode: EpisodeScript): string {
+    const header = `🎬 <b>GILDED CLAWS</b> — S${episode.season}E${episode.episode}\n📺 <b>${sanitizeHTML(episode.title)}</b>\n\n`;
     const scenes = episode.scenes.map((s) => {
-      const dialogue = s.dialogue.map((d) => `*${d.character}:* "${d.line}"`).join("\n");
-      return `ðŸ“ _${s.location}_\n${dialogue}`;
+      const dialogue = s.dialogue.map((d) => `<b>${sanitizeHTML(d.character)}:</b> "${sanitizeHTML(d.line)}"`).join("\n");
+      return `📍 <i>${sanitizeHTML(s.location)}</i>\n${dialogue}`;
     }).join("\n\n---\n\n");
-    return header + scenes + (episode.tiktokHook ? `\n\nðŸŽ£ *Hook:* ${episode.tiktokHook}` : "");
+    return header + scenes + (episode.tiktokHook ? `\n\n🎣 <b>Hook:</b> ${sanitizeHTML(episode.tiktokHook)}` : "");
   }
 
   private formatPromptsForTelegram(prompts: MuapiPrompt[]): string {
-    return `ðŸŽ¨ *Muapi.ai Prompts:*\n\n` + prompts.map((p) => `ðŸ‘¤ *${p.character}*\n\`\`\`\n${p.fullPrompt}\n\`\`\``).join("\n\n");
+    return `🎨 <b>Muapi.ai Prompts:</b>\n\n` + prompts.map((p) => `👤 <b>${sanitizeHTML(p.character)}</b>\n<code>\n${sanitizeHTML(p.fullPrompt)}\n</code>`).join("\n\n");
   }
 
-  private getProductionStatus(): string {
+    private getProductionStatus(): string {
     const cast = this.config.characters.map(c => c.name).join(", ");
-    return `ðŸŽ¬ **GILDED CLAWS â€” PRODUCTION STATUS**\n\n` +
-           `ðŸ“º **Series:** ${this.config.series}\n` +
-           `ðŸ“… **Season:** ${this.config.season}\n` +
-           `ðŸ“ **Episodes:** ${this.config.episodeCount}\n` +
-           `ðŸ‘¥ **Cast:** ${cast}\n\n` +
-           `**Available Commands:**\n` +
-           `/drama_episode, /drama_batch, /drama_hook, /drama_prompts, /drama_season`;
+    return `🎬 <b>GILDED CLAWS — PRODUCTION STATUS</b>\n\n` +
+           `📺 <b>Series:</b> ${this.config.series}\n` +
+           `📅 <b>Season:</b> ${this.config.season}\n` +
+           `📍 <b>Episodes:</b> ${this.config.episodeCount}\n` +
+           `👥 <b>Cast:</b> ${sanitizeHTML(cast)}\n\n` +
+           `<b>Available Commands:</b>\n` +
+           `<code>/drama_episode, /drama_batch, /drama_hook, /drama_prompts, /drama_season</code>`;
   }
 }
 

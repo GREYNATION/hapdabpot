@@ -1,6 +1,7 @@
 import { Telegraf } from 'telegraf';
 import { log } from '../core/config.js';
 import { CouncilOrchestrator } from '../core/orchestrator/councilOrchestrator.js';
+import { sanitizeHTML } from '../core/telegramUtils.js';
 
 const orchestrator = new CouncilOrchestrator();
 
@@ -10,14 +11,14 @@ export function registerArchiveCommand(bot: Telegraf) {
     
     if (!input) {
       return ctx.reply(
-        "📚 **Librarian: Knowledge Archive**\n\n" +
-        "Usage: `/archive [URL or Text]`\n" +
-        "Example: `/archive https://example.com/article`",
-        { parse_mode: 'Markdown' }
+        "📚 <b>Librarian: Knowledge Archive</b>\n\n" +
+        "Usage: <code>/archive [URL or Text]</code>\n" +
+        "Example: <code>/archive https://example.com/article</code>",
+        { parse_mode: 'HTML' }
       );
     }
 
-    await ctx.reply("📚 **Librarian is cataloging the content...**");
+    await ctx.reply("📚 <b>Librarian is cataloging the content...</b>", { parse_mode: 'HTML' });
 
     try {
       // Direct routing for the archive request
@@ -25,16 +26,16 @@ export function registerArchiveCommand(bot: Telegraf) {
       const result = await orchestrator.chat(`[LIBRARIAN ARCHIVE] ${input}`, ctx.chat.id);
       
       if (result.length <= 4096) {
-        await ctx.reply(result, { parse_mode: 'Markdown' });
+        await ctx.reply(result, { parse_mode: 'HTML' });
       } else {
         const chunks = result.match(/[\s\S]{1,4000}/g) ?? [result];
         for (const chunk of chunks) {
-          await ctx.reply(chunk).catch(() => {});
+          await ctx.reply(chunk, { parse_mode: 'HTML' }).catch(() => {});
         }
       }
     } catch (err: any) {
       log(`[archive] Command failed: ${err.message}`, 'error');
-      ctx.reply(`❌ **Archive Error**: ${err.message}`);
+      ctx.reply(`❌ <b>Archive Error</b>: <code>${sanitizeHTML(err.message)}</code>`, { parse_mode: 'HTML' });
     }
   });
 
@@ -42,17 +43,17 @@ export function registerArchiveCommand(bot: Telegraf) {
     const query = ctx.message.text.replace('/library', '').trim();
     
     if (!query) {
-      return ctx.reply("Usage: `/library [search term]`");
+      return ctx.reply("Usage: <code>/library [search term]</code>", { parse_mode: 'HTML' });
     }
 
-    await ctx.reply("🔍 **Searching Council Vault...**");
+    await ctx.reply("🔍 <b>Searching Council Vault...</b>", { parse_mode: 'HTML' });
 
     try {
       const result = await orchestrator.chat(`[LIBRARIAN SEARCH] ${query}`, ctx.chat.id);
-      await ctx.reply(result, { parse_mode: 'Markdown' });
+      await ctx.reply(result, { parse_mode: 'HTML' });
     } catch (err: any) {
       log(`[library] Command failed: ${err.message}`, 'error');
-      ctx.reply(`❌ **Library Error**: ${err.message}`);
+      ctx.reply(`❌ <b>Library Error</b>: <code>${sanitizeHTML(err.message)}</code>`, { parse_mode: 'HTML' });
     }
   });
 }
